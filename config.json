@@ -1,0 +1,1919 @@
+{
+  "_instrucoes": "ATM v4.0 — Edite rendimentos, equipes, de_para e tarifas. O script lê automaticamente.",
+  "_versao": "4.0",
+  "arquivo": "exame.xlsx",
+  "aba": "MICROPLANEJAMENTO_ABRIL_JUNHO",
+  "arquivo_tarifas": "Tarifas e Rendimento.xlsx",
+  "jornada_horas": 4.6,
+  "sequencia": {
+    "_doc": "Filtros devem refletir o texto do micro (ATIVIDADES). Substrings sem acento. manutencao_seco/umido: stub ate regras definidas.",
+    "modo": "implantacao",
+    "_stub_manutencao": "manutencao_seco e manutencao_umido usam placeholder no codigo; scheduler sem cascata ate configurar.",
+    "offset_limpeza_quimica_dias": 30,
+    "filtros_plantio": [
+      "plantio"
+    ],
+    "filtros_irrigacao": [
+      "irrig"
+    ],
+    "limpeza_quimica_filtros": [
+      "limpeza",
+      "quim"
+    ],
+    "limpeza_quimica_exclusoes": [
+      "impl",
+      "impl.",
+      "man",
+      "area quim"
+    ],
+    "implantacao_outras_fase": 5.5,
+    "implantacao_fases": [
+      {
+        "id": "rocada",
+        "filtros": [
+          "rocada",
+          "roçada"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "formiga",
+        "filtros": [
+          "formiga",
+          "combate a formiga",
+          "combate a formigas"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "coroamento",
+        "filtros": [
+          "coroamento",
+          "coroa"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "coveamento",
+        "filtros": [
+          "coveamento",
+          "coveam"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "adubacao_quimica",
+        "filtros": [
+          "adubacao quim",
+          "adubação quím",
+          "melhora quim"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "conducao_regeneracao",
+        "filtros": [
+          "conducao de regeneracao",
+          "condução de regeneração"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "limpeza_area_impl",
+        "filtros": [
+          "limpeza de area quim",
+          "limpeza de área qu"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "nucleacao_faixas",
+        "filtros": [
+          "nucleacao em faixas",
+          "nucleação em faixas"
+        ],
+        "exclusoes": []
+      }
+    ],
+    "personalizado_ordem": [],
+    "swg_fases": [
+      {
+        "id": "swg_rocada_manual",
+        "filtros": [
+          "rocada manual",
+          "roçada manual"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_limpeza_area",
+        "filtros": [
+          "limpeza de area",
+          "limpeza de área"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_capina_coroa",
+        "filtros": [
+          "capina manual coroa",
+          "capina manual"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_combate_formigas",
+        "filtros": [
+          "combate a formigas",
+          "combate a formiga",
+          "formigas"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_coveamento",
+        "filtros": [
+          "coveam area nao subsol",
+          "coveam área não subsol",
+          "coveamento"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_adubacao_base",
+        "filtros": [
+          "adubacao quim man de base",
+          "adubação quim man de base",
+          "adubacao"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_plantio_manual",
+        "filtros": [
+          "plantio manual",
+          "plantio"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "swg_irrigacao_inicial",
+        "filtros": [
+          "irrigacao inicial",
+          "irrigação inicial",
+          "irrigacao"
+        ],
+        "exclusoes": []
+      }
+    ]
+  },
+  "de_para": {
+    "_descricao": "Mapeamento automático: atividade microplanejamento → tarifa orçada",
+    "CONDUÇÃO DE REGENERAÇÃO": "SERVIÇO DE MÃO DE OBRA",
+    "CAPINA MANUAL COROA Impl. CD APP/ RL I": "CAPINA COROAMENTO MANUAL I",
+    "CAPINA MANUAL COROA Impl. PL - APP/ RL I": "CAPINA COROAMENTO MANUAL I",
+    "ADUBAÇÃO QUÍM MAN DE BASE Impl. PL - APP/ RL": "ADUBAÇÃO QUÍMICA MANUAL",
+    "CAPINA QUÍM MAN TOTAL Manut. APP/RL": "CAPINA QUÍMICA TOTAL MANUAL PLANO",
+    "COMBATE À FORMIGAS Impl. CD APP/RL": "COMBATE DE FORMIGAS MANUAL",
+    "COMBATE À FORMIGAS Impl. PL APP/ RL": "COMBATE DE FORMIGAS MANUAL",
+    "COMBATE À FORMIGAS Manut. APP/RL": "CONTROLE DE FORMIGAS MANUAL  (REPASSE)",
+    "CONTROLE DE INVASORAS APP/RL I": "CAPINA QUÍMICA TOTAL MANUAL PLANO",
+    "COVEAMENTO - MOTOCOVEADOR PL APP/RL": "COVEAMENTO SEMI MECANIZADO - 30CM",
+    "COVEAMENTO ÁREA SUBSOL Impl. PL - APP/RL": "SUBSOLAGEM COM ADUBAÇÃO (TRATOR PNEU)",
+    "ELIMINAÇÃO DE EXÓTICAS Impl. CD - APP/RL": "SERVIÇO DE MÃO DE OBRA",
+    "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL": "IRRIGAÇÃO DE PLANTIO MANUAL",
+    "LIMPEZA DE AREA QUIM. Impl. CD APP/RL": "ROÇADA SEMIMECANIZADA ÁREA TOTAL",
+    "LIMPEZA DE ÁREA QUIM. MAN APP/RL": "ROÇADA MANUAL CLASSE I",
+    "NUCLEAÇÃO EM FAIXAS APP/RL": "SERVIÇO DE MÃO DE OBRA",
+    "PLANTIO MANUAL APP/RL": "PLANTIO MANUAL SEM GEL",
+    "PREPARO DE SOLO MEC C/ GRADE APP/RL": "PREPARO DE SOLO COM ADUBAÇÃO DE BASE E MARCAÇÃO DE BACIA ECAVADEIRA",
+    "PREPARO DE SOLO MEC S/ ADUB APP/RL": "PREPARO DE SOLO COM MÁQUINA DE ESTEIRA",
+    "ROÇADA MANUAL Impl. CD APP/RL I": "ROÇADA MANUAL CLASSE I",
+    "ROÇADA MANUAL Impl. PL APP/RL I": "ROÇADA MANUAL CLASSE I",
+    "ADUBAÇÃO QUÍM MAN DE BASE Impl.PL-APP/RL": "ADUBAÇÃO QUÍMICA MANUAL",
+    "ELIMINAÇÃO DE EXÓTICAS Impl. CD APP/RL": "SERVIÇO DE MÃO DE OBRA",
+    "CAPINA DE AREA (2 / 3) - RAN - APPN I": "CAPINA COROAMENTO MANUAL I",
+    "CAPINA MANUAL DE CADA (manl. PL - APPN) I": "CAPINA COROAMENTO MANUAL I",
+    "COMBATE A FORMIGA (manp. PL - APPN) RL": "COMBATE DE FORMIGAS MANUAL",
+    "CONDUÇÃO - CAPINA E ROÇADA": "SERVIÇO DE MÃO DE OBRA",
+    "COVEAMENTO - MEC (MICROTRATOR) PL - APPN": "COVEAMENTO SEMI MECANIZADO - 30CM",
+    "ESTIVA ÁREA NÃO TRABALH. (impl. PL - APPN)": "SERVIÇO DE MÃO DE OBRA",
+    "IRRIGAÇÃO INICIAL - MAN (impl. PL - APPN)": "IRRIGAÇÃO DE PLANTIO MANUAL",
+    "MELHORA QUIM MINA DE BASE (impl. PL - APPN)": "ADUBAÇÃO QUÍMICA MANUAL",
+    "PLANTIO MANUAL - APPN I": "PLANTIO MANUAL SEM GEL",
+    "PREPARO DE SOLO C/ ROCADEIRA (impl. PL - APPN)": "PREPARO DE SOLO COM MÁQUINA DE ESTEIRA",
+    "ROÇADA MANUAL (manl. PL - APPN) I": "ROÇADA MANUAL CLASSE I",
+    "CONTROLE DE INVASORAS APP/RL": "CAPINA QUÍMICA TOTAL MANUAL PLANO",
+    "COVEAM ÁREA NÃO SUBSOL  Impl. PL APP/ RL": "COVEAMENTO SEMI MECANIZADO - 30CM",
+    "LIMPEZA DE ÁREA QU. MAN APP/RL": "ROÇADA MANUAL CLASSE I",
+    "COVEAM ÁREA NÃO SUBSOL Impl. PL APP/ RL": "COVEAMENTO SEMI MECANIZADO - 30CM"
+  },
+  "tarifas": {
+    "ADUBAÇÃO QUÍM MAN 3 MESES APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 495.79,
+      "preco_unit": 495.79,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ADUBAÇÃO QUÍM MAN DE BASE Impl.PL-APP/RL": {
+      "rendimento_hh": 10.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 991.58,
+      "preco_unit": 991.58,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 555.0706392502562,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ADUBAÇÃO QUÍMICA MANUAL": {
+      "rendimento_hh": 10.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 991.58,
+      "preco_unit": 991.58,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 555.0706392502562,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ADUBAÇÃO QUÍM MAN DE BASE MAdap. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 576.94,
+      "preco_unit": 576.94,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ADUBAÇÃO QUÍM MAN DE BASE Manut. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 991.58,
+      "preco_unit": 991.58,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "APLIC QUÍM (LIQ) C/ DRONE TOT APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 475.09,
+      "preco_unit": 475.09,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "APLIC QUÍM (SOL) C/ DRONE TOT APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 332.56,
+      "preco_unit": 332.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA COROAMENTO MANUAL I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 824.56,
+      "preco_unit": 824.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1154.38,
+      "preco_unit": 1154.38,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1658.82,
+      "preco_unit": 1658.82,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3298.24,
+      "preco_unit": 3298.24,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. PL - APP/ RL I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. PL - APP/ RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3298.24,
+      "preco_unit": 3298.24,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. PL- APP/ RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 824.56,
+      "preco_unit": 824.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. PL-APP/ RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1154.38,
+      "preco_unit": 1154.38,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROA Impl. PL-APP/ RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1658.82,
+      "preco_unit": 1658.82,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO MAdap. APP/RL I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO MAdap. APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3298.24,
+      "preco_unit": 3298.24,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO MAdap.APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO MAdap.APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1658.82,
+      "preco_unit": 1658.82,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO MAdap.APP/RLIII": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 597.56,
+      "preco_unit": 597.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO Manut. APP/RL I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1658.82,
+      "preco_unit": 1658.82,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO Manut. APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3298.24,
+      "preco_unit": 3298.24,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO Manut.APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 824.56,
+      "preco_unit": 824.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO Manut.APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1658.82,
+      "preco_unit": 1658.82,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA MANUAL COROAMENTO Manut.APP/RLIII": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1154.38,
+      "preco_unit": 1154.38,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍM MAN COROA Manut. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 409.43,
+      "preco_unit": 409.43,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍM MAN TOTAL MAdap. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍM MAN TOTAL Manut. APP/RL": {
+      "rendimento_hh": 7.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 396.47902803589733,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍMICA TOTAL MANUAL PLANO": {
+      "rendimento_hh": 7.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 396.47902803589733,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍM POS EMERG MAN LINHA APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 842.54,
+      "preco_unit": 842.54,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CAPINA QUÍM POS EMERG MAN TOTAL APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 706.92,
+      "preco_unit": 706.92,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COMBATE À FORMIGAS Impl. CD APP/RL": {
+      "rendimento_hh": 2.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 132.1596760119658,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COMBATE DE FORMIGAS MANUAL": {
+      "rendimento_hh": 2.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 132.1596760119658,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COMBATE À FORMIGAS Impl. PL APP/ RL": {
+      "rendimento_hh": 2.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 132.1596760119658,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COMBATE À FORMIGAS MAdap. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COMBATE À FORMIGAS Manut. APP/RL": {
+      "rendimento_hh": 1.8,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 95.15496672861536,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "CONTROLE DE FORMIGAS MANUAL  (REPASSE)": {
+      "rendimento_hh": 1.8,
+      "rendimento_hm": 0.0,
+      "preco_ha": 308.13,
+      "preco_unit": 308.13,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 95.15496672861536,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COROAMENTO MANUAL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1126.08,
+      "preco_unit": 1126.08,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAM ÁREA NÃO SUBSOL Impl. PL APP/ RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3705.67,
+      "preco_unit": 3705.67,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAM ÁREA NÃO SUBSOL MAdap. PL APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3831.78,
+      "preco_unit": 3831.78,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO - MOTOCOVEADOR MAdap. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4098.9,
+      "preco_unit": 4098.9,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO - MOTOCOVEADOR Manut. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3875.32,
+      "preco_unit": 3875.32,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO - MOTOCOVEADOR PL APP/RL": {
+      "rendimento_hh": 35.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3875.32,
+      "preco_unit": 3875.32,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 1876.6673993699142,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO SEMI MECANIZADO - 30CM": {
+      "rendimento_hh": 35.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3875.32,
+      "preco_unit": 3875.32,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 1876.6673993699142,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO MOTOCOV. + ADUB. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4434.26,
+      "preco_unit": 4434.26,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO ÁREA NAO SUBSOL APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 3705.67,
+      "preco_unit": 3705.67,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO ÁREA SUBSOL APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1045.74,
+      "preco_unit": 1045.74,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "COVEAMENTO ÁREA SUBSOL Impl. PL - APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 1.2,
+      "preco_ha": 1045.74,
+      "preco_unit": 1045.74,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "SUBSOLAGEM COM ADUBAÇÃO (TRATOR PNEU)": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 1.2,
+      "preco_ha": 1045.74,
+      "preco_unit": 1045.74,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "DIARIA AVULSA - H NORMAL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 617.25,
+      "preco_unit": 617.25,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR COBERTURA DA SEMEADURA I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 422.28,
+      "preco_unit": 422.28,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR COBERTURA DA SEMEADURA II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 563.04,
+      "preco_unit": 563.04,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR COBERTURA DA SEMEADURA III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 703.8,
+      "preco_unit": 703.8,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR COBERTURA DA SEMEADURA IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 844.56,
+      "preco_unit": 844.56,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR REPLANTIO APP/RL I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 550.3,
+      "preco_unit": 550.3,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR REPLANTIO APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 687.88,
+      "preco_unit": 687.88,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR REPLANTIO APP/RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 963.03,
+      "preco_unit": 963.03,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR REPLANTIO APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1100.61,
+      "preco_unit": 1100.61,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "INCLUIR REPLANTIO APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1238.19,
+      "preco_unit": 1238.19,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "IRRIGAÇÃO INICIAL MAN APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1582.07,
+      "preco_unit": 1582.07,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL": {
+      "rendimento_hh": 12.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1415.54,
+      "preco_unit": 1415.54,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 660.7983800598289,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "IRRIGAÇÃO DE PLANTIO MANUAL": {
+      "rendimento_hh": 12.5,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1415.54,
+      "preco_unit": 1415.54,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 660.7983800598289,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "IRRIGAÇÃO INICIAL MAN MAdap. APP/ RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1623.7,
+      "preco_unit": 1623.7,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "LIMPEZA DE AREA QUIM. Impl. CD APP/RL": {
+      "rendimento_hh": 22.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 1163.005148905299,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA SEMIMECANIZADA ÁREA TOTAL": {
+      "rendimento_hh": 22.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 1163.005148905299,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "LIMPEZA DE ÁREA QU. MAN APP/RL": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 978.76,
+      "preco_unit": 978.76,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL CLASSE I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 776.06,
+      "preco_unit": 776.06,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "NUCLEAÇÃO EM FAIXAS APP/RL": {
+      "rendimento_hh": 7.487920000000001,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1082.47,
+      "preco_unit": 1082.47,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 395.84043248140756,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "SERVIÇO DE MÃO DE OBRA": {
+      "rendimento_hh": 7.487920000000001,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1082.47,
+      "preco_unit": 1082.47,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 395.84043248140756,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PLANTIO CONSORCIADO NAT/EUC APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1498.8,
+      "preco_unit": 1498.8,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PLANTIO DE ADENSAMENTO APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1706.97,
+      "preco_unit": 1706.97,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PLANTIO ENRIQUECIMENTO APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1081.39,
+      "preco_unit": 1081.39,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PLANTIO MANUAL APP/RL": {
+      "rendimento_hh": 7.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1706.97,
+      "preco_unit": 1706.97,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 370.04709283350417,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PLANTIO MANUAL SEM GEL": {
+      "rendimento_hh": 7.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1706.97,
+      "preco_unit": 1706.97,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 370.04709283350417,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO DE SOLO MEC C/ GRADE APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 7.5,
+      "preco_ha": 1790.74,
+      "preco_unit": 1790.74,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO DE SOLO COM ADUBAÇÃO DE BASE E MARCAÇÃO DE BACIA ECAVADEIRA": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 7.5,
+      "preco_ha": 1790.74,
+      "preco_unit": 1790.74,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO SOLO MEC CABEC COV C/ADUB APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 6716.78,
+      "preco_unit": 6716.78,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1086.48,
+      "preco_unit": 1086.48,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL In": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1086.48,
+      "preco_unit": 1086.48,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1513.31,
+      "preco_unit": 1513.31,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 2172.96,
+      "preco_unit": 2172.96,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4316.81,
+      "preco_unit": 4316.81,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. PL APP/RL I": {
+      "rendimento_hh": 12.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 776.06,
+      "preco_unit": 776.06,
+      "custo_hora": 52.86387040478631,
+      "custo_ha": 634.3664448574357,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. PL APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 776.06,
+      "preco_unit": 776.06,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. PL APP/RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1513.31,
+      "preco_unit": 1513.31,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. PL APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 2172.96,
+      "preco_unit": 2172.96,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Impl. PL APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4316.81,
+      "preco_unit": 4316.81,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL MAdap. APP/RL I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 776.06,
+      "preco_unit": 776.06,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL MAdap. APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1513.31,
+      "preco_unit": 1513.31,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL MAdap. APP/RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1054.55,
+      "preco_unit": 1054.55,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL MAdap. APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 2172.96,
+      "preco_unit": 2172.96,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL MAdap. APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4316.81,
+      "preco_unit": 4316.81,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Manut. APP/RL I": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 632.73,
+      "preco_unit": 632.73,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Manut. APP/RL II": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 845.06,
+      "preco_unit": 845.06,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Manut. APP/RL III": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1054.55,
+      "preco_unit": 1054.55,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Manut. APP/RL IV": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 19122.02,
+      "preco_unit": 19122.02,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MANUAL Manut. APP/RL V": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 4316.81,
+      "preco_unit": 4316.81,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "ROÇADA MECANIZADA PL. APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 789.74,
+      "preco_unit": 789.74,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "SEMEADURA DIRETA APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 776.06,
+      "preco_unit": 776.06,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Manual",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO DE SOLO MEC S/ ADUB APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 1.35,
+      "preco_ha": 1343.05,
+      "preco_unit": 1343.05,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Mecanizada",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO DE SOLO COM MÁQUINA DE ESTEIRA": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 1.35,
+      "preco_ha": 1343.05,
+      "preco_unit": 1343.05,
+      "custo_hora": 0.0,
+      "custo_ha": 0.0,
+      "tipo": "Mecanizada",
+      "recurso": "maquina",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    },
+    "PREPARO DE SOLO MEC C/ ADUB APP/RL": {
+      "rendimento_hh": 0.0,
+      "rendimento_hm": 0.0,
+      "preco_ha": 1790.74,
+      "preco_unit": 1790.74,
+      "custo_hora": 52.8639,
+      "custo_ha": 0.0,
+      "tipo": "Mecanizada",
+      "recurso": "homem",
+      "eficiencia": 1.0,
+      "custo_direto": 0.0,
+      "custo_indireto": 0.0
+    }
+  },
+  "atividades": {
+    "ROÇADA MANUAL Impl. PL APP/RL I": {
+      "rendimento_hh": 8.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "ROÇADA MANUAL Impl. CD APP/RL I": {
+      "rendimento_hh": 8.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "LIMPEZA DE ÁREA QUIM. MAN APP/RL": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "LIMPEZA DE AREA QUIM. Impl. CD APP/RL": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "CAPINA MANUAL COROA Impl. PL - APP/ RL I": {
+      "rendimento_hh": 10.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "CAPINA MANUAL COROA Impl. CD APP/ RL I": {
+      "rendimento_hh": 10.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "CAPINA QUÍM MAN TOTAL Manut. APP/RL": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "COMBATE À FORMIGAS Impl. PL APP/ RL": {
+      "rendimento_hh": 4.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "COMBATE À FORMIGAS Impl. CD APP/RL": {
+      "rendimento_hh": 4.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "COMBATE À FORMIGAS Manut. APP/RL": {
+      "rendimento_hh": 4.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "COVEAMENTO - MOTOCOVEADOR PL APP/RL": {
+      "rendimento_hh": 3.0,
+      "tipo": "mecanizado",
+      "recurso": "maquina",
+      "eficiencia": 0.5
+    },
+    "COVEAMENTO ÁREA SUBSOL Impl. PL - APP/RL": {
+      "rendimento_hh": 3.0,
+      "tipo": "mecanizado",
+      "recurso": "maquina",
+      "eficiencia": 0.5
+    },
+    "ADUBAÇÃO QUÍM MAN DE BASE Impl. PL - APP/ RL": {
+      "rendimento_hh": 5.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "PLANTIO MANUAL APP/RL": {
+      "rendimento_hh": 12.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "NUCLEAÇÃO EM FAIXAS APP/RL": {
+      "rendimento_hh": 8.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "CONDUÇÃO DE REGENERAÇÃO": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "CONTROLE DE INVASORAS APP/RL I": {
+      "rendimento_hh": 6.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "ELIMINAÇÃO DE EXÓTICAS Impl. CD - APP/RL": {
+      "rendimento_hh": 8.0,
+      "tipo": "manual",
+      "recurso": "homem",
+      "eficiencia": 1.0
+    },
+    "PREPARO DE SOLO MEC C/ GRADE APP/RL": {
+      "rendimento_hh": 2.0,
+      "tipo": "mecanizado",
+      "recurso": "maquina",
+      "eficiencia": 0.5
+    },
+    "PREPARO DE SOLO MEC S/ ADUB APP/RL": {
+      "rendimento_hh": 2.0,
+      "tipo": "mecanizado",
+      "recurso": "12",
+      "eficiencia": 1.0
+    }
+  },
+  "equipes": {
+    "padrao": {
+      "colaboradores": 9,
+      "ativo": true
+    }
+  },
+  "criterios_mecanizacao": {
+    "_descricao": "Criterios inteligentes para recomendacao de mecanizacao (v4.3)",
+    "economia_minima_pct": 15,
+    "area_minima_ha": {
+      "_descricao": "Area minima por tipo de maquina para viabilizar aluguel",
+      "default": 2.0,
+      "ROCADA": 5.0,
+      "ROCADA MECANIZADA": 5.0,
+      "DRONE": 3.0,
+      "MOTOCOVEADOR": 1.0,
+      "COVEADOR": 1.0,
+      "GRADE": 4.0,
+      "TRATOR": 4.0
+    },
+    "considerar_aluguel": true,
+    "custo_aluguel_mensal": {
+      "_descricao": "Custo mensal de aluguel por tipo de maquina (R$)",
+      "ROCADA MECANIZADA": 3500.0,
+      "DRONE": 5000.0,
+      "MOTOCOVEADOR": 1200.0,
+      "COVEADOR": 1200.0,
+      "GRADE": 2500.0,
+      "TRATOR": 4000.0
+    },
+    "dias_minimos_uso": 5,
+    "_nota": "Recomendacao so ocorre se: area >= minima E economia >= custo_aluguel proporcional"
+  },
+  "filtros_bloqueio_global": [
+    "plantio",
+    "irrig"
+  ],
+  "custo_hora_tf": 52.8639,
+  "orcamento_estrito": true,
+  "arquivo_micro": "PLANEJAMENTO_ABR_MAI_JUN 1 (1).xlsx",
+  "fazendas_ct": [
+    "ALTAMIRA  (S-G50Z )",
+    "ARACRUZ VLF  (S-G01R )",
+    "BLOCO MONTE LIBANO  (S-G61Q )",
+    "CAMPOS LINDOS  (S-G01I )",
+    "CONQUISTADORA VLF  (S-G24H )",
+    "COTOVELO  (S-BJ01 )",
+    "ESPORA DE PRATA  (S-G50X )",
+    "FORMOSA",
+    "GUACIARA II VLF  (S-G01L )",
+    "LAGO AZUL  (S-G399 )",
+    "MONTE ALEGRE B  (S-G62J )",
+    "SANTA FÉ VLF  (S-G05H )",
+    "SANTA MARIA HM VLF  (S-DE04 )",
+    "SANTA TEREZA 1  (S-G21H )",
+    "SAUDADE DE MINAS  (S-DE02 )",
+    "SENHOR DO BOMFIM 1  (S-G51H )",
+    "Ulianópolis SWG"
+  ],
+  "metas": {
+    "lucro_alvo": null,
+    "margem_alvo_pct": null,
+    "bonus_aa_formula": "",
+    "bonus_bb_formula": "",
+    "equacao_quadratica": "",
+    "nota": "Rotas preparatorias: preencher quando dados oficiais estiverem disponiveis."
+  },
+  "precos_contrato": {
+    "arquivo": "PRECO_CONTRATO_3ABAS_RAW_CUSTOS.xlsx",
+    "sheet_preco_final": "PRECO_FINAL",
+    "sheet_custo_direto": "CUSTO_DIRETO",
+    "sheet_custo_indireto": "CUSTO_INDIRETO"
+  },
+  "custos_globais": {
+    "arquivo": "PRECO_CONTRATO_3ABAS_RAW_CUSTOS.xlsx",
+    "sheet_custo_direto": "CUSTO_DIRETO",
+    "sheet_custo_indireto": "CUSTO_INDIRETO",
+    "valor_direto_total": 91152.12099,
+    "valor_indireto_total": 243594.936603,
+    "criterio": "ultimo_valor_na_linha",
+    "itens_direto": [
+      {
+        "item": "ENCARREGADO",
+        "valor": 12256.64979
+      },
+      {
+        "item": "LIDER",
+        "valor": 9177.6312
+      },
+      {
+        "item": "AJUDANTE FLORESTAL",
+        "valor": 69717.84
+      },
+      {
+        "item": "OPERADOR DE TRATOR",
+        "valor": 1159.2
+      },
+      {
+        "item": "OPERADOR DE DRONE",
+        "valor": 1159.2
+      },
+      {
+        "item": "OPERADOR DE MOTOSERRA",
+        "valor": 1159.2
+      },
+      {
+        "item": "CAMINHONETES",
+        "valor": 68000.0
+      }
+    ],
+    "itens_indireto": [
+      {
+        "item": "GERENTE DE OPERACOES",
+        "valor": 22068.632412
+      },
+      {
+        "item": "ESPECIALISTA DE OPERAÇÕES",
+        "valor": 3478.233
+      },
+      {
+        "item": "ANALISTA DE PLANEJAMENTO E MEDICAO",
+        "valor": 2098.455
+      },
+      {
+        "item": "ANALISTA DE SUPRIMENTOS",
+        "valor": 1344.6411
+      },
+      {
+        "item": "TECNICO SEGURANÇA TRABALHO",
+        "valor": 6288.347785
+      },
+      {
+        "item": "AUXILIAR TEC SEGURANÇA DO TRABALHO",
+        "valor": 3034.59
+      },
+      {
+        "item": "TECNICO DE QUALIDADE",
+        "valor": 1159.2
+      },
+      {
+        "item": "Auxiliar DE ENFERMAGEM DO TRABALHO",
+        "valor": 3034.59
+      },
+      {
+        "item": "SUPERVISOR ADMINISTRATIVO",
+        "valor": 11499.0885
+      },
+      {
+        "item": "ASSISTENTE DE DEPARTAMENTO PESSOAL",
+        "valor": 3574.782
+      },
+      {
+        "item": "AUXILIAR DE SERVIÇOS GERAIS",
+        "valor": 3244.02
+      },
+      {
+        "item": "ALMOXARIFE",
+        "valor": 3244.02
+      },
+      {
+        "item": "SUPERVISOR DE OPERAÇÕES",
+        "valor": 11499.0885
+      },
+      {
+        "item": "TECNICO  DE OPERAÇÕES",
+        "valor": 22524.06212
+      },
+      {
+        "item": "Aluguel Escritório",
+        "valor": 96932.550417
+      },
+      {
+        "item": "Veículos Leve",
+        "valor": 1282.787
+      },
+      {
+        "item": "Segurança Patrimônial",
+        "valor": 833.333333
+      },
+      {
+        "item": "Locação de Impressoras",
+        "valor": 450.0
+      },
+      {
+        "item": "Materiais de Escritório",
+        "valor": -283.75
+      },
+      {
+        "item": "Ajuda de custo - Moradia Supervição",
+        "valor": 2000.0
+      },
+      {
+        "item": "Água, luz, Telefone, Internet - Escritório",
+        "valor": 2650.0
+      },
+      {
+        "item": "Manutenção Mecânica dos Veículos",
+        "valor": 1120.0
+      },
+      {
+        "item": "Viagens e Estadias",
+        "valor": 5708.0
+      },
+      {
+        "item": "Pedágio",
+        "valor": 500.0
+      },
+      {
+        "item": "nan",
+        "valor": 40856.533333
+      }
+    ]
+  }
+}

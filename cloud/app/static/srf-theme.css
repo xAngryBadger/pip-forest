@@ -1,0 +1,11 @@
+/**
+ * Tokens alinhados ao plano (§10.1) + aliases para evolução SPA.
+ * Carregado por /ui junto ao protótipo em aparencia/prototipos/.
+ */
+:root {
+  --bg-app: var(--bg, #0e0e0e);
+  --bg-elevated: var(--bg2, #181818);
+  --text-muted: var(--text2, #aaa);
+  --accent: var(--red, #d93025);
+  --radius: 8px;
+}

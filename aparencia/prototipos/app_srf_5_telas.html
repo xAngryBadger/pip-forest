@@ -1,0 +1,3523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SRF — Leão Analista (7 vistas)</title>
+  <link href="/static/fonts/dm-mono.css" rel="stylesheet" />
+  <!-- fallback CDN caso abra fora do servidor -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0e0e0e;
+      --bg2: #181818;
+      --bg3: #222;
+      --bg4: #2a2a2a;
+      --red: #d93025;
+      --red2: #b52820;
+      --text: #f0f0f0;
+      --text2: #aaa;
+      --text3: #666;
+      --border: #2e2e2e;
+      --green: #1e7a46;
+      --green2: #27ae60;
+      --amber: #d4860a;
+      --blue: #1a5fa8;
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 600px;
+    }
+
+    /* NAV */
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 44px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--red);
+      margin-right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .logo-icon {
+      width: 18px;
+      height: 18px;
+      background: var(--red);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg {
+      width: 12px;
+      height: 12px;
+      fill: white;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .nav-tab {
+      padding: 0 14px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      color: var(--text2);
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      font-size: 12px;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .nav-tab:hover,
+    .nav-tab:focus-visible {
+      color: var(--text);
+      background: var(--bg3);
+      outline: none;
+    }
+
+    .nav-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--red);
+    }
+
+    .nav-tab:focus-visible {
+      box-shadow: inset 0 -2px 0 var(--red);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .user-badge {
+      font-size: 11px;
+      color: var(--text2);
+      white-space: nowrap;
+    }
+
+    .btn-red {
+      background: var(--red);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .btn-red:hover {
+      background: var(--red2);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text2);
+      border: 1px solid var(--border);
+      padding: 5px 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+    }
+
+    .btn-outline:hover,
+    .btn-outline:focus-visible {
+      background: var(--bg3);
+      color: var(--text);
+      border-color: var(--text3);
+      outline: none;
+    }
+
+    .btn-dark {
+      background: var(--bg3);
+      color: var(--text2);
+      border: 1px solid var(--border);
+      padding: 5px 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+    }
+
+    .btn-dark:hover,
+    .btn-dark:focus-visible {
+      background: var(--bg4);
+      color: var(--text);
+      border-color: var(--text3);
+      outline: none;
+    }
+
+    .btn-dark:active {
+      transform: scale(0.97);
+    }
+
+    /* CONTENT */
+    .screen {
+      display: none;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .screen.active {
+      display: block;
+      animation: srf-fadeIn .34s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .screen:not(.active) {
+      display: none !important;
+    }
+
+    .screen.active.screen--flexcol {
+      display: flex !important;
+      flex-direction: column;
+      min-height: calc(100vh - 44px);
+      animation: srf-fadeIn .34s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes srf-fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+        filter: brightness(0.85);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: brightness(1);
+      }
+    }
+
+    #app-root.srf-app-enter {
+      animation: srf-fadeIn .45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes srf-slideDown {
+      from {
+        transform: translateY(-100%);
+      }
+
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    /* Micro-interactions */
+    .btn-red,
+    .btn-dark,
+    .btn-outline {
+      transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    }
+
+    .btn-red:active,
+    .btn-dark:active,
+    .btn-outline:active {
+      transform: scale(.97);
+    }
+
+    .drop-zone {
+      transition: border-color .2s ease, background .2s ease;
+    }
+
+    .report-row,
+    .step-item,
+    .job-meta-item {
+      transition: background .15s ease;
+    }
+
+    .report-row:hover {
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .step-item:hover {
+      background: rgba(255, 255, 255, .02);
+    }
+
+    /* Connection banner */
+    .srf-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      padding: 10px 20px;
+      font-size: 12px;
+      text-align: center;
+      animation: srf-slideDown .3s ease;
+    }
+
+    .srf-banner--error {
+      background: var(--red2);
+      color: #fff;
+    }
+
+    .srf-banner--warn {
+      background: var(--amber);
+      color: #111;
+    }
+
+    .srf-banner--ok {
+      background: #1a6b3c;
+      color: #fff;
+    }
+
+    .srf-banner[hidden] {
+      display: none;
+    }
+
+    /* Loading overlay during bootstrap */
+    .srf-loader-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .srf-loader-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: srf-spin .7s linear infinite;
+    }
+
+    @keyframes srf-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .screen.active,
+      .screen.active.screen--flexcol {
+        animation: none;
+      }
+
+      .btn-red:active,
+      .btn-dark:active,
+      .btn-outline:active {
+        transform: none;
+      }
+
+      .drop-zone:active {
+        transform: none;
+      }
+
+      .srf-banner {
+        animation: none;
+      }
+
+      .srf-loader-spinner {
+        animation: none;
+        border-top-color: var(--text2);
+      }
+    }
+
+    /* SCREEN 1 — UPLOAD */
+    .s1-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .s1-topbar-brand {
+      font-weight: 700;
+      color: var(--red);
+      font-size: 13px;
+    }
+
+    .s1-topbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .s1-wrap {
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .s1-header {
+      margin-bottom: 18px;
+    }
+
+    .s1-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .s1-header p {
+      color: var(--text2);
+      font-size: 12px;
+    }
+
+    .s1-status {
+      color: #27ae60;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .s1-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .upload-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .upload-box-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .upload-box-sub {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 5px;
+      padding: 14px;
+      text-align: center;
+      margin-bottom: 12px;
+      background: var(--bg3);
+      cursor: pointer;
+    }
+
+    .drop-zone:hover,
+    .drop-zone:focus-visible {
+      border-color: var(--text3);
+      background: var(--bg4);
+      outline: none;
+    }
+
+    .drop-zone:active {
+      transform: scale(0.99);
+    }
+
+    .drop-zone p {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .drop-zone span {
+      color: var(--red);
+      cursor: pointer;
+    }
+
+    .file-item {
+      background: var(--bg3);
+      border-radius: 5px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .file-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .file-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .file-size {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .file-pct {
+      font-size: 11px;
+      color: var(--green2);
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--bg4);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 4px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--red);
+      border-radius: 2px;
+    }
+
+    .file-preview {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .tag-green {
+      background: #0d2e1a;
+      color: #27ae60;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+
+    .tag-amber {
+      background: #2a1e08;
+      color: #e9a22a;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+
+    .tag-red {
+      background: #2a0d0d;
+      color: #e05050;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+
+    .s1-footer {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .s1-footer span {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .footer-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .sidebar {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .sidebar h3 {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .sidebar p,
+    .sidebar li {
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    .sidebar li {
+      margin-left: 14px;
+      margin-bottom: 4px;
+    }
+
+    .s1-main {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 16px;
+    }
+
+    .s1-main-left {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* SCREEN 2 — PROGRAMAÇÃO */
+    .s2-wrap {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      height: 100%;
+    }
+
+    .s2-sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .s2-sidebar h4 {
+      font-size: 11px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .s2-sidebar input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      margin-bottom: 12px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--text2);
+      cursor: pointer;
+    }
+
+    .check-box {
+      width: 13px;
+      height: 13px;
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .check-box:checked {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .check-box:focus-visible {
+      outline: 2px solid var(--red);
+      outline-offset: 1px;
+    }
+
+    .tag-item {
+      display: inline-block;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--text2);
+      margin: 0 4px 4px 0;
+      cursor: pointer;
+    }
+
+    .summary-card {
+      background: var(--bg3);
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+
+    .summary-card .val {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .summary-card .lbl {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .s2-main {
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .s2-topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .breadcrumb {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .breadcrumb span {
+      color: var(--text);
+    }
+
+    .farm-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .farm-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .farm-img {
+      height: 80px;
+      background: var(--bg3);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .farm-img-label {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .farm-body {
+      padding: 10px;
+    }
+
+    .farm-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .farm-muni {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+
+    .farm-status {
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .farm-task {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+
+    .farm-resp {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 8px;
+    }
+
+    .farm-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .status-prog {
+      color: #4a9eff;
+    }
+
+    .status-exec {
+      color: #e9a22a;
+    }
+
+    .status-done {
+      color: #27ae60;
+    }
+
+    .s2-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .map-placeholder {
+      background: var(--bg3);
+      border-radius: 5px;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text3);
+      font-size: 11px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-placeholder {
+      background: var(--bg3);
+      border-radius: 5px;
+      height: 120px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* SCREEN 3 — AGENDAMENTO */
+    .s3-wrap {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      height: 100%;
+    }
+
+    .s3-sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .s3-main {
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .s3-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .field-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+    }
+
+    .field-id {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+
+    .field-name {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .field-area {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+
+    .field-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .field-val {
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .priority-high {
+      color: #e05050;
+      font-weight: 600;
+    }
+
+    .priority-med {
+      color: #e9a22a;
+      font-weight: 600;
+    }
+
+    .priority-low {
+      color: #27ae60;
+      font-weight: 600;
+    }
+
+    .s3-pagination {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .page-btn {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .page-btn.active {
+      background: var(--red);
+      color: white;
+      border-color: var(--red);
+    }
+
+    .s3-footer {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .input-dark {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+
+    select.input-dark {
+      cursor: pointer;
+      appearance: auto;
+    }
+
+    select.input-dark:hover {
+      border-color: var(--text3);
+    }
+
+    .filter-label {
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 4px;
+      margin-top: 10px;
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* SCREEN 4 — STATUS */
+    .s4-wrap {
+      padding: 20px;
+    }
+
+    .s4-header {
+      margin-bottom: 16px;
+    }
+
+    .s4-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .s4-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .job-id {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .time-row {
+      display: flex;
+      gap: 20px;
+    }
+
+    .time-item {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .time-item strong {
+      color: var(--text);
+    }
+
+    .s4-grid {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+    }
+
+    .steps-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .steps-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .step-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-icon.done {
+      background: #0d2e1a;
+      color: #27ae60;
+    }
+
+    .step-icon.active {
+      background: #1a1a2e;
+      color: #4a9eff;
+    }
+
+    .step-icon.prep {
+      background: #2a1e08;
+      color: #e9a22a;
+    }
+
+    .step-icon.wait {
+      background: var(--bg3);
+      color: var(--text3);
+    }
+
+    .step-info {
+      flex: 1;
+    }
+
+    .step-name {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .step-desc {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .step-right {
+      text-align: right;
+      font-size: 11px;
+    }
+
+    .step-pct {
+      font-weight: 600;
+    }
+
+    .step-prog-bar {
+      height: 3px;
+      background: var(--bg4);
+      border-radius: 2px;
+      margin-top: 5px;
+    }
+
+    .logs-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .logs-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 2px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logs-sub {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 12px;
+    }
+
+    .log-item {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .log-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .log-body {
+      flex: 1;
+    }
+
+    .log-time {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 2px;
+    }
+
+    .log-msg {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .log-rec {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .log-btns {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .job-sum {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .job-sum-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .job-sum-title {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge-warn {
+      background: #2a1e08;
+      color: #e9a22a;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge-ok {
+      background: #0d2e1a;
+      color: #27ae60;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge-err {
+      background: #2a0d0d;
+      color: #e05050;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .badge-running {
+      background: #0d1a2e;
+      color: #4a9eff;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .job-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .job-meta-item .lbl {
+      color: var(--text3);
+      margin-bottom: 2px;
+    }
+
+    .job-meta-item .val {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .history-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-item:last-child {
+      border: none;
+    }
+
+    .history-id {
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .history-time {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .incons-chart {
+      height: 80px;
+      position: relative;
+      margin-top: 10px;
+    }
+
+    /* SCREEN 5 — DETALHES */
+    .s5-topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 40px;
+      font-size: 12px;
+    }
+
+    .s5-topbar span {
+      color: var(--text2);
+    }
+
+    .s5-topbar strong {
+      color: var(--text);
+    }
+
+    .s5-wrap {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      height: calc(100% - 40px);
+      overflow: hidden;
+    }
+
+    .s5-left {
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .s5-right {
+      padding: 16px;
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      overflow: auto;
+    }
+
+    .op-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .op-cat {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 16px;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .kpi-label {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+
+    .kpi-val {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .kpi-sub {
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .kpi-devio {
+      background: #2a1208;
+      border-color: #5c2010;
+    }
+
+    .kpi-devio .kpi-val {
+      color: #e05050;
+    }
+
+    .chart-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .chart-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .chart-box-sub {
+      font-size: 10px;
+      color: var(--text3);
+      margin-bottom: 10px;
+    }
+
+    .sparkline {
+      width: 100%;
+      height: 80px;
+    }
+
+    .quick-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .quick-stat .l {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .quick-stat .v {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .bulletin-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bulletin-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bulletin-img {
+      width: 40px;
+      height: 40px;
+      background: var(--bg3);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .bulletin-info {
+      flex: 1;
+    }
+
+    .bulletin-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .bulletin-meta {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .bulletin-btns {
+      display: flex;
+      gap: 5px;
+    }
+
+    .cause-item {
+      background: var(--bg3);
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .cause-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--red);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .cause-body .title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .cause-body .meta {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .rec-item {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
+    }
+
+    .rec-item:last-child {
+      border: none;
+    }
+
+    .rec-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .rec-desc {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .notes-area {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: var(--text2);
+      font-size: 12px;
+      font-family: inherit;
+      resize: none;
+      height: 80px;
+    }
+
+    .s5-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 10px;
+      margin-top: 14px;
+    }
+
+    .s5-bot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+
+    .s5-bot-left {
+      display: flex;
+      gap: 8px;
+    }
+
+    .s5-bot-right {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    /* SCREEN 6 — Relatórios gerados (ReportRow, P0) */
+    .s6-wrap {
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .s6-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .s6-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .s6-header p {
+      color: var(--text2);
+      font-size: 12px;
+    }
+
+    .s6-summary-strip {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 16px;
+    }
+
+    .s6-summary-strip strong {
+      color: var(--text);
+    }
+
+    .report-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .report-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+
+    .report-row:first-of-type {
+      border-radius: 6px 6px 0 0;
+    }
+
+    .report-row:last-of-type {
+      border-bottom: 1px solid var(--border);
+      border-radius: 0 0 6px 6px;
+    }
+
+    .report-row:only-of-type {
+      border-radius: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .report-main-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .report-sub {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    .report-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .report-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .pill-ok {
+      background: #0d2e1a;
+      color: #27ae60;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .pill-warn {
+      background: #2a1e08;
+      color: #e9a22a;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .pill-err {
+      background: #2a0d0d;
+      color: #e05050;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    /* --- utility classes (replace common inline styles) --- */
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .flex-start {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .flex-center {
+      display: flex;
+      align-items: center;
+    }
+
+    .flex-gap-6 {
+      display: flex;
+      gap: 6px;
+    }
+
+    .flex-gap-8 {
+      display: flex;
+      gap: 8px;
+    }
+
+    .flex-gap-10 {
+      display: flex;
+      gap: 10px;
+    }
+
+    .flex-col {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .text-muted {
+      color: var(--text3);
+    }
+
+    .text-secondary {
+      color: var(--text2);
+    }
+
+    .fs-10 {
+      font-size: 10px;
+    }
+
+    .fs-11 {
+      font-size: 11px;
+    }
+
+    .fs-12 {
+      font-size: 12px;
+    }
+
+    .fw-600 {
+      font-weight: 600;
+    }
+
+    .fw-700 {
+      font-weight: 700;
+    }
+
+    .mb-4 {
+      margin-bottom: 4px;
+    }
+
+    .mb-6 {
+      margin-bottom: 6px;
+    }
+
+    .mb-8 {
+      margin-bottom: 8px;
+    }
+
+    .mb-10 {
+      margin-bottom: 10px;
+    }
+
+    .mb-12 {
+      margin-bottom: 12px;
+    }
+
+    .mt-10 {
+      margin-top: 10px;
+    }
+
+    .mt-12 {
+      margin-top: 12px;
+    }
+
+    .mt-14 {
+      margin-top: 14px;
+    }
+
+    .w-full {
+      width: 100%;
+    }
+
+    .btn-sm {
+      font-size: 10px;
+      padding: 4px 10px;
+    }
+
+    .separator {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    .alert-box {
+      background: #2a1208;
+      border: 1px solid #5c2010;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin: 8px 0;
+      font-size: 11px;
+      color: #e9a22a;
+    }
+
+    .card-bg3 {
+      background: var(--bg3);
+      border-radius: 4px;
+      padding: 8px 10px;
+    }
+
+    /* Landing: cromo mínimo (upload isolado) */
+    .app--landing .nav-tabs,
+    .app--landing .topbar-right {
+      display: none !important;
+    }
+
+    .empty-state {
+      background: var(--bg3);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      color: var(--text3);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    .empty-state strong {
+      color: var(--text2);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .file-list-upload {
+      margin-bottom: 10px;
+    }
+
+    .s1-sidebar-details {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px 14px;
+    }
+
+    .s7-wrap {
+      padding: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .s7-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .s7-header p {
+      color: var(--text2);
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .s7-grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .s7-grid2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/srf-theme.css" />
+</head>
+
+<body>
+  <div class="srf-loader-overlay" id="srf-boot-overlay">
+    <div class="srf-loader-spinner"></div>
+    <span>Iniciando SRF…</span>
+  </div>
+  <div class="app app--landing" id="app-root">
+    <div class="topbar" id="main-topbar">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 12 12">
+            <path d="M2 10 L6 2 L10 10 Z" />
+          </svg>
+        </div>
+        Leão Analista
+      </div>
+      <nav class="nav-tabs" role="tablist" aria-label="Navegação principal">
+        <button type="button" class="nav-tab active" role="tab" aria-selected="true" data-screen="1"
+          onclick="showScreen(1)">Upload</button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-screen="4"
+          onclick="showScreen(4)">Processamento</button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-screen="5"
+          onclick="showScreen(5)">Detalhe da operação</button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-screen="7"
+          onclick="showScreen(7)">Análise / Gráficos</button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-screen="6"
+          onclick="showScreen(6)">Relatórios</button>
+      </nav>
+      <div class="topbar-right">
+        <span class="user-badge" id="user-badge">Sessão: <span id="session-label">—</span></span>
+        <button type="button" class="btn-red" id="btn-settings">Configurações</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 1: Upload de Dados -->
+    <div class="screen active" id="s1">
+      <div class="s1-wrap">
+        <div class="s1-topbar">
+          <span class="s1-topbar-brand">SRF · Leão Analista</span>
+          <div class="s1-topbar-actions">
+            <button type="button" class="btn-outline" style="font-size:11px"
+              onclick="showScreen(2)">Programação</button>
+            <button type="button" class="btn-outline" style="font-size:11px" onclick="showScreen(7)">Gráficos</button>
+            <button type="button" class="btn-outline" style="font-size:11px" onclick="showScreen(6)">Relatórios</button>
+          </div>
+        </div>
+        <div class="s1-header">
+          <div class="flex-start">
+            <div>
+              <h1>Upload de Dados</h1>
+              <p>Envie seus Boletins de Produção e o arquivo de Tarifas e Rendimento para iniciar o processamento.</p>
+            </div>
+            <div class="fs-12">Estado: <span class="s1-status" id="upload-status">À espera de ficheiros</span></div>
+          </div>
+        </div>
+        <div class="s1-main">
+          <div class="s1-main-left">
+            <p class="fs-11 text-secondary mb-8" id="session-hint" hidden></p>
+            <div class="s1-grid">
+              <div class="upload-box">
+                <div class="flex-between mb-4">
+                  <div class="upload-box-title">Área A — Boletins de Produção</div>
+                  <span class="fs-10 text-secondary">Aceita: <span style="color:var(--text)">.xlsx</span></span>
+                </div>
+                <p class="upload-box-sub">Arraste e solte ficheiros .xlsx ou escolha do disco. Os ficheiros são enviados
+                  para o workspace da sessão.</p>
+                <input type="file" id="file-input-boletins"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple
+                  style="display:none" />
+                <div class="drop-zone" id="drop-boletins" role="button" tabindex="0"
+                  aria-label="Área de upload de boletins">
+                  <p>Soltar boletins aqui ou clicar para escolher<br><span>Vários .xlsx</span></p>
+                </div>
+                <div id="list-boletins-empty" class="empty-state">
+                  <strong>Nenhum ficheiro na área de trabalho</strong>
+                  Faça upload ou ligue uma sessão válida para ver os .xlsx copiados para a pasta da sessão.
+                </div>
+                <div id="list-boletins" class="file-list-upload" hidden></div>
+                <div class="flex-gap-6 mt-10">
+                  <button type="button" class="btn-outline" onclick="refreshWorkspaceFiles()">Atualizar lista</button>
+                </div>
+              </div>
+              <div class="upload-box">
+                <div class="flex-between mb-4">
+                  <div class="upload-box-title">Área B — Tarifas e Rendimento</div>
+                  <span class="fs-10 text-secondary">Aceita: <span style="color:var(--text)">.xlsx (único)</span></span>
+                </div>
+                <p class="upload-box-sub">Um ficheiro .xlsx com tarifas. Opcional se usar modelo interno.</p>
+                <input type="file" id="file-input-tarifas"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  style="display:none" />
+                <div class="drop-zone mb-8" id="drop-tarifas" role="button" tabindex="0"
+                  aria-label="Área de upload de tarifas e rendimento">
+                  <p>Soltar tarifas aqui ou clicar<br><span>Um ficheiro .xlsx</span></p>
+                </div>
+                <div id="list-tarifas-empty" class="empty-state">
+                  <strong>Nenhum ficheiro de tarifas</strong>
+                  Envie um .xlsx ou confirme a sessão.
+                </div>
+                <div id="list-tarifas" class="file-list-upload" hidden></div>
+              </div>
+            </div>
+            <div class="s1-footer">
+              <span id="s1-footer-resumo">Resumo: <strong style="color:var(--text)">—</strong></span>
+              <div class="footer-btns">
+                <button type="button" class="btn-outline" onclick="location.reload()">Recarregar</button>
+                <button type="button" class="btn-red" onclick="showScreen(4)">Seguinte: processamento →</button>
+              </div>
+            </div>
+          </div>
+          <aside class="sidebar s1-sidebar-details">
+            <h3 class="fs-12 mb-8">Dicas e modelos</h3>
+            <ol class="sidebar">
+              <li>Cabeçalhos consistentes conforme o micro.</li>
+              <li>Datas em formato claro (ISO quando possível).</li>
+              <li>Sem linhas em branco ou subtotais no meio do dado.</li>
+            </ol>
+            <div class="separator"></div>
+            <p class="fs-11 text-muted">Suporte e documentação: consulte o repositório do projeto.</p>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: Programação de Campos -->
+    <div class="screen" id="s2" style="height:calc(100vh - 44px)">
+      <div class="s2-wrap" style="height:100%">
+        <div class="s2-sidebar" style="overflow:auto">
+          <h4>Filtros</h4>
+          <div id="s2-sidebar-root" class="fs-11 text-muted">Sem dados carregados.</div>
+        </div>
+        <div class="s2-main">
+          <div class="s2-topbar">
+            <div class="breadcrumb">Projetos / <span>Programação</span></div>
+            <button type="button" class="btn-outline" onclick="showScreen(7)">Análise / Gráficos</button>
+            <div style="flex:1"></div>
+          </div>
+          <div id="s2-fields-root" class="farm-grid">
+            <div class="empty-state" style="grid-column:1/-1">
+              <strong>Nenhum campo carregado</strong><br>
+              Os campos serão listados aqui quando houver dados do catálogo ou execução.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 7: Análise / Gráficos (dados reais do report_analysis) -->
+    <div class="screen" id="s7">
+      <div class="s7-wrap" id="s7-wrap">
+        <div class="s7-header">
+          <h1 id="s7-title">Análise / Gráficos</h1>
+          <p id="s7-subtitle">Selecione um relatório na aba Relatórios para ver análise completa com dados reais.</p>
+        </div>
+        <div id="s7-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+          <div class="kpi-card">
+            <div class="kpi-label">Receita Bruta</div>
+            <div class="kpi-val" id="s7-v-receita">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Custo MO</div>
+            <div class="kpi-val" id="s7-v-custo">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Margem</div>
+            <div class="kpi-val" id="s7-v-margem">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">HH Total</div>
+            <div class="kpi-val" id="s7-v-hh">—</div>
+          </div>
+        </div>
+        <div class="s7-grid2">
+          <div>
+            <div class="fs-11 fw-600 text-muted mb-6">HH por Atividade</div>
+            <div id="s7-chart-atividade" class="chart-placeholder"
+              style="height:auto;min-height:120px;padding:8px;overflow:hidden">
+              <span class="fs-11 text-muted" style="padding:30px;display:block;text-align:center">Aguardando
+                dados</span>
+            </div>
+          </div>
+          <div>
+            <div class="fs-11 fw-600 text-muted mb-6">Ocupação Diária (%)</div>
+            <div id="s7-chart-ocupacao" class="chart-placeholder"
+              style="height:auto;min-height:120px;padding:8px;overflow:hidden">
+              <span class="fs-11 text-muted" style="padding:30px;display:block;text-align:center">Aguardando
+                dados</span>
+            </div>
+          </div>
+        </div>
+        <div class="s7-grid2" style="margin-top:6px">
+          <div>
+            <div class="fs-12 fw-700 mb-8">Insights (regras automáticas)</div>
+            <div id="s7-insights-list" style="display:flex;flex-direction:column;gap:8px">
+              <div class="empty-state">Carregue um relatório para ver insights.</div>
+            </div>
+          </div>
+          <div>
+            <div class="fs-12 fw-700 mb-8">Resumo IA (Ollama)</div>
+            <div id="s7-ollama-box" class="card-bg3" style="min-height:60px">
+              <span class="fs-11 text-muted">Adaptador Ollama não ativo. Configure SRF_OLLAMA_ENABLED=1.</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-12">
+          <button type="button" class="btn-outline" onclick="showScreen(6)">← Voltar aos relatórios</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: Agendamento SRF -->
+    <div class="screen screen--flexcol" id="s3">
+      <div
+        style="background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:16px;height:44px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div
+            style="width:20px;height:20px;background:var(--red);border-radius:3px;display:flex;align-items:center;justify-content:center">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+              <path d="M2 10 L6 2 L10 10 Z" />
+            </svg>
+          </div>
+          <span style="font-weight:700;font-size:13px">Agendamento SRF</span>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="s3-wrap" style="flex:1;overflow:hidden">
+        <div class="s3-sidebar" style="overflow:auto">
+          <div style="font-size:12px;font-weight:700;margin-bottom:10px">Filtros</div>
+          <div id="s3-sidebar-root" class="fs-11 text-muted" style="padding:4px 0">Sem agendamentos carregados.</div>
+        </div>
+        <div class="s3-main">
+          <div id="s3-fields-root" class="field-grid">
+            <div class="empty-state" style="grid-column:1/-1">
+              <strong>Nenhum agendamento</strong><br>
+              Os agendamentos serão listados aqui quando houver execuções configuradas pelo CLI ou pela UI.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="s3-footer">
+        <span id="s3-footer-text">SRF</span>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: Processamento/Status -->
+    <div class="screen" id="s4">
+      <div class="s4-wrap">
+        <div class="s4-header">
+          <div class="s4-header-row">
+            <div>
+              <h2>Processamento em andamento</h2>
+              <div class="job-id" id="proc-job-id">Sessão sem processamento iniciado</div>
+            </div>
+            <div class="time-row">
+              <div class="time-item">Workspace: <strong id="proc-workspace">—</strong></div>
+              <div class="time-item">Relatórios: <strong id="proc-report-count">0</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="s4-grid">
+          <div>
+            <div class="steps-box" id="s4-steps-box">
+              <div id="proc-steps-dynamic">
+                <div class="steps-title">Etapas de processamento</div>
+                <div class="fs-11 text-muted" id="proc-steps-fallback" style="padding:8px 0">A carregar estado da
+                  sessão…
+                </div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div class="logs-box">
+                <div class="logs-title">Logs resumidos <span
+                    style="font-size:10px;color:var(--text3);font-weight:400">Sessão e ficheiros</span>
+                </div>
+                <div class="logs-sub">Apenas eventos reais (sem linhas fictícias)</div>
+                <div id="proc-live-log-root"></div>
+              </div>
+              <div>
+                <div class="logs-box" style="margin-bottom:14px">
+                  <div class="logs-title">Métrica: atividade da sessão</div>
+                  <div class="incons-chart" id="proc-activity-chart">
+                    <svg width="100%" height="80" viewBox="0 0 200 80">
+                      <polyline points="10,60 30,55 50,65 70,45 90,50 110,35 130,55 150,30 170,45 190,25"
+                        stroke="#e05050" stroke-width="1.5" fill="none" />
+                      <polyline points="10,70 30,65 50,68 70,60 90,62 110,55 130,65 150,50 170,58 190,45"
+                        stroke="#4a9eff" stroke-width="1" fill="none" opacity="0.5" stroke-dasharray="3,2" />
+                      <line x1="10" y1="75" x2="190" y2="75" stroke="#2e2e2e" stroke-width="0.5" />
+                    </svg>
+                  </div>
+                  <div id="proc-activity-caption" style="font-size:10px;color:var(--text3);margin-top:4px">Carregue a
+                    sessão para calcular atividade real de ficheiros e relatórios.</div>
+                  <button class="btn-outline" style="width:100%;margin-top:8px;font-size:11px"
+                    onclick="refreshProcessingView()">Atualizar atividade</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="job-sum">
+              <div class="job-sum-header">
+                <div>
+                  <div class="job-sum-title">Resumo da sessão</div>
+                  <div id="proc-user-line" style="font-size:11px;color:var(--text3);margin-top:2px">Conectando…</div>
+                </div>
+                <span class="badge-running" id="proc-state-badge">Aguardando</span>
+              </div>
+              <div class="job-meta">
+                <div class="job-meta-item">
+                  <div class="lbl">Arquivos</div>
+                  <div class="val" id="proc-files-count">0 arquivos</div>
+                </div>
+                <div class="job-meta-item">
+                  <div class="lbl">Planilhas</div>
+                  <div class="val" id="proc-xlsx-count">0</div>
+                </div>
+                <div class="job-meta-item">
+                  <div class="lbl">Dossiês</div>
+                  <div class="val" id="proc-dossie-count" style="color:#4a9eff">0</div>
+                </div>
+                <div class="job-meta-item">
+                  <div class="lbl">Estado</div>
+                  <div class="val" id="proc-state-text" style="color:#e9a22a">Sem sessão</div>
+                </div>
+              </div>
+              <button class="btn-dark" style="width:100%;margin-top:12px" onclick="refreshProcessingView()">Atualizar
+                dados reais</button>
+              <input class="input-dark" type="text" id="proc-session-input" value="—" style="margin-top:8px" readonly>
+            </div>
+            <div id="proc-job-history-root" class="history-box">
+              <div class="fs-11 text-muted" style="padding:10px">Nenhum histórico de execuções nesta sessão.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 6: Relatórios gerados -->
+    <div class="screen" id="s6">
+      <div class="s6-wrap">
+        <div class="s6-header">
+          <div>
+            <h1>Relatórios gerados</h1>
+            <p>Ficheiros .xlsx gerados em <code>dossiês/</code> no workspace da sessão.</p>
+          </div>
+          <button type="button" class="btn-outline" onclick="refreshMicroSummary()">Atualizar resumo</button>
+        </div>
+        <div id="micro-summary" class="s6-summary-strip">
+          Resumo do workspace: carregue…
+        </div>
+        <div id="report-list-root" class="report-list" role="list"></div>
+        <div id="report-empty" class="empty-state" hidden>
+          <strong>Nenhum relatório em dossiês/</strong>
+          Gere dossiers pelo CLI na sessão ou faça upload para esta pasta.
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: Detalhes da Operação -->
+    <div class="screen screen--flexcol" id="s5">
+      <div class="s5-topbar">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="logo-icon"><svg viewBox="0 0 12 12" width="12" height="12">
+              <path d="M2 10 L6 2 L10 10 Z" fill="white" />
+            </svg></div>
+          <span style="font-weight:700;color:var(--text);font-size:12px">Leão Analista</span>
+        </div>
+        <span style="color:var(--border)">|</span>
+        <span>Operação: <strong>Transporte Rodoviário – Linha Verde</strong></span>
+        <span>|</span>
+        <span>Período: <strong>Jan 2026 – Mar 2026</strong></span>
+        <div style="flex:1"></div>
+        <button class="btn-dark" style="font-size:11px" onclick="showScreen(6)">Voltar aos relatórios</button>
+        <button class="btn-outline" style="font-size:11px" onclick="downloadSelectedReport()">Abrir operação no
+          relatório</button>
+      </div>
+      <div class="s5-wrap">
+        <div class="s5-left">
+          <div class="op-title">Operação: Entregas Expressas BR-101</div>
+          <div class="op-cat">Categoria: Transporte • Conta: Filial Florianópolis</div>
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Orçado</div>
+              <div class="kpi-val">R$ 1.245.600</div>
+              <div class="kpi-sub">Período acumulado</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Total Real</div>
+              <div class="kpi-val">R$ 1.489.320</div>
+              <div class="kpi-sub">Período acumulado</div>
+            </div>
+            <div class="kpi-card kpi-devio">
+              <div class="kpi-label">Desvio %</div>
+              <div class="kpi-val">↑ 19.6%</div>
+              <div class="kpi-sub">Acima do orçado</div>
+            </div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-box-title">Evolução temporal — Orçado vs Real — série mensal</div>
+            <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px">
+              <span style="display:flex;align-items:center;gap:4px"><span
+                  style="width:20px;height:2px;background:#4a9eff;display:inline-block"></span> Orçado</span>
+              <span style="display:flex;align-items:center;gap:4px"><span
+                  style="width:20px;height:2px;background:#e05050;display:inline-block"></span> Real</span>
+            </div>
+            <svg class="sparkline" viewBox="0 0 500 90" preserveAspectRatio="none">
+              <polyline points="20,70 60,65 100,60 140,55 180,52 220,48 260,45 300,42 340,38 380,35 420,30 460,28"
+                stroke="#4a9eff" stroke-width="1.5" fill="none" />
+              <polyline points="20,65 60,60 100,58 140,52 180,55 220,50 260,52 300,45 340,40 380,38 420,32 460,25"
+                stroke="#e05050" stroke-width="1.5" fill="none" />
+              <line x1="20" y1="85" x2="480" y2="85" stroke="#2e2e2e" stroke-width="0.5" />
+            </svg>
+            <div class="quick-stats">
+              <div class="quick-stat">
+                <div class="l">Valor médio por entrega</div>
+                <div class="v">R$ 52,40</div>
+              </div>
+              <div class="quick-stat">
+                <div class="l">Volume de entregas</div>
+                <div class="v">28.410</div>
+              </div>
+              <div class="quick-stat">
+                <div class="l">Taxa de atraso</div>
+                <div class="v" style="color:#e9a22a">6.8%</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:10px">Boletins Contribuintes</div>
+          <div class="bulletin-list">
+            <div class="bulletin-card">
+              <div class="bulletin-img">📄</div>
+              <div class="bulletin-info">
+                <div class="bulletin-title">Boletim #1024 — Relatório de Desempenho — 05/03/2026</div>
+                <div class="bulletin-meta">Contribuição: Orçado R$ 412.000 · Real R$ 498.500 · Desvio 21.0%</div>
+              </div>
+              <div class="bulletin-btns">
+                <button class="btn-red" style="font-size:10px;padding:4px 10px" onclick="showScreen(5)">Abrir</button>
+                <button class="btn-outline" style="font-size:10px;padding:4px 10px">Exportar</button>
+              </div>
+            </div>
+            <div class="bulletin-card">
+              <div class="bulletin-img">📄</div>
+              <div class="bulletin-info">
+                <div class="bulletin-title">Boletim #1031 — Anomalias por Rota — 18/02/2026</div>
+                <div class="bulletin-meta">Contribuição: Orçado R$ 210.300 · Real R$ 255.800 · Desvio 21.6%</div>
+              </div>
+              <div class="bulletin-btns">
+                <button class="btn-red" style="font-size:10px;padding:4px 10px">Abrir</button>
+                <button class="btn-outline" style="font-size:10px;padding:4px 10px">Exportar</button>
+              </div>
+            </div>
+            <div class="bulletin-card">
+              <div class="bulletin-img">📄</div>
+              <div class="bulletin-info">
+                <div class="bulletin-title">Boletim #1045 — Custos Variáveis — 28/01/2026</div>
+                <div class="bulletin-meta">Contribuição: Orçado R$ 132.000 · Real R$ 165.000 · Desvio 25.0%</div>
+              </div>
+              <div class="bulletin-btns">
+                <button class="btn-red" style="font-size:10px;padding:4px 10px">Abrir</button>
+                <button class="btn-outline" style="font-size:10px;padding:4px 10px">Exportar</button>
+              </div>
+            </div>
+            <div class="bulletin-card">
+              <div class="bulletin-img">📄</div>
+              <div class="bulletin-info">
+                <div class="bulletin-title">Boletim #1052 — Rendimento da Equipe — 12/03/2026</div>
+                <div class="bulletin-meta">Contribuição: Orçado R$ 491.300 · Real R$ 569.020 · Desvio 15.8%</div>
+              </div>
+              <div class="bulletin-btns">
+                <button class="btn-red" style="font-size:10px;padding:4px 10px">Abrir</button>
+                <button class="btn-outline" style="font-size:10px;padding:4px 10px">Exportar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s5-right">
+          <div class="s5-section-title">Causas Potenciais (detecção automática)</div>
+          <div class="cause-item">
+            <div class="cause-num">1</div>
+            <div class="cause-body">
+              <div class="title">Aumento inesperado do custo de combustível</div>
+              <div class="meta">Probabilidade: 78% · Impacto estimado: R$ 142.000</div>
+            </div>
+          </div>
+          <div class="cause-item">
+            <div class="cause-num" style="background:#e9a22a">2</div>
+            <div class="cause-body">
+              <div class="title">Alteração na rota devido a obras rodoviárias</div>
+              <div class="meta">Probabilidade: 64% · Impacto estimado: R$ 88.400</div>
+            </div>
+          </div>
+          <div class="cause-item">
+            <div class="cause-num" style="background:#4a9eff">3</div>
+            <div class="cause-body">
+              <div class="title">Redução do rendimento médio da equipe</div>
+              <div class="meta">Probabilidade: 51% · Impacto estimado: R$ 46.600</div>
+            </div>
+          </div>
+          <div class="s5-section-title">Recomendações</div>
+          <div class="rec-item">
+            <div class="rec-title">Revisar rendimento médio X</div>
+            <div class="rec-desc">Analisar indicadores de produtividade por turno e ajustar metas semanais.</div>
+          </div>
+          <div class="rec-item">
+            <div class="rec-title">Re-treinar equipe de roteirização</div>
+            <div class="rec-desc">Sessões sugeridas: 2 treinamentos práticos focados em otimização de rotas.</div>
+          </div>
+          <div class="rec-item">
+            <div class="rec-title">Revisar tarifas aplicadas</div>
+            <div class="rec-desc">Verificar contratos e reajustes com operadores terceirizados.</div>
+          </div>
+          <div class="s5-section-title">Notas Rápidas</div>
+          <textarea class="notes-area" placeholder="Anotar observações sobre a operação..."></textarea>
+          <button class="btn-red" style="width:100%;margin-top:8px">Incluir nota</button>
+        </div>
+      </div>
+      <div class="s5-bot">
+        <div class="s5-bot-left">
+          <button class="btn-red" style="font-size:11px">Marcar como revisão concluída</button>
+          <button class="btn-outline" style="font-size:11px">Imprimir dados desta operação</button>
+        </div>
+        <div class="s5-bot-right" id="s5-last-update">—</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var SELECTED_REPORT = null;
+      window.SRF_TOKEN = localStorage.getItem('srf_token') || '';
+      window.SRF_SESSION_ID = localStorage.getItem('srf_session_id') || '';
+      window._srf_session_ready = false;
+
+      function _showBanner(msg, type) {
+        var b = document.getElementById('srf-conn-banner');
+        if (!b) { b = document.createElement('div'); b.id = 'srf-conn-banner'; document.body.prepend(b); }
+        b.className = 'srf-banner srf-banner--' + (type || 'error');
+        b.textContent = msg; b.hidden = false;
+        if (type !== 'error') setTimeout(function () { b.hidden = true; }, 4000);
+      }
+      function _hideBanner() { var b = document.getElementById('srf-conn-banner'); if (b) b.hidden = true; }
+      function _hideOverlay() { var o = document.getElementById('srf-boot-overlay'); if (o) o.remove(); }
+      function _updateBadge() {
+        var el = document.getElementById('session-label');
+        if (el) el.textContent = SRF_SESSION_ID ? SRF_SESSION_ID.slice(0, 8) + '…' : '—';
+      }
+
+      function _createFreshSession() {
+        return fetch('/api/auto_session', { method: 'POST' })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+          .then(function (d) {
+            SRF_TOKEN = d.token || ''; SRF_SESSION_ID = d.session_id || '';
+            localStorage.setItem('srf_token', SRF_TOKEN);
+            localStorage.setItem('srf_session_id', SRF_SESSION_ID);
+            _updateBadge();
+            return { token: SRF_TOKEN, session_id: SRF_SESSION_ID };
+          });
+      }
+
+      function ensureSessionReady() {
+        if (window._srf_boot_promise) return window._srf_boot_promise;
+        window._srf_boot_promise = (function () {
+          if (SRF_TOKEN && SRF_SESSION_ID) {
+            return fetch('/api/sessions/' + encodeURIComponent(SRF_SESSION_ID) + '/ping')
+              .then(function (r) {
+                if (r.ok) return { token: SRF_TOKEN, session_id: SRF_SESSION_ID };
+                localStorage.removeItem('srf_token'); localStorage.removeItem('srf_session_id');
+                SRF_TOKEN = ''; SRF_SESSION_ID = '';
+                return _createFreshSession();
+              })
+              .catch(function () {
+                localStorage.removeItem('srf_token'); localStorage.removeItem('srf_session_id');
+                SRF_TOKEN = ''; SRF_SESSION_ID = '';
+                return _createFreshSession();
+              });
+          }
+          return _createFreshSession();
+        })().then(function (res) {
+          window._srf_session_ready = true;
+          _hideBanner(); _hideOverlay(); _updateBadge();
+          return res;
+        }).catch(function (err) {
+          window._srf_session_ready = false;
+          _hideOverlay();
+          _showBanner('Falha ao conectar ao servidor. Verifique se o backend está rodando.', 'error');
+          return Promise.reject(err);
+        });
+        return window._srf_boot_promise;
+      }
+
+      function withSession(fn) {
+        return ensureSessionReady().then(fn).catch(function (err) {
+          var status = err && err.status;
+          if (status === 401 || status === 404) {
+            window._srf_boot_promise = null;
+            SRF_TOKEN = ''; SRF_SESSION_ID = '';
+            localStorage.removeItem('srf_token'); localStorage.removeItem('srf_session_id');
+            return ensureSessionReady().then(fn);
+          }
+          return Promise.reject(err);
+        });
+      }
+
+      function apiUrl(path) {
+        var q = new URLSearchParams();
+        if (SRF_TOKEN) q.set('token', SRF_TOKEN);
+        if (SRF_SESSION_ID) q.set('session_id', SRF_SESSION_ID);
+        var qs = q.toString();
+        return path + (qs ? '?' + qs : '');
+      }
+
+      function isBundledSamplePath(rel) {
+        var head = String(rel || '').replace(/\\/g, '/').split('/')[0].toLowerCase();
+        return head === 'testes' || head === 'tutorial';
+      }
+
+      window.showScreen = function (n) {
+        document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+        var panel = document.getElementById('s' + n);
+        if (!panel) return;
+        panel.classList.add('active');
+        panel.style.animation = 'none';
+        void panel.offsetWidth;
+        panel.style.animation = '';
+
+        /* Topbar principal: não na landing (upload); telas 2 e 3 têm cabeçalho próprio */
+        var topbarScreens = [4, 5, 6, 7];
+        document.getElementById('main-topbar').style.display = topbarScreens.indexOf(n) !== -1 ? 'flex' : 'none';
+
+        var root = document.getElementById('app-root');
+        if (n === 1) root.classList.add('app--landing');
+        else root.classList.remove('app--landing');
+
+        var tabMap = { 1: 0, 4: 1, 5: 2, 7: 3, 6: 4 };
+        var tabs = document.querySelectorAll('.nav-tab');
+        tabs.forEach(function (t, i) {
+          var active = tabMap[n] === i;
+          t.className = active ? 'nav-tab active' : 'nav-tab';
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+
+        if (n === 6) {
+          refreshMicroSummary();
+          refreshReportsList();
+        }
+        if (n === 4 || n === 7) refreshProcessingView();
+        if (n === 1) refreshWorkspaceFiles();
+      };
+
+      function sesUrl(p) { return '/api/sessions/' + encodeURIComponent(SRF_SESSION_ID) + p + '?token=' + encodeURIComponent(SRF_TOKEN); }
+      function fmtMoney(v) { return (v != null && !isNaN(v)) ? 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—'; }
+      function fmtNum(v, d) { return (v != null && !isNaN(v)) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }) : '—'; }
+
+      function renderBarChart(el, items, lk, vk, color) {
+        if (!el) return;
+        if (!items || !items.length) { el.innerHTML = '<span class="fs-11 text-muted" style="padding:20px;display:block;text-align:center">Sem dados</span>'; return; }
+        var max = Math.max.apply(null, items.map(function (i) { return Number(i[vk]) || 0; }));
+        if (max === 0) max = 1;
+        var disp = items.slice(0, 10), h = disp.length * 26 + 10;
+        var s = '<svg width="100%" height="' + h + '" viewBox="0 0 400 ' + h + '">';
+        disp.forEach(function (it, i) {
+          var y = i * 26 + 2, v = Number(it[vk]) || 0, w = Math.max(2, (v / max) * 210);
+          s += '<text x="2" y="' + (y + 15) + '" fill="#aaa" font-size="10" font-family="monospace">' + String(it[lk] || '').substring(0, 18) + '</text>';
+          s += '<rect x="128" y="' + (y + 3) + '" width="' + w + '" height="17" rx="2" fill="' + (color || '#e05050') + '" opacity="0.85"/>';
+          s += '<text x="' + (133 + w) + '" y="' + (y + 15) + '" fill="#f0f0f0" font-size="10" font-family="monospace">' + fmtNum(v, 1) + '</text>';
+        });
+        el.innerHTML = s + '</svg>';
+      }
+
+      function renderLineChart(el, values, color, label) {
+        if (!el) return;
+        if (!values || !values.length) { el.innerHTML = '<span class="fs-11 text-muted" style="padding:20px;display:block;text-align:center">Sem dados</span>'; return; }
+        var max = Math.max.apply(null, values.map(Number));
+        if (max === 0) max = 1;
+        var vw = 390, vh = 150, step = (vw - 20) / Math.max(values.length - 1, 1);
+        var pts = values.map(function (v, i) { return Math.round(10 + i * step) + ',' + Math.round(vh - 15 - (Number(v) / max) * (vh - 30)); }).join(' ');
+        el.innerHTML = '<svg width="100%" height="' + vh + '" viewBox="0 0 ' + vw + ' ' + vh + '">' +
+          '<line x1="10" y1="' + (vh - 12) + '" x2="' + (vw - 10) + '" y2="' + (vh - 12) + '" stroke="#2e2e2e" stroke-width="0.5"/>' +
+          '<polyline points="' + pts + '" stroke="' + (color || '#4a9eff') + '" stroke-width="1.5" fill="none"/>' +
+          (label ? '<text x="10" y="12" fill="#666" font-size="10" font-family="monospace">' + label + '</text>' : '') +
+          '</svg>';
+      }
+
+      var LAST_ANALYSIS = null;
+      var SRF_EXEC_CFG = {
+        scope: { mode: 'farm_all', farm: '', plots: [] },
+        sequencia: { modo: 'implantacao' },
+        params: { jornada_h_dia: 4.3, prazo_meses: 3, bloqueio_global: true, reforco_automatico: true, pelotao_pos_bloqueio: true },
+        teams: [{ name: 'Turma 1', workers: 4, activities: [] }],
+        comparative: { enabled: true, jornadas: [4.3, 5.3, 8], equipes: [4, 6, 8] }
+      };
+      var SRF_EXEC_CATALOG = { farms: [], plots: [], activities: [] };
+      var SRF_ACTIVE_TEAM_INDEX = 0;
+
+      function renderExecutionBridgePanel(container) {
+        if (!container) return;
+        var html = '';
+        html += '<div class="steps-title" style="margin-top:10px">Bridge UI ↔ CLI</div>';
+        html += '<div class="card-bg3" style="padding:10px;margin-bottom:8px">';
+        html += '<div class="fs-11 text-muted mb-8">Configuração operacional (alinhada ao CLI: escopo + sequência + turmas)</div>';
+        html += '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+        html += '<div style="grid-column:1/-1" class="fs-10 text-muted">Modo de escopo (fazenda / talhão)</div>';
+        html += '<select id="cfg-scope-mode" class="input-dark" style="margin-bottom:8px">';
+        html += '<option value="farm_all">Fazenda inteira</option>';
+        html += '<option value="single_plot">Um talhão</option>';
+        html += '<option value="multi_plot">Vários talhões</option>';
+        html += '</select>';
+        html += '<select id="cfg-sequencia-modo" class="input-dark" style="margin-bottom:8px">';
+        html += '<option value="implantacao">Sequência: implantação (cascata clássica)</option>';
+        html += '<option value="manutencao_swg">Sequência: manutenção SWG</option>';
+        html += '<option value="manutencao_seco">Manutenção período seco (placeholder CLI)</option>';
+        html += '<option value="manutencao_umido">Manutenção período úmido (placeholder CLI)</option>';
+        html += '</select>';
+        html += '<div style="grid-column:1/-1" class="fs-10 text-muted">Fazenda (lista do catálogo ou manual)</div>';
+        html += '<select id="cfg-farm-select" class="input-dark" style="grid-column:1/-1;margin-bottom:4px"><option value="">— Escolher fazenda no catálogo —</option></select>';
+        html += '<input id="cfg-farm" class="input-dark" placeholder="Nome da fazenda (manual se não estiver no catálogo)" value="' + String(SRF_EXEC_CFG.scope.farm || '').replace(/"/g, '&quot;') + '"/>';
+        html += '<input id="cfg-plots" class="input-dark" placeholder="Talhões: códigos separados por vírgula (obrigatório se não for fazenda inteira)" value="' + (SRF_EXEC_CFG.scope.plots || []).join(',') + '"/>';
+        html += '<input id="cfg-jornada" class="input-dark" placeholder="Jornada h/dia" value="' + (SRF_EXEC_CFG.params.jornada_h_dia || 4.3) + '"/>';
+        html += '<input id="cfg-prazo" class="input-dark" placeholder="Prazo meses" value="' + (SRF_EXEC_CFG.params.prazo_meses || 3) + '"/>';
+        html += '<input id="cfg-eqs" class="input-dark" placeholder="Comparativo equipes (ex: 4,6,8)" value="' + (SRF_EXEC_CFG.comparative.equipes || []).join(',') + '"/>';
+        html += '<input id="cfg-jorns" class="input-dark" placeholder="Comparativo jornadas (ex: 4.3,5.3,8)" value="' + (SRF_EXEC_CFG.comparative.jornadas || []).join(',') + '"/>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:8px;margin-top:8px">';
+        html += '<button type="button" class="btn-outline btn-sm" id="btn-preflight">Preflight</button>';
+        html += '<button type="button" class="btn-red btn-sm" id="btn-save-cfg">Salvar Config</button>';
+        html += '</div>';
+        html += '<div id="bridge-preflight-result" class="fs-11 text-muted" style="margin-top:8px"></div>';
+        html += '</div>';
+        html += '<div class="card-bg3" style="padding:10px;margin-bottom:8px">';
+        html += '<div class="fs-11 text-muted mb-8">Wizard de turmas e vínculo (S/N)</div>';
+        html += '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">';
+        html += '<button type="button" class="btn-outline btn-sm" id="btn-team-add">+ Turma</button>';
+        html += '<button type="button" class="btn-outline btn-sm" id="btn-team-del">- Turma</button>';
+        html += '<select id="cfg-team-select" class="input-dark" style="margin-bottom:0;min-width:180px"></select>';
+        html += '<button type="button" class="btn-red btn-sm" id="btn-catalog-reload">Recarregar catálogo</button>';
+        html += '</div>';
+        html += '<div id="bridge-team-bindings" class="fs-11 text-muted">Carregando atividades...</div>';
+        html += '</div>';
+        html += '<div class="card-bg3" style="padding:10px">';
+        html += '<div class="fs-11 text-muted mb-8">Painel auxiliar: rastreamento de lógica + cenários</div>';
+        html += '<div id="bridge-events-root" class="fs-11 text-muted">Sem eventos</div>';
+        html += '</div>';
+        container.insertAdjacentHTML('beforeend', html);
+
+        var scopeMode = document.getElementById('cfg-scope-mode');
+        if (scopeMode) {
+          scopeMode.value = SRF_EXEC_CFG.scope.mode || 'farm_all';
+          scopeMode.onchange = function () { syncBridgeScopePlotsPlaceholder(); };
+        }
+        var seqMode = document.getElementById('cfg-sequencia-modo');
+        if (seqMode) {
+          seqMode.value = (SRF_EXEC_CFG.sequencia && SRF_EXEC_CFG.sequencia.modo) || 'implantacao';
+          seqMode.onchange = function () {
+            if (!SRF_EXEC_CFG.sequencia) SRF_EXEC_CFG.sequencia = {};
+            SRF_EXEC_CFG.sequencia.modo = seqMode.value;
+          };
+        }
+        var farmSel = document.getElementById('cfg-farm-select');
+        if (farmSel) {
+          farmSel.onchange = function () {
+            var fi = document.getElementById('cfg-farm');
+            if (farmSel.value) {
+              if (fi) fi.value = farmSel.value;
+            }
+          };
+        }
+        syncBridgeScopePlotsPlaceholder();
+        populateBridgeFarmSelect();
+
+        var btnPre = document.getElementById('btn-preflight');
+        var btnSave = document.getElementById('btn-save-cfg');
+        if (btnPre) btnPre.onclick = runExecutionPreflight;
+        if (btnSave) btnSave.onclick = saveExecutionConfig;
+        var btA = document.getElementById('btn-team-add');
+        var btD = document.getElementById('btn-team-del');
+        if (btA) btA.onclick = addTeamToExecutionConfig;
+        if (btD) btD.onclick = removeCurrentTeamFromExecutionConfig;
+        var btnCat = document.getElementById('btn-catalog-reload');
+        if (btnCat) btnCat.onclick = function () { loadExecutionCatalog(); };
+        var sel = document.getElementById('cfg-team-select');
+        if (sel) sel.onchange = function () { SRF_ACTIVE_TEAM_INDEX = Number(sel.value || 0); renderTeamBindings(); };
+        loadExecutionCatalog();
+      }
+
+      function syncBridgeScopePlotsPlaceholder() {
+        var sm = document.getElementById('cfg-scope-mode');
+        var plots = document.getElementById('cfg-plots');
+        if (!plots) return;
+        if (sm && sm.value === 'farm_all') {
+          plots.placeholder = 'Talhões vazios = toda a fazenda';
+        } else if (sm && sm.value === 'single_plot') {
+          plots.placeholder = 'Um código de talhão (obrigatório)';
+        } else {
+          plots.placeholder = 'Vários talhões, separados por vírgula (obrigatório)';
+        }
+      }
+
+      function populateBridgeFarmSelect() {
+        var sel = document.getElementById('cfg-farm-select');
+        if (!sel) return;
+        var farms = SRF_EXEC_CATALOG.farms || [];
+        var cur = (SRF_EXEC_CFG.scope && SRF_EXEC_CFG.scope.farm) ? String(SRF_EXEC_CFG.scope.farm) : '';
+        var opts = '<option value="">— Escolher fazenda no catálogo —</option>';
+        farms.forEach(function (f) {
+          var s = String(f);
+          opts += '<option value="' + s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '') + '">' + s.replace(/</g, '') + '</option>';
+        });
+        sel.innerHTML = opts;
+        if (cur && farms.indexOf(cur) >= 0) {
+          sel.value = cur;
+        } else {
+          sel.value = '';
+        }
+        var fi = document.getElementById('cfg-farm');
+        if (fi && !sel.value && cur) fi.value = cur;
+      }
+
+      function ensureTeamDefaults() {
+        if (!SRF_EXEC_CFG.teams || !SRF_EXEC_CFG.teams.length) {
+          SRF_EXEC_CFG.teams = [{ name: 'Turma 1', workers: 4, activities: [] }];
+        }
+      }
+
+      function syncTeamSelector() {
+        ensureTeamDefaults();
+        var sel = document.getElementById('cfg-team-select');
+        if (!sel) return;
+        sel.innerHTML = SRF_EXEC_CFG.teams.map(function (t, i) {
+          return '<option value="' + i + '">' + (t.name || ('Turma ' + (i + 1))) + '</option>';
+        }).join('');
+        if (SRF_ACTIVE_TEAM_INDEX >= SRF_EXEC_CFG.teams.length) SRF_ACTIVE_TEAM_INDEX = SRF_EXEC_CFG.teams.length - 1;
+        if (SRF_ACTIVE_TEAM_INDEX < 0) SRF_ACTIVE_TEAM_INDEX = 0;
+        sel.value = String(SRF_ACTIVE_TEAM_INDEX);
+      }
+
+      function renderTeamBindings() {
+        ensureTeamDefaults();
+        syncTeamSelector();
+        var root = document.getElementById('bridge-team-bindings');
+        if (!root) return;
+        var t = SRF_EXEC_CFG.teams[SRF_ACTIVE_TEAM_INDEX] || SRF_EXEC_CFG.teams[0];
+        if (!t.activities) t.activities = [];
+        var acts = (SRF_EXEC_CATALOG.activities || []).slice(0, 60);
+        if (!acts.length) {
+          root.innerHTML = '<div class="card-bg3" style="padding:10px;line-height:1.5">Nenhuma atividade detetada nos seus ficheiros. O catálogo lê colunas como <strong>ATIVIDADES</strong> / atividade no micro (.xlsx).<br><br>'
+            + 'Pastas de exemplo do projeto (<code>testes/</code>, <code>tutorial/</code>) <strong>não entram</strong> na lista nem no catálogo — envie o seu .xlsx na área de upload e clique em <strong>Recarregar catálogo</strong>.</div>';
+          return;
+        }
+        var h = '<div class="mb-8"><strong>' + (t.name || 'Turma') + '</strong> · workers: ';
+        h += '<input id="cfg-team-workers" class="input-dark" style="width:70px;display:inline-block;margin:0 6px" value="' + (t.workers || 4) + '"/>';
+        h += '<button type="button" class="btn-outline btn-sm" id="btn-team-workers-save">Salvar</button></div>';
+        h += '<div style="max-height:220px;overflow:auto;border:1px solid var(--line);padding:6px;border-radius:6px">';
+        acts.forEach(function (a, i) {
+          var on = (t.activities || []).indexOf(a) >= 0;
+          h += '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 2px;border-bottom:1px dashed #2a2a2a">';
+          h += '<span style="flex:1">' + String(a).slice(0, 70) + '</span>';
+          h += '<button type="button" class="' + (on ? 'btn-red' : 'btn-outline') + ' btn-sm" data-act="' + String(i) + '">' + (on ? 'S' : 'N') + '</button>';
+          h += '</div>';
+        });
+        h += '</div>';
+        root.innerHTML = h;
+        Array.prototype.slice.call(root.querySelectorAll('button[data-act]')).forEach(function (b) {
+          b.onclick = function () {
+            var idx = Number(b.getAttribute('data-act') || 0);
+            var a = acts[idx];
+            toggleTeamActivity(a);
+          };
+        });
+        var bw = document.getElementById('btn-team-workers-save');
+        if (bw) bw.onclick = function () {
+          var v = Number((document.getElementById('cfg-team-workers') || {}).value || 0);
+          t.workers = isNaN(v) || v <= 0 ? 1 : Math.round(v);
+          renderTeamBindings();
+        };
+      }
+
+      function toggleTeamActivity(a) {
+        ensureTeamDefaults();
+        var t = SRF_EXEC_CFG.teams[SRF_ACTIVE_TEAM_INDEX] || SRF_EXEC_CFG.teams[0];
+        if (!t.activities) t.activities = [];
+        var i = t.activities.indexOf(a);
+        if (i >= 0) t.activities.splice(i, 1);
+        else t.activities.push(a);
+        renderTeamBindings();
+      }
+
+      function addTeamToExecutionConfig() {
+        ensureTeamDefaults();
+        var n = SRF_EXEC_CFG.teams.length + 1;
+        SRF_EXEC_CFG.teams.push({ name: 'Turma ' + n, workers: 1, activities: [] });
+        SRF_ACTIVE_TEAM_INDEX = SRF_EXEC_CFG.teams.length - 1;
+        renderTeamBindings();
+      }
+
+      function removeCurrentTeamFromExecutionConfig() {
+        ensureTeamDefaults();
+        if (SRF_EXEC_CFG.teams.length <= 1) return;
+        SRF_EXEC_CFG.teams.splice(SRF_ACTIVE_TEAM_INDEX, 1);
+        SRF_ACTIVE_TEAM_INDEX = Math.max(0, SRF_ACTIVE_TEAM_INDEX - 1);
+        renderTeamBindings();
+      }
+
+      function loadExecutionCatalog() {
+        var bind = document.getElementById('bridge-team-bindings');
+        if (bind && !(SRF_EXEC_CATALOG.activities || []).length) bind.textContent = 'A ler catálogo do workspace…';
+        withSession(function () {
+          return fetch(sesUrl('/execution_catalog'))
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (d) {
+              SRF_EXEC_CATALOG = d || { farms: [], plots: [], activities: [] };
+              if (!SRF_EXEC_CFG.scope.farm && SRF_EXEC_CATALOG.farms && SRF_EXEC_CATALOG.farms.length) {
+                SRF_EXEC_CFG.scope.farm = SRF_EXEC_CATALOG.farms[0];
+                var fi = document.getElementById('cfg-farm'); if (fi) fi.value = SRF_EXEC_CFG.scope.farm;
+              }
+              populateBridgeFarmSelect();
+              renderTeamBindings();
+            });
+        }).catch(function () { renderTeamBindings(); });
+      }
+
+      function readExecutionConfigFromUI() {
+        function pNum(v, d) { var n = Number(String(v || '').replace(',', '.')); return isNaN(n) ? d : n; }
+        function pList(v, asInt) {
+          return String(v || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).map(function (x) {
+            var n = Number(String(x).replace(',', '.'));
+            return asInt ? Math.round(n) : n;
+          }).filter(function (x) { return !isNaN(x) && x > 0; });
+        }
+        var fs = document.getElementById('cfg-farm-select');
+        var fi = document.getElementById('cfg-farm');
+        var farm = (fs && fs.value) ? fs.value : String((fi || {}).value || '').trim();
+        var plots = String((document.getElementById('cfg-plots') || {}).value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        var modeEl = document.getElementById('cfg-scope-mode');
+        var mode = (modeEl && modeEl.value) ? modeEl.value : 'farm_all';
+        var seqEl = document.getElementById('cfg-sequencia-modo');
+        var seqModo = (seqEl && seqEl.value) ? seqEl.value : 'implantacao';
+        var jornada = pNum((document.getElementById('cfg-jornada') || {}).value, 4.3);
+        var prazo = pNum((document.getElementById('cfg-prazo') || {}).value, 3);
+        var equipes = pList((document.getElementById('cfg-eqs') || {}).value, true);
+        var jornadas = pList((document.getElementById('cfg-jorns') || {}).value, false);
+        SRF_EXEC_CFG.scope.farm = farm;
+        SRF_EXEC_CFG.scope.mode = mode;
+        SRF_EXEC_CFG.scope.plots = mode === 'farm_all' ? [] : plots;
+        if (!SRF_EXEC_CFG.sequencia) SRF_EXEC_CFG.sequencia = {};
+        SRF_EXEC_CFG.sequencia.modo = seqModo;
+        SRF_EXEC_CFG.params.jornada_h_dia = jornada;
+        SRF_EXEC_CFG.params.prazo_meses = prazo;
+        SRF_EXEC_CFG.comparative.equipes = equipes;
+        SRF_EXEC_CFG.comparative.jornadas = jornadas;
+        ensureTeamDefaults();
+        return SRF_EXEC_CFG;
+      }
+
+      function runExecutionPreflight() {
+        var cfg = readExecutionConfigFromUI();
+        var out = document.getElementById('bridge-preflight-result');
+        if (out) out.textContent = 'Validando...';
+        withSession(function () {
+          return fetch(sesUrl('/preflight'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (d) {
+              var msg = d.ok ? 'Preflight OK' : 'Preflight com pendências';
+              msg += ' · issues=' + (d.issues || []).length + ' · warnings=' + (d.warnings || []).length;
+              if (out) out.textContent = msg;
+            });
+        }).catch(function () { if (out) out.textContent = 'Falha no preflight'; });
+      }
+
+      function saveExecutionConfig() {
+        var cfg = readExecutionConfigFromUI();
+        var out = document.getElementById('bridge-preflight-result');
+        withSession(function () {
+          return fetch(sesUrl('/execution_config'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function () { if (out) out.textContent = 'Configuração salva na sessão'; });
+        }).catch(function () { if (out) out.textContent = 'Falha ao salvar configuração'; });
+      }
+
+      window.refreshProcessingView = function () {
+        var filesEl = document.getElementById('proc-files-count');
+        var xlsxEl = document.getElementById('proc-xlsx-count');
+        var dossEl = document.getElementById('proc-dossie-count');
+        var stateEl = document.getElementById('proc-state-text');
+        var badgeEl = document.getElementById('proc-state-badge');
+        var userLine = document.getElementById('proc-user-line');
+        var sidInp = document.getElementById('proc-session-input');
+        var jobId = document.getElementById('proc-job-id');
+        var wks = document.getElementById('proc-workspace');
+        var rep = document.getElementById('proc-report-count');
+        var logRoot = document.getElementById('proc-live-log-root');
+        var chart = document.getElementById('proc-activity-chart');
+        var cap = document.getElementById('proc-activity-caption');
+        var stepsDynamic = document.getElementById('proc-steps-dynamic');
+
+        if (stateEl) stateEl.textContent = 'Conectando…';
+        if (badgeEl) { badgeEl.textContent = 'Conectando'; badgeEl.className = 'badge-warn'; }
+
+        withSession(function () {
+          if (sidInp) sidInp.value = SRF_SESSION_ID;
+          if (jobId) jobId.textContent = 'Sessão: ' + SRF_SESSION_ID;
+          if (userLine) userLine.textContent = 'Dados reais da sessão';
+
+          return Promise.all([
+            fetch(sesUrl('/status')).then(function (r) { return r.ok ? r.json() : Promise.reject(r); }),
+            fetch(sesUrl('/files')).then(function (r) { return r.ok ? r.json() : Promise.reject(r); }),
+            fetch(sesUrl('/reports')).then(function (r) { return r.ok ? r.json() : Promise.reject(r); }),
+            fetch('/api/micro/summary?' + new URLSearchParams({ token: SRF_TOKEN, session_id: SRF_SESSION_ID }).toString()).then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+          ]).then(function (all) {
+            var st = all[0] || {};
+            var files = (all[1] && all[1].files) || [];
+            var reports = (all[2] && all[2].reports) || [];
+            var micro = all[3] || {};
+            var xlsx = files.filter(function (f) {
+              return f.toLowerCase().endsWith('.xlsx') && !isBundledSamplePath(f);
+            });
+            var status = st.status || 'idle';
+            var progress = st.progress_pct || 0;
+
+            if (filesEl) filesEl.textContent = files.length + ' arquivos';
+            if (xlsxEl) xlsxEl.textContent = String(xlsx.length);
+            if (dossEl) dossEl.textContent = String(reports.length);
+            var stLabels = { idle: 'Aguardando', running: 'Processando', done: 'Concluído', error: 'Erro' };
+            var stClasses = { idle: 'badge-warn', running: 'badge-running', done: 'badge-ok', error: 'badge-err' };
+            if (stateEl) stateEl.textContent = stLabels[status] || status;
+            if (badgeEl) { badgeEl.textContent = stLabels[status] || status; badgeEl.className = stClasses[status] || 'badge-warn'; }
+            if (wks) wks.textContent = micro.micro_nome || '—';
+            if (rep) rep.textContent = String(reports.length);
+            if (cap) cap.textContent = 'Progresso: ' + progress + '% · ' + (stLabels[status] || status);
+
+            if (stepsDynamic) {
+              var steps = [
+                { name: 'Recebendo arquivos', desc: 'Upload e verificação', pct: files.length > 0 ? 100 : 0 },
+                { name: 'Validando formato', desc: 'Schema e colunas obrigatórias', pct: xlsx.length > 0 ? 100 : (status === 'running' ? 30 : 0) },
+                { name: 'Processando dados', desc: 'Cruzamento boletins × tarifas', pct: status === 'done' ? 100 : (status === 'running' ? Math.min(progress, 80) : 0) },
+                { name: 'Gerando relatórios', desc: 'Exportando dossiers', pct: reports.length > 0 ? 100 : (status === 'running' && progress > 50 ? progress - 50 : 0) },
+                { name: 'Finalizado', desc: 'Relatórios prontos para download', pct: status === 'done' ? 100 : 0 }
+              ];
+              var sh = '<div class="steps-title">Etapas de processamento</div>';
+              steps.forEach(function (step) {
+                var icon, cls, pc, sl;
+                if (step.pct >= 100) { icon = '✓'; cls = 'done'; pc = '#27ae60'; sl = 'Concluído'; }
+                else if (step.pct > 0) { icon = '⟳'; cls = 'active'; pc = '#4a9eff'; sl = 'Em progresso'; }
+                else { icon = '○'; cls = 'wait'; pc = 'var(--text3)'; sl = 'Aguardando'; }
+                sh += '<div class="step-item"><div class="step-icon ' + cls + '">' + icon + '</div><div class="step-info"><div class="step-name">' + step.name + '</div><div class="step-desc">' + step.desc + '</div><div class="step-prog-bar"><div style="height:100%;width:' + step.pct + '%;background:' + pc + ';border-radius:2px"></div></div></div><div class="step-right"><div class="step-pct" style="color:' + pc + '">' + step.pct + '%</div><div style="font-size:10px;color:var(--text3)">' + sl + '</div></div></div>';
+              });
+              stepsDynamic.innerHTML = sh;
+              var host = document.getElementById('s4-steps-box');
+              if (host && !document.getElementById('btn-preflight')) {
+                renderExecutionBridgePanel(host);
+              }
+            }
+
+            if (logRoot) {
+              logRoot.innerHTML = '';
+              function fmtEvtTime(ts) {
+                if (ts == null || ts === '') return '—';
+                try {
+                  var d = new Date(typeof ts === 'number' ? ts * 1000 : Date.parse(ts));
+                  if (isNaN(d.getTime())) return '—';
+                  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } catch (e) { return '—'; }
+              }
+              function appendLogRow(icon, color, timeStr, msg, sub) {
+                var div = document.createElement('div');
+                div.className = 'log-item';
+                div.innerHTML = '<div class="log-icon" style="color:' + color + '">' + icon + '</div><div class="log-body"><div class="log-time"></div><div class="log-msg"></div><div class="log-rec"></div></div>';
+                div.querySelector('.log-time').textContent = timeStr;
+                div.querySelector('.log-msg').textContent = msg;
+                div.querySelector('.log-rec').textContent = sub || '';
+                logRoot.appendChild(div);
+              }
+              var sem = st.semantic_events || [];
+              var shown = 0;
+              if (sem.length) {
+                sem.slice(-12).forEach(function (ev) {
+                  var lv = String(ev.level || 'info').toLowerCase();
+                  var icon = 'ℹ', color = '#4a9eff';
+                  if (lv === 'error' || lv === 'err') { icon = '✕'; color = '#e05050'; }
+                  else if (lv === 'warn' || lv === 'warning') { icon = '⚠'; color = '#e9a22a'; }
+                  else if (lv === 'ok' || lv === 'success') { icon = '✓'; color = '#27ae60'; }
+                  var msg = (ev.stage || '') + (ev.detail ? ': ' + ev.detail : '');
+                  appendLogRow(icon, color, fmtEvtTime(ev.ts), msg, 'progresso ' + (ev.progress != null ? ev.progress : 0) + '% · evento da sessão');
+                  shown++;
+                });
+              }
+              if (!shown && st.recent_log) {
+                st.recent_log.split('\n').filter(function (l) { return l.trim(); }).slice(-8).forEach(function (msg) {
+                  var icon = 'ℹ', color = '#4a9eff';
+                  if (/ERRO|ERROR/i.test(msg)) { icon = '✕'; color = '#e05050'; }
+                  else if (/WARN|AVISO/i.test(msg)) { icon = '⚠'; color = '#e9a22a'; }
+                  else if (/OK|Conclu/i.test(msg)) { icon = '✓'; color = '#27ae60'; }
+                  appendLogRow(icon, color, 'CLI', msg, 'saída recente do processo');
+                  shown++;
+                });
+              }
+              if (!shown) {
+                if (xlsx.length) appendLogRow('ℹ', '#4a9eff', 'agora', 'Planilhas no workspace: ' + xlsx.slice(0, 4).map(_pathBaseName).join(', ') + (xlsx.length > 4 ? '…' : ''), 'origem: listagem real');
+                else if (reports.length) appendLogRow('ℹ', '#4a9eff', 'agora', 'Relatório: ' + reports[0].nome, 'origem: dossiês');
+                else appendLogRow('ℹ', '#666', '—', 'Sem eventos ainda. Faça upload de .xlsx ou use o CLI.', '');
+              }
+            }
+
+            if (chart) {
+              var a = Math.min(90, 20 + files.length * 5);
+              var b = Math.min(90, 15 + xlsx.length * 7);
+              var c = Math.min(90, 10 + reports.length * 11);
+              chart.innerHTML =
+                '<svg width="100%" height="80" viewBox="0 0 200 80">' +
+                '<polyline points="10,70 70,' + (80 - a) + ' 130,' + (80 - b) + ' 190,' + (80 - c) + '" stroke="#4a9eff" stroke-width="1.5" fill="none"/>' +
+                '<polyline points="10,74 70,' + (82 - a / 2) + ' 130,' + (82 - b / 2) + ' 190,' + (82 - c / 2) + '" stroke="#e05050" stroke-width="1" fill="none" opacity="0.6" stroke-dasharray="3,2"/>' +
+                '<line x1="10" y1="75" x2="190" y2="75" stroke="#2e2e2e" stroke-width="0.5" />' +
+                '</svg>';
+            }
+
+            var evRoot = document.getElementById('bridge-events-root');
+            if (evRoot) {
+              var evs = st.semantic_events || [];
+              if (!evs.length) evRoot.innerHTML = 'Sem eventos semânticos ainda.';
+              else evRoot.innerHTML = evs.slice(-8).map(function (e) {
+                return '<div style="margin-bottom:4px"><strong>' + (e.stage || '') + '</strong> · ' + (e.progress || 0) + '% <span class="text-muted">- ' + (e.detail || '') + '</span></div>';
+              }).join('');
+            }
+          });
+        }).catch(function () {
+          if (stateEl) stateEl.textContent = 'Erro ao ler sessão';
+          if (badgeEl) { badgeEl.textContent = 'Erro'; badgeEl.className = 'badge-err'; }
+        });
+      };
+
+      function fmtBytes(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+        return (n / 1048576).toFixed(1) + ' MB';
+      }
+
+      function _pathBaseName(p) {
+        var s = String(p || '').replace(/\\/g, '/');
+        return s.indexOf('/') >= 0 ? s.split('/').pop() : s;
+      }
+
+      function _tarifasSlotKey() {
+        return 'srf_tarifas_bn_' + (window.SRF_SESSION_ID || 'none');
+      }
+
+      function _loadTarifasBasenames() {
+        try {
+          var raw = sessionStorage.getItem(_tarifasSlotKey());
+          if (!raw) return [];
+          var a = JSON.parse(raw);
+          return Array.isArray(a) ? a : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function _saveTarifasBasenames(arr) {
+        try {
+          sessionStorage.setItem(_tarifasSlotKey(), JSON.stringify(arr));
+        } catch (e) { }
+      }
+
+      function _setUploadSlotForBasename(basename, slot) {
+        var bn = basename;
+        var arr = _loadTarifasBasenames();
+        var i = arr.indexOf(bn);
+        if (slot === 'tarifas') {
+          if (i === -1) arr.push(bn);
+        } else if (slot === 'boletins') {
+          if (i >= 0) arr.splice(i, 1);
+        }
+        _saveTarifasBasenames(arr);
+      }
+
+      function _isTarifasWorkspacePath(path) {
+        var bn = _pathBaseName(path);
+        if (_loadTarifasBasenames().indexOf(bn) >= 0) return true;
+        return /tarif|rendimento|rate/i.test(path);
+      }
+
+      window.refreshWorkspaceFiles = function () {
+        var statusEl = document.getElementById('upload-status');
+        var foot = document.getElementById('s1-footer-resumo');
+        if (statusEl) statusEl.textContent = 'A sincronizar…';
+        withSession(function () {
+          return fetch(sesUrl('/files'))
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (data) {
+              var files = data.files || [];
+              var naoDossie = function (f) { return f.replace(/\\/g, '/').toLowerCase().indexOf('dossi') === -1; };
+              var xlsx = files.filter(function (f) {
+                return f.toLowerCase().endsWith('.xlsx') && naoDossie(f) && !isBundledSamplePath(f);
+              });
+              var tarifas = xlsx.filter(_isTarifasWorkspacePath);
+              var boletins = xlsx.filter(function (f) { return !_isTarifasWorkspacePath(f); });
+              renderFileList('list-boletins', 'list-boletins-empty', boletins, { showRemove: true });
+              renderFileList('list-tarifas', 'list-tarifas-empty', tarifas, { showRemove: true });
+              if (statusEl) {
+                if (!xlsx.length) {
+                  statusEl.textContent = 'Nenhuma planilha no workspace';
+                } else {
+                  var names = xlsx.slice(0, 5).map(_pathBaseName).join(', ');
+                  var extra = xlsx.length > 5 ? ' (+' + (xlsx.length - 5) + ')' : '';
+                  statusEl.textContent = xlsx.length + ' planilha' + (xlsx.length > 1 ? 's' : '') + ': ' + names + extra;
+                }
+              }
+              if (foot) {
+                if (!xlsx.length) {
+                  foot.innerHTML = 'Nenhuma planilha .xlsx carregada';
+                } else {
+                  foot.innerHTML = '<strong style="color:var(--text)">' + xlsx.length + '</strong> planilha' + (xlsx.length > 1 ? 's' : '') + ' .xlsx no workspace';
+                }
+              }
+            });
+        }).catch(function () {
+          if (statusEl) statusEl.textContent = 'Erro ao listar ficheiros';
+          if (foot) foot.innerHTML = 'Resumo: <strong style="color:var(--text)">indisponível</strong>';
+        });
+      };
+
+      function renderFileList(containerId, emptyId, names, opts) {
+        opts = opts || {};
+        var c = document.getElementById(containerId);
+        var e = document.getElementById(emptyId);
+        if (!c || !e) return;
+        c.innerHTML = '';
+        if (!names || !names.length) {
+          c.hidden = true;
+          e.hidden = false;
+          return;
+        }
+        e.hidden = true;
+        c.hidden = false;
+        names.forEach(function (name) {
+          var div = document.createElement('div');
+          div.className = 'file-item';
+          var top = document.createElement('div');
+          top.className = 'file-item-top';
+          var sp = document.createElement('span');
+          sp.className = 'file-name';
+          sp.textContent = name;
+          top.appendChild(sp);
+          if (opts.showRemove) {
+            var rb = document.createElement('button');
+            rb.type = 'button';
+            rb.className = 'btn-outline';
+            rb.style.fontSize = '10px';
+            rb.style.padding = '2px 8px';
+            rb.style.flexShrink = '0';
+            rb.textContent = 'Remover';
+            rb.setAttribute('aria-label', 'Remover do workspace');
+            (function (rel) {
+              rb.onclick = function () { removeWorkspaceFile(rel); };
+            })(name);
+            top.appendChild(rb);
+          }
+          div.appendChild(top);
+          c.appendChild(div);
+        });
+      }
+
+      window.removeWorkspaceFile = function (relPath) {
+        if (!confirm('Remover este ficheiro do workspace desta sessão?')) return;
+        withSession(function () {
+          return fetch('/api/sessions/' + encodeURIComponent(SRF_SESSION_ID) + '/workspace_file?token=' + encodeURIComponent(SRF_TOKEN) + '&path=' + encodeURIComponent(relPath), { method: 'DELETE' })
+            .then(function (r) { if (!r.ok) throw new Error('delete'); return r.json(); })
+            .then(function () {
+              var bn = relPath.replace(/\\/g, '/').split('/').pop();
+              _setUploadSlotForBasename(bn, 'boletins');
+              _showBanner('Removido: ' + bn, 'ok');
+              refreshWorkspaceFiles();
+              refreshProcessingView();
+              loadExecutionCatalog();
+            });
+        }).catch(function () { alert('Não foi possível remover o ficheiro.'); });
+      };
+
+      function _showUploadConfirm(name) {
+        _showBanner('Carregado: ' + name, 'ok');
+      }
+
+      function uploadFile(file, uploadSlot) {
+        return ensureSessionReady().then(function () {
+          var fd = new FormData();
+          fd.append('token', SRF_TOKEN);
+          fd.append('file', file);
+          return fetch('/api/sessions/' + encodeURIComponent(SRF_SESSION_ID) + '/upload', { method: 'POST', body: fd })
+            .then(function (r) { if (!r.ok) throw new Error('upload'); return r.json(); })
+            .then(function (data) {
+              _showUploadConfirm(file.name);
+              if (uploadSlot === 'tarifas') {
+                _setUploadSlotForBasename(file.name, 'tarifas');
+              } else if (uploadSlot === 'boletins') {
+                _setUploadSlotForBasename(file.name, 'boletins');
+              }
+              return data;
+            });
+        });
+      }
+
+      function wireDrop(el, inputId, uploadSlot) {
+        var inp = document.getElementById(inputId);
+        if (!el || !inp) return;
+        el.addEventListener('click', function (e) {
+          e.stopPropagation();
+          inp.click();
+        });
+        el.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inp.click();
+          }
+        });
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
+          el.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); });
+        });
+        el.addEventListener('drop', function (e) {
+          var files = e.dataTransfer.files;
+          var chain = Promise.resolve();
+          for (var i = 0; i < files.length; i++) {
+            (function (file) {
+              chain = chain.then(function () { return uploadFile(file, uploadSlot); });
+            })(files[i]);
+          }
+          chain.then(function () {
+            refreshWorkspaceFiles();
+            loadExecutionCatalog();
+            refreshProcessingView();
+          }).catch(function () { alert('Falha no upload'); });
+        });
+        inp.addEventListener('change', function () {
+          var chain = Promise.resolve();
+          for (var i = 0; i < inp.files.length; i++) {
+            (function (file) {
+              chain = chain.then(function () { return uploadFile(file, uploadSlot); });
+            })(inp.files[i]);
+          }
+          chain.then(function () {
+            refreshWorkspaceFiles();
+            loadExecutionCatalog();
+            refreshProcessingView();
+          }).catch(function () { alert('Falha no upload'); });
+          inp.value = '';
+        });
+      }
+
+      window.refreshMicroSummary = function () {
+        var el = document.getElementById('micro-summary');
+        if (!el) return;
+        el.innerHTML = 'A carregar resumo…';
+        withSession(function () {
+          return fetch('/api/micro/summary?' + new URLSearchParams({ token: SRF_TOKEN, session_id: SRF_SESSION_ID }).toString())
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (data) {
+              if (!data.workspace_ready) { el.innerHTML = data.message || 'Workspace indisponível'; return; }
+              el.innerHTML = 'Workspace <strong>' + (data.micro_nome || '') + '</strong> · .xlsx: <strong>' + (data.ficheiros_xlsx_total != null ? data.ficheiros_xlsx_total : '—') + '</strong> · relatórios em dossiês: <strong>' + (data.relatorios_em_dossies != null ? data.relatorios_em_dossies : '—') + '</strong>';
+            });
+        }).catch(function () {
+          el.innerHTML = 'Resumo: <strong>erro ao ler workspace</strong>';
+        });
+      };
+
+      window.refreshReportsList = function () {
+        var root = document.getElementById('report-list-root');
+        var empty = document.getElementById('report-empty');
+        if (!root) { if (empty) empty.hidden = false; return; }
+        root.innerHTML = 'A carregar…';
+        withSession(function () {
+          return fetch(sesUrl('/reports'))
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (data) {
+              var reps = data.reports || [];
+              root.innerHTML = '';
+              if (!reps.length) {
+                if (empty) empty.hidden = false;
+                return;
+              }
+              if (empty) empty.hidden = true;
+              reps.forEach(function (rep) {
+                var row = document.createElement('div');
+                row.className = 'report-row';
+                row.setAttribute('role', 'listitem');
+                row.innerHTML =
+                  '<div><div class="report-main-title"></div><div class="report-sub"></div></div>' +
+                  '<div class="report-pills"><span class="pill-ok">Ficheiro</span></div>' +
+                  '<div class="report-actions">' +
+                  '<button type="button" class="btn-outline btn-sm report-open-detail">Detalhe</button>' +
+                  '<button type="button" class="btn-outline btn-sm report-open-analysis">Análise</button>' +
+                  '<button type="button" class="btn-red btn-sm report-download">Descarregar</button></div>';
+                row.querySelector('.report-main-title').textContent = rep.nome;
+                row.querySelector('.report-sub').textContent = rep.path + ' · ' + fmtBytes(rep.tamanho_bytes) + ' · ' + (rep.mtime_iso || '');
+                row.querySelector('.report-download').onclick = function () {
+                  window.location.href = sesUrl('/download') + '&path=' + encodeURIComponent(rep.path);
+                };
+                row.querySelector('.report-open-detail').onclick = function () {
+                  openReportView(rep, 5);
+                };
+                row.querySelector('.report-open-analysis').onclick = function () {
+                  openReportView(rep, 7);
+                };
+                root.appendChild(row);
+              });
+            })
+            .catch(function () {
+              root.innerHTML = '<div class="empty-state">Erro ao listar relatórios</div>';
+            });
+        });
+      };
+
+      function renderDetailFromAnalysis(rep, data) {
+        var parsed = data.parsed || {};
+        var insights = data.insights || [];
+        var fin = parsed.financeiro || {};
+        var ops = parsed.operacional || {};
+        var crono = parsed.cronograma || {};
+        var kpis = fin.kpis || ops.kpis || {};
+        var sheets = parsed.sheets_found || [];
+
+        var opTitle = document.querySelector('#s5 .op-title');
+        var opCat = document.querySelector('#s5 .op-cat');
+        if (opTitle) opTitle.textContent = rep.nome || '—';
+        if (opCat) opCat.textContent = (parsed.file_type || 'dossier') + ' · ' + sheets.length + ' abas';
+
+        var kpiCards = document.querySelectorAll('#s5 .kpi-row .kpi-card');
+        if (kpiCards.length >= 3) {
+          if (parsed.file_type === 'financeiro' || fin.kpis) {
+            kpiCards[0].querySelector('.kpi-label').textContent = 'Receita Bruta';
+            kpiCards[0].querySelector('.kpi-val').textContent = fmtMoney(kpis.receita_bruta);
+            kpiCards[0].querySelector('.kpi-sub').textContent = 'Período acumulado';
+            kpiCards[1].querySelector('.kpi-label').textContent = 'Custo MO Total';
+            kpiCards[1].querySelector('.kpi-val').textContent = fmtMoney(kpis.custo_mo_total);
+            kpiCards[1].querySelector('.kpi-sub').textContent = 'Mão de obra';
+            kpiCards[2].querySelector('.kpi-label').textContent = 'Lucro / Margem';
+            kpiCards[2].querySelector('.kpi-val').textContent = fmtMoney(kpis.lucro) + ' (' + (kpis.margem_pct || '—') + ')';
+            kpiCards[2].querySelector('.kpi-sub').textContent = kpis.lucro > 0 ? 'Positivo' : 'Atenção';
+            kpiCards[2].className = (kpis.lucro != null && kpis.lucro < 0) ? 'kpi-card kpi-devio' : 'kpi-card';
+          } else {
+            kpiCards[0].querySelector('.kpi-label').textContent = 'Dias Simulados';
+            kpiCards[0].querySelector('.kpi-val').textContent = fmtNum(crono.dias || kpis.dias_simulados);
+            kpiCards[0].querySelector('.kpi-sub').textContent = 'Cronograma';
+            kpiCards[1].querySelector('.kpi-label').textContent = 'HH Total';
+            kpiCards[1].querySelector('.kpi-val').textContent = fmtNum(crono.hh_total, 1);
+            kpiCards[1].querySelector('.kpi-sub').textContent = crono.n_turmas ? crono.n_turmas + ' turmas' : '—';
+            kpiCards[2].querySelector('.kpi-label').textContent = 'Atividades';
+            kpiCards[2].querySelector('.kpi-val').textContent = fmtNum(crono.n_atividades);
+            kpiCards[2].querySelector('.kpi-sub').textContent = crono.n_talhoes ? crono.n_talhoes + ' talhões' : '—';
+            kpiCards[2].className = 'kpi-card';
+          }
+        }
+
+        var sparkline = document.querySelector('#s5 .sparkline');
+        var chartTitle = document.querySelector('#s5 .chart-box-title');
+        var chartSub = document.querySelector('#s5 .chart-box-sub');
+        if (crono.por_atividade && crono.por_atividade.length && sparkline) {
+          if (chartTitle) chartTitle.textContent = 'HH por Atividade';
+          if (chartSub) chartSub.textContent = 'Top atividades por hora-homem';
+          sparkline.style.height = 'auto';
+          renderBarChart(sparkline, crono.por_atividade, 'atividade', 'hh', '#4a9eff');
+        } else if (parsed.custo_atividade && parsed.custo_atividade.items && parsed.custo_atividade.items.length && sparkline) {
+          if (chartTitle) chartTitle.textContent = 'Custo por Atividade';
+          if (chartSub) chartSub.textContent = 'Top atividades por custo MO';
+          sparkline.style.height = 'auto';
+          renderBarChart(sparkline, parsed.custo_atividade.items, 'atividade', 'custo_mo', '#e05050');
+        }
+
+        var qstats = document.querySelectorAll('#s5 .quick-stat');
+        if (qstats.length >= 3) {
+          qstats[0].querySelector('.l').textContent = crono.n_turmas ? 'Turmas' : 'Abas';
+          qstats[0].querySelector('.v').textContent = fmtNum(crono.n_turmas || sheets.length);
+          qstats[1].querySelector('.l').textContent = crono.n_talhoes ? 'Talhões' : 'Linhas';
+          qstats[1].querySelector('.v').textContent = fmtNum(crono.n_talhoes || crono.total_linhas || 0);
+          qstats[2].querySelector('.l').textContent = 'Dias';
+          qstats[2].querySelector('.v').textContent = fmtNum(crono.dias || kpis.dias_simulados || 0);
+        }
+
+        var bulletRoot = document.querySelector('#s5 .bulletin-list');
+        if (bulletRoot) {
+          bulletRoot.innerHTML = '';
+          sheets.forEach(function (name) {
+            var card = document.createElement('div');
+            card.className = 'bulletin-card';
+            card.innerHTML = '<div class="bulletin-img">📑</div><div class="bulletin-info"><div class="bulletin-title"></div><div class="bulletin-meta"></div></div>';
+            card.querySelector('.bulletin-title').textContent = name;
+            card.querySelector('.bulletin-meta').textContent = 'Aba do dossier';
+            bulletRoot.appendChild(card);
+          });
+        }
+
+        var s5right = document.querySelector('#s5 .s5-right');
+        if (s5right) {
+          var ih = '<div class="s5-section-title">Insights Automáticos (' + insights.length + ')</div>';
+          if (!insights.length) { ih += '<div class="empty-state" style="margin-bottom:10px">Sem insights.</div>'; }
+          else {
+            insights.forEach(function (ins, i) {
+              var bg = ins.severidade === 'critico' ? 'var(--red)' : ins.severidade === 'alerta' ? '#e9a22a' : '#27ae60';
+              ih += '<div class="cause-item"><div class="cause-num" style="background:' + bg + '">' + (i + 1) + '</div><div class="cause-body"><div class="title">' + (ins.titulo || '') + '</div><div class="meta">' + (ins.descricao || '') + '</div></div></div>';
+            });
+          }
+          ih += '<div class="s5-section-title">Resumo IA</div>';
+          if (data.ollama_summary) { ih += '<div class="card-bg3 mb-8" style="font-size:11px;line-height:1.6">' + data.ollama_summary + '</div>'; }
+          else { var ost = data.ollama_status || {}; ih += '<div class="card-bg3 mb-8"><span class="fs-11 text-muted">' + (ost.enabled ? 'Ollama habilitado mas sem resposta' : 'Ollama desabilitado (SRF_OLLAMA_ENABLED=0)') + '</span></div>'; }
+          ih += '<div class="s5-section-title">Notas Rápidas</div><textarea id="s5-note-input" class="notes-area" placeholder="Anotar observações..."></textarea><button id="s5-note-save" class="btn-red" style="width:100%;margin-top:8px">Incluir nota</button><div id="s5-note-status" class="fs-11 text-muted" style="margin-top:6px"></div>';
+          s5right.innerHTML = ih;
+          var b = document.getElementById('s5-note-save');
+          if (b) {
+            b.onclick = function () {
+              var txt = (document.getElementById('s5-note-input') || {}).value || '';
+              if (!txt.trim()) return;
+              withSession(function () {
+                return fetch(sesUrl('/notes'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: txt.trim() }) })
+                  .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+                  .then(function () { var s = document.getElementById('s5-note-status'); if (s) s.textContent = 'Nota salva.'; });
+              }).catch(function () { var s = document.getElementById('s5-note-status'); if (s) s.textContent = 'Falha ao salvar nota.'; });
+            };
+          }
+        }
+      }
+
+      function renderAnalysisPage(rep, data) {
+        LAST_ANALYSIS = data;
+        var parsed = data.parsed || {};
+        var insights = data.insights || [];
+        var fin = parsed.financeiro || {};
+        var ops = parsed.operacional || {};
+        var crono = parsed.cronograma || {};
+        var kpis = fin.kpis || ops.kpis || {};
+
+        var t = document.getElementById('s7-title');
+        var sub = document.getElementById('s7-subtitle');
+        if (t) t.textContent = 'Análise: ' + (rep.nome || '—');
+        if (sub) sub.textContent = (parsed.file_type || 'dossier') + ' · ' + (parsed.sheets_found || []).length + ' abas';
+
+        var vr = document.getElementById('s7-v-receita');
+        var vc = document.getElementById('s7-v-custo');
+        var vm = document.getElementById('s7-v-margem');
+        var vh = document.getElementById('s7-v-hh');
+        if (vr) vr.textContent = fmtMoney(kpis.receita_bruta);
+        if (vc) vc.textContent = fmtMoney(kpis.custo_mo_total);
+        if (vm) vm.textContent = kpis.margem_pct || '—';
+        if (vh) vh.textContent = crono.hh_total ? fmtNum(crono.hh_total, 1) + ' HH' : (kpis.hh_total || '—');
+
+        renderBarChart(document.getElementById('s7-chart-atividade'), crono.por_atividade || [], 'atividade', 'hh', '#4a9eff');
+        var ocup = parsed.ocupacao || {};
+        renderLineChart(document.getElementById('s7-chart-ocupacao'), ocup.uso_total_diario || [], '#e05050', 'Uso % total');
+
+        var insRoot = document.getElementById('s7-insights-list');
+        if (insRoot) {
+          if (!insights.length) { insRoot.innerHTML = '<div class="empty-state">Sem insights.</div>'; }
+          else {
+            var ih = '';
+            insights.forEach(function (ins) {
+              var cls = ins.severidade === 'critico' ? 'badge-err' : ins.severidade === 'alerta' || ins.severidade === 'aviso' ? 'badge-warn' : 'badge-ok';
+              ih += '<div class="card-bg3" style="margin-bottom:6px"><div class="flex-between mb-4"><span class="fs-11 fw-600">' + (ins.titulo || '') + '</span><span class="' + cls + '">' + (ins.severidade || '') + '</span></div><div class="fs-11 text-muted">' + (ins.descricao || '') + '</div></div>';
+            });
+            insRoot.innerHTML = ih;
+          }
+        }
+
+        var ollamaBox = document.getElementById('s7-ollama-box');
+        if (ollamaBox) {
+          if (data.ollama_summary) { ollamaBox.innerHTML = '<div class="fs-11" style="line-height:1.6">' + data.ollama_summary + '</div>'; }
+          else { var ost = data.ollama_status || {}; ollamaBox.innerHTML = '<span class="fs-11 text-muted">' + (ost.enabled ? (ost.available ? 'Processando…' : 'Ollama não acessível') : 'Desabilitado. SRF_OLLAMA_ENABLED=1.') + '</span>'; }
+        }
+      }
+
+      function openReportView(rep, screen) {
+        SELECTED_REPORT = rep;
+        withSession(function () {
+          fetch(sesUrl('/report_metadata'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: rep.path, metadata: { last_opened_by_ui: true, selected_screen: screen === 7 ? 'analise' : 'detalhe', comparative_enabled: !!(SRF_EXEC_CFG && SRF_EXEC_CFG.comparative && SRF_EXEC_CFG.comparative.enabled) } })
+          }).catch(function () { });
+          return fetch(sesUrl('/report_analysis') + '&path=' + encodeURIComponent(rep.path))
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+            .then(function (data) {
+              if (screen === 5) renderDetailFromAnalysis(rep, data);
+              if (screen === 7) renderAnalysisPage(rep, data);
+              showScreen(screen);
+            })
+            .catch(function () {
+              return fetch(sesUrl('/report_preview') + '&path=' + encodeURIComponent(rep.path))
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+                .then(function (prev) {
+                  var fb = { parsed: { file_name: prev.file_name, sheets_found: (prev.all_sheets || []).map(function (s) { return s.name; }), file_type: 'dossier' }, insights: [], ollama_status: { enabled: false } };
+                  if (screen === 5) renderDetailFromAnalysis(rep, fb);
+                  if (screen === 7) renderAnalysisPage(rep, fb);
+                  showScreen(screen);
+                })
+                .catch(function () { showScreen(screen); });
+            });
+        });
+      }
+
+      window.downloadSelectedReport = function () {
+        if (!SELECTED_REPORT || !SELECTED_REPORT.path) return;
+        window.location.href = sesUrl('/download') + '&path=' + encodeURIComponent(SELECTED_REPORT.path);
+      };
+
+      window.reportAction = function () { };
+
+      document.addEventListener('DOMContentLoaded', function () {
+        _updateBadge();
+        var appRoot = document.getElementById('app-root');
+        if (appRoot && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          appRoot.classList.add('srf-app-enter');
+        }
+        wireDrop(document.getElementById('drop-boletins'), 'file-input-boletins', 'boletins');
+        wireDrop(document.getElementById('drop-tarifas'), 'file-input-tarifas', 'tarifas');
+
+        ensureSessionReady()
+          .then(function () {
+            refreshWorkspaceFiles();
+            refreshProcessingView();
+            loadExecutionCatalog();
+            showScreen(1);
+          })
+          .catch(function () {
+            showScreen(1);
+          });
+      });
+    })();
+  </script>
+</body>
+
+</html>
