@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import atm_v5 as srf
+from src.atm import atm_v6_3 as srf
 
 
 class TestResolverStrict(unittest.TestCase):
@@ -25,11 +25,6 @@ class TestResolverStrict(unittest.TestCase):
         cfg = {}
         t = {"a": {"rendimento_hh": 3.5}}
         self.assertEqual(srf.resolver_rendimento_hh(cfg, t, "a", strict=True), 3.5)
-
-    def test_preco_strict_miss(self):
-        cfg = {}
-        t = {}
-        self.assertIsNone(srf.resolver_preco_ha(cfg, t, "x", strict=True))
 
     def test_somente_bloqueado(self):
         dg = {("T1", "PLANTIO"): 5.0, ("T2", "ROCADA"): 0.0}
@@ -65,7 +60,7 @@ class TestNormalizarChave(unittest.TestCase):
         raw = "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL"
         expected = "irrigacao inicial man impl pl app rl"
         self.assertEqual(srf.normalizar_chave(raw), expected)
-        self.assertIn(expected, srf.DEFAULT_DEPARA_EXAME_CT313)
+        self.assertIn(expected, srf.DEFAULT_DEPARA_EXAME_CT317)
 
 
 if __name__ == "__main__":

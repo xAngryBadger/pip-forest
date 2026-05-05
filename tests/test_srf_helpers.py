@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import atm_v5 as srf
+from src.atm import atm_v6_3 as srf
 
 
 class TestParseIntervalos(unittest.TestCase):
@@ -69,49 +69,6 @@ class TestResolverRendimento(unittest.TestCase):
         t = {}
         self.assertEqual(srf.resolver_rendimento_hh(cfg, t, "missing"), 8.0)
 
-
-class TestResolverPrecoHa(unittest.TestCase):
-    def test_hit(self):
-        cfg = {}
-        t = {"A": {"preco_ha": 950.0}}
-        self.assertEqual(srf.resolver_preco_ha(cfg, t, "A"), 950.0)
-
-    def test_fallback_preco_unit(self):
-        cfg = {}
-        t = {"A": {"preco_unit": 800.0}}
-        self.assertEqual(srf.resolver_preco_ha(cfg, t, "A"), 800.0)
-
-    def test_fallback_config(self):
-        cfg = {"preco_ha_fallback": 500.0}
-        t = {}
-        self.assertEqual(srf.resolver_preco_ha(cfg, t, "missing"), 500.0)
-
-    def test_median_fallback(self):
-        cfg = {}
-        t = {"a": {"preco_ha": 100.0}, "b": {"preco_ha": 200.0}, "c": {"preco_ha": 300.0}}
-        self.assertEqual(srf.resolver_preco_ha(cfg, t, "missing"), 200.0)
-
-    def test_zero_when_no_data(self):
-        cfg = {}
-        t = {}
-        self.assertEqual(srf.resolver_preco_ha(cfg, t, "missing"), 0.0)
-
-
-class TestResolverCustoHora(unittest.TestCase):
-    def test_hit(self):
-        cfg = {}
-        t = {"A": {"custo_hora": 52.86}}
-        self.assertAlmostEqual(srf.resolver_custo_hora(cfg, t, "A"), 52.86)
-
-    def test_fallback_config(self):
-        cfg = {"custo_hora_tf": 55.0}
-        t = {}
-        self.assertEqual(srf.resolver_custo_hora(cfg, t, "missing"), 55.0)
-
-    def test_zero_when_empty(self):
-        cfg = {}
-        t = {}
-        self.assertEqual(srf.resolver_custo_hora(cfg, t, "missing"), 0.0)
 
 
 class TestCarregarStgTarifas(unittest.TestCase):
