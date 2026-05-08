@@ -2,10 +2,6 @@
 SRF — Sistema de Restauracao Florestal v6.3
 Smart Scheduler com Comparativo Manual/Mecanizado
 Uso : python atm_v6_3.py
-ATM_DEMO=1 python atm_v6_3.py
-python atm_v6_3.py --demo
-Modo DEMO: se existir USEESTAPLANILHAULIANOPOLIS.xlsx, gera/atualiza ulianopolisswg.xlsx;
-tarifas CT 313 como no fluxo normal; [1] usa a fazenda com mais linhas (micro municipio Ulianopolis).
 """
 
 import atexit
@@ -75,10 +71,6 @@ console = Console()
 
 # ATM 6.1: foco operacional (atividades + HH). Valores em R$ ficam desativados temporariamente.
 
-# Modo DEMO (Ulianópolis): ATM_DEMO=1 ou --demo
-# Fonte de verdade para reconstruir o demo: USEESTAPLANILHAULIANOPOLIS.xlsx (municipio Ulianopolis)
-
-
 
 # ──────────────────────────────────────────────
 # MODULAR IMPORTS (Phase 2 — territorio + tarifas + de_para)
@@ -120,14 +112,29 @@ try:
         COMPARATIVO_MANUAL_MEC,
     )
     from srf.config import (
-        STG_FILENAME, MODO_SOMENTE_HH, CT_REAL_FILENAME,
-        DEMO_MICRO_FILENAME, DEMO_MICRO_SOURCE_FILENAME, KNOWN_COLUMNS,
-        _is_demo_micro_path, _is_demo_mode, _is_legacy_mode, _is_beta_mode,
-        _default_sequencia_dict, _territorio_config, _detectar_cidade_por_fazenda,
-        _distribuir_fazendas_por_territorio, _calcular_equipes_territorio,
+        STG_FILENAME,
+        MODO_SOMENTE_HH,
+        CT_REAL_FILENAME,
+        KNOWN_COLUMNS,
+        _is_legacy_mode,
+        _is_beta_mode,
+        _default_sequencia_dict,
+        _territorio_config,
+        _detectar_cidade_por_fazenda,
+        _distribuir_fazendas_por_territorio,
+        _calcular_equipes_territorio,
         _sugerir_config_territorio,
-        DIR, CFGP, DOSSIER_DIRNAME, ROOT_DIR, DATA_DIR, INPUT_DIR, OUTPUT_DIR, PROFILES_DIR,
-        PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS, _PRECO_FINAL_JSON_CACHE,
+        DIR,
+        CFGP,
+        DOSSIER_DIRNAME,
+        ROOT_DIR,
+        DATA_DIR,
+        INPUT_DIR,
+        OUTPUT_DIR,
+        PROFILES_DIR,
+        PRECO_FINAL_JSON_DEFAULT,
+        PRECO_FINAL_JSON_DOWNLOADS,
+        _PRECO_FINAL_JSON_CACHE,
         carregar_config,
     )
     from srf.comparativo_mec import (
@@ -161,16 +168,31 @@ try:
         parse_intervalos_escolha,
     )
     from srf.ui import (
-        linha, sub, cabecalho, subcabecalho, aviso, erro, ok, prompt,
-        pedir_float, pedir_int, pedir_jornada,
-        selecionar, selecionar_paginado, confirmar,
-        _parse_jornada, W,
+        linha,
+        sub,
+        cabecalho,
+        subcabecalho,
+        aviso,
+        erro,
+        ok,
+        prompt,
+        pedir_float,
+        pedir_int,
+        pedir_jornada,
+        selecionar,
+        selecionar_paginado,
+        confirmar,
+        _parse_jornada,
+        W,
     )
     from srf.context import ContextoSessao, dashboard_header, contexto_sessao
     from srf.monitor import (
-        _emitir_monitor_state, _emitir_monitor_relatorio,
-        _emitir_monitor_atual, _emitir_monitor_rendimentos,
-        _abrir_monitor_janela, _MONITOR_STATE_PATH,
+        _emitir_monitor_state,
+        _emitir_monitor_relatorio,
+        _emitir_monitor_atual,
+        _emitir_monitor_rendimentos,
+        _abrir_monitor_janela,
+        _MONITOR_STATE_PATH,
     )
     from srf.scheduler import (
         _match_filtros_fase,
@@ -202,8 +224,8 @@ try:
         turmas_que_executam,
         _FILTROS_NOME_CANDIDATAS_MECANIZADO,
         atividades_candidatas_mecanizado,
-    sequencia_manutencao_seco_placeholder,
-    sequencia_manutencao_umido_placeholder,
+        sequencia_manutencao_seco_placeholder,
+        sequencia_manutencao_umido_placeholder,
     )
     from srf.io import (
         encontrar_coluna,
@@ -214,9 +236,7 @@ try:
         selecionar_arquivo,
         carregar_planilha_microplanejamento,
         _to_float_br,
-        _resolver_fazenda_demo_ulianopolis,
-        garantir_fazenda_ulianopolis_no_ct,
-        reconstruir_demo_ulianopolis_a_partir_da_fonte,
+        garantir_fazendas_micro_no_ct,
     )
     from srf.datas import (
         _formatar_data_dia,
@@ -268,12 +288,12 @@ try:
     )
 except ModuleNotFoundError:
     from .srf.territorio import (
-    _indice_fazendas_ct,
-    micro_fazendas_ausentes_na_lista_ct,
-    aviso_fazendas_micro_sem_cadastro_ct,
-    modulo_validar_fazendas_ct,
-    fazendas_unicas_micro,
-)
+        _indice_fazendas_ct,
+        micro_fazendas_ausentes_na_lista_ct,
+        aviso_fazendas_micro_sem_cadastro_ct,
+        modulo_validar_fazendas_ct,
+        fazendas_unicas_micro,
+    )
     from .srf.tarifas import (
         mediana_rendimento_hh,
         resolver_rendimento_hh,
@@ -303,14 +323,29 @@ except ModuleNotFoundError:
         COMPARATIVO_MANUAL_MEC,
     )
     from .srf.config import (
-        STG_FILENAME, MODO_SOMENTE_HH, CT_REAL_FILENAME,
-        DEMO_MICRO_FILENAME, DEMO_MICRO_SOURCE_FILENAME, KNOWN_COLUMNS,
-        _is_demo_micro_path, _is_demo_mode, _is_legacy_mode, _is_beta_mode,
-        _default_sequencia_dict, _territorio_config, _detectar_cidade_por_fazenda,
-        _distribuir_fazendas_por_territorio, _calcular_equipes_territorio,
+        STG_FILENAME,
+        MODO_SOMENTE_HH,
+        CT_REAL_FILENAME,
+        KNOWN_COLUMNS,
+        _is_legacy_mode,
+        _is_beta_mode,
+        _default_sequencia_dict,
+        _territorio_config,
+        _detectar_cidade_por_fazenda,
+        _distribuir_fazendas_por_territorio,
+        _calcular_equipes_territorio,
         _sugerir_config_territorio,
-        DIR, CFGP, DOSSIER_DIRNAME, ROOT_DIR, DATA_DIR, INPUT_DIR, OUTPUT_DIR, PROFILES_DIR,
-        PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS, _PRECO_FINAL_JSON_CACHE,
+        DIR,
+        CFGP,
+        DOSSIER_DIRNAME,
+        ROOT_DIR,
+        DATA_DIR,
+        INPUT_DIR,
+        OUTPUT_DIR,
+        PROFILES_DIR,
+        PRECO_FINAL_JSON_DEFAULT,
+        PRECO_FINAL_JSON_DOWNLOADS,
+        _PRECO_FINAL_JSON_CACHE,
         carregar_config,
     )
     from .srf.comparativo_mec import (
@@ -344,16 +379,31 @@ except ModuleNotFoundError:
         parse_intervalos_escolha,
     )
     from .srf.ui import (
-        linha, sub, cabecalho, subcabecalho, aviso, erro, ok, prompt,
-        pedir_float, pedir_int, pedir_jornada,
-        selecionar, selecionar_paginado, confirmar,
-        _parse_jornada, W,
+        linha,
+        sub,
+        cabecalho,
+        subcabecalho,
+        aviso,
+        erro,
+        ok,
+        prompt,
+        pedir_float,
+        pedir_int,
+        pedir_jornada,
+        selecionar,
+        selecionar_paginado,
+        confirmar,
+        _parse_jornada,
+        W,
     )
     from .srf.context import ContextoSessao, dashboard_header, contexto_sessao
     from .srf.monitor import (
-        _emitir_monitor_state, _emitir_monitor_relatorio,
-        _emitir_monitor_atual, _emitir_monitor_rendimentos,
-        _abrir_monitor_janela, _MONITOR_STATE_PATH,
+        _emitir_monitor_state,
+        _emitir_monitor_relatorio,
+        _emitir_monitor_atual,
+        _emitir_monitor_rendimentos,
+        _abrir_monitor_janela,
+        _MONITOR_STATE_PATH,
     )
     from .srf.scheduler import (
         _match_filtros_fase,
@@ -385,8 +435,8 @@ except ModuleNotFoundError:
         turmas_que_executam,
         _FILTROS_NOME_CANDIDATAS_MECANIZADO,
         atividades_candidatas_mecanizado,
-    sequencia_manutencao_seco_placeholder,
-    sequencia_manutencao_umido_placeholder,
+        sequencia_manutencao_seco_placeholder,
+        sequencia_manutencao_umido_placeholder,
     )
     from .srf.io import (
         encontrar_coluna,
@@ -397,9 +447,7 @@ except ModuleNotFoundError:
         selecionar_arquivo,
         carregar_planilha_microplanejamento,
         _to_float_br,
-        _resolver_fazenda_demo_ulianopolis,
-        garantir_fazenda_ulianopolis_no_ct,
-        reconstruir_demo_ulianopolis_a_partir_da_fonte,
+        garantir_fazendas_micro_no_ct,
     )
     from .srf.datas import (
         _formatar_data_dia,

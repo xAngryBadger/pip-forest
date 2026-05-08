@@ -61,9 +61,8 @@ from .config import (
     PROFILES_DIR, PERFIS_DIR,
     PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS, _PRECO_FINAL_JSON_CACHE,
     MODO_SOMENTE_HH, CT_REAL_FILENAME, STG_FILENAME,
-    DEMO_MICRO_FILENAME, DEMO_MICRO_SOURCE_FILENAME,
     KNOWN_COLUMNS,
-    _is_demo_mode, _is_legacy_mode, _is_beta_mode, _is_demo_micro_path,
+    _is_legacy_mode, _is_beta_mode,
     _default_sequencia_dict, _merge_sequencia_defaults, _SEQUENCIAS_DISPONIVEIS,
     _territorio_config, _detectar_cidade_por_fazenda,
     _distribuir_fazendas_por_territorio, _calcular_equipes_territorio,
@@ -159,9 +158,7 @@ from .io import (
     selecionar_arquivo,
     carregar_planilha_microplanejamento,
     _to_float_br,
-    _resolver_fazenda_demo_ulianopolis,
-    garantir_fazenda_ulianopolis_no_ct,
-    reconstruir_demo_ulianopolis_a_partir_da_fonte,
+    garantir_fazendas_micro_no_ct,
 )
 from .datas import (
     _formatar_data_dia,

@@ -1,0 +1,52 @@
+{
+  "arquivos": {
+    "planejamento_json": "/home/badger/Downloads/planejamento_abr_jun.json",
+    "preco_final_json": "/home/badger/Downloads/preco_final.json",
+    "config_json": "/run/media/badger/gazella/cli_planilhas/config.json"
+  },
+  "chaves_detectadas": {
+    "planejamento_coluna_escolhida": "atividade",
+    "preco_final_coluna_escolhida": "operacao",
+    "planejamento_colunas_candidatas": [
+      "atividade"
+    ],
+    "preco_final_colunas_candidatas": [
+      "operacao"
+    ]
+  },
+  "totais": {
+    "atividades_micro_unicas": 21,
+    "operacoes_ct_unicas": 102,
+    "mapeadas_auto": 21,
+    "ambiguas": 0,
+    "sem_candidato": 0,
+    "de_para_aplicados_no_config": 0,
+    "conflitos_com_de_para_existente": 0
+  },
+  "mapeamento_auto": {
+    "ADUBAÇÃO QUÍM MAN DE BASE Impl.PL-APP/RL": "ADUBAÇÃO QUÍM MAN DE BASE Impl. PL - APP/ RL",
+    "CAPINA MANUAL COROA Impl. CD APP/ RL I": "CAPINA MANUAL COROA Impl. CD APP/ RL I",
+    "CAPINA MANUAL COROA Impl. PL - APP/ RL I": "CAPINA MANUAL COROA Impl. PL - APP/ RL I",
+    "CAPINA QUÍM MAN TOTAL Manut. APP/RL": "CAPINA QUÍM MAN TOTAL Manut. APP/RL",
+    "COMBATE À FORMIGAS Impl. CD APP/RL": "COMBATE À FORMIGAS Impl. CD APP/RL",
+    "COMBATE À FORMIGAS Impl. PL APP/ RL": "COMBATE À FORMIGAS Impl. PL APP/ RL",
+    "COMBATE À FORMIGAS Manut. APP/RL": "COMBATE À FORMIGAS Manut. APP/RL",
+    "CONDUÇÃO DE REGENERAÇÃO": "CONDUÇÃO DE REGENERAÇÃO",
+    "CONTROLE DE INVASORAS APP/RL": "CONTROLE DE INVASORAS APP/RL I",
+    "COVEAM ÁREA NÃO SUBSOL  Impl. PL APP/ RL": "COVEAM ÁREA NÃO SUBSOL Impl. PL APP/ RL",
+    "COVEAMENTO - MOTOCOVEADOR PL APP/RL": "COVEAMENTO - MOTOCOVEADOR PL APP/RL",
+    "ELIMINAÇÃO DE EXÓTICAS Impl. CD APP/RL": "ELIMINAÇÃO DE EXÓTICAS Impl. CD - APP/RL",
+    "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL": "IRRIGAÇÃO INICIAL MAN Impl. PL - APP/ RL",
+    "LIMPEZA DE AREA QUIM. Impl. CD APP/RL": "LIMPEZA DE AREA QUIM. Impl. CD APP/RL",
+    "LIMPEZA DE ÁREA QU. MAN APP/RL": "LIMPEZA DE ÁREA QUIM. MAN APP/RL",
+    "NUCLEAÇÃO EM FAIXAS APP/RL": "NUCLEAÇÃO EM FAIXAS APP/RL",
+    "PLANTIO MANUAL APP/RL": "PLANTIO MANUAL APP/RL",
+    "PREPARO DE SOLO MEC C/ GRADE APP/RL": "PREPARO DE SOLO MEC C/ GRADE APP/RL",
+    "PREPARO DE SOLO MEC S/ ADUB APP/RL": "PREPARO DE SOLO MEC S/ ADUB APP/RL",
+    "ROÇADA MANUAL Impl. CD APP/RL I": "ROÇADA MANUAL Impl. CD APP/RL I",
+    "ROÇADA MANUAL Impl. PL APP/RL I": "ROÇADA MANUAL Impl. PL APP/RL I"
+  },
+  "ambiguas": [],
+  "sem_candidato": [],
+  "conflitos": []
+}

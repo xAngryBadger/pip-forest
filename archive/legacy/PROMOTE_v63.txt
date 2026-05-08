@@ -1,0 +1,31 @@
+ATM v6.3 Promotion Log
+======================
+Date: 2026-05-04
+
+MOVED OUT of src/atm/ (v6.2 production):
+  - atm_v6_2.py         -> archive/legacy/atm_v6_2.py
+  - config.json.bak     -> archive/legacy/config.json.bak.v62
+  - depara_micro_ct317_from_json.json -> archive/legacy/ (suffixed .v62)
+  - depara_pendencias_ct317.json      -> archive/legacy/ (suffixed .v62)
+  - requirements.txt    -> archive/legacy/requirements.txt.v62
+  - __pycache__/        -> deleted (stale bytecode)
+  - Symlinks removed:   CT_317_NORMALIZADA.xlsx, ct317real.xlsx,
+                        SUZANO_MICROPLANEJAMENTO_CONSOLIDADO_INOVESA.Rev.0.xlsx
+                        (paths now resolved via INPUT_DIR constant)
+
+MOVED IN to src/atm/ (v6.3 promoted from src/atm_v6_3/):
+  - atm_v6_3.py         (renamed from atm_v6_2.py, VERSION="6.3")
+  - config.json         (active runtime state, preserved)
+  - requirements.txt    (from v6.3 working copy, moved excess deparas to legacy)
+
+v6.3 key changes vs v6.2:
+  - Path reorganization: all xlsx I/O via data/planilhas/, dossiers via data/dossiês/
+  - ROOT_DIR, DATA_DIR, INPUT_DIR, OUTPUT_DIR, PROFILES_DIR constants
+  - _prefer_micro_sheet() prefers V5 sheet, skips Planilha/previsão tabs
+  - EQUIPE enrichment from Planilha7 when main sheet EQUIPE column is empty
+  - Smart jornada parser (6:30 notation), checkpoint review option, config persistence
+  - Multi-item substituir/remover/adicionar with parse_intervalos_escolha()
+
+Also moved from v6.3 working copy duplicates:
+  - depara_*.json -> archive/legacy/ (suffixed .v63)
+  - config.json.bak -> archive/legacy/config.json.bak.v63

@@ -1,7 +1,7 @@
 """Territorio — validacao de fazendas CT vs microplanejamento."""
 
 from .config import salvar_config
-from .ui import sub, aviso, ok, prompt, confirmar, selecionar_paginado, G, C, Y, DM, RS
+from .ui import sub, aviso, ok, prompt, confirmar, selecionar_paginado, G, C, Y, DM, RS, esperar
 from .text_utils import normalizar_chave
 from .ui import subcabecalho
 from .context import dashboard_header
@@ -104,7 +104,7 @@ def modulo_validar_fazendas_ct(cfg, df):
             else:
                 for i, x in enumerate(ct_list, 1):
                     print(G + f"  {i:2}. " + C + str(x)[:68] + RS)
-            input(DM + "\n  [ENTER] " + RS)
+            esperar()
         elif op == "2":
             nome = prompt("Nome EXATO como no micro ou na CT", "")
             if nome.strip():

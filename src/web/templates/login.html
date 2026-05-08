@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}SRF — Login{% endblock %}
+{% block content %}
+<div class="card p-6 max-w-sm mx-auto mt-20">
+  <h1 class="text-xl font-bold mb-4" style="color: var(--primary);">SRF v6.3</h1>
+  <p class="text-sm mb-4" style="color: var(--muted);">Sistema de Restauração Florestal</p>
+
+  {% if error %}
+  <div class="banner-error mb-4" role="alert" id="login-error">{{ error }}</div>
+  {% endif %}
+
+  <form action="/login" method="post">
+    <label for="login-password" class="block mb-2 text-sm">Senha</label>
+    <input type="password" id="login-password" name="password" class="w-full mb-4" autofocus aria-describedby="{% if error %}login-error{% endif %}">
+    <button type="submit" class="btn btn-primary w-full min-h-[48px]">Entrar</button>
+  </form>
+</div>
+{% endblock %}

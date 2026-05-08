@@ -6,7 +6,7 @@ import pandas as pd
 
 from .config import (
     salvar_config, INPUT_DIR, OUTPUT_DIR, STG_FILENAME,
-    MODO_SOMENTE_HH, _is_demo_micro_path, carregar_config,
+    MODO_SOMENTE_HH, carregar_config,
 )
 from .constants import CT317_HARDCODE_HH_BASE
 from .text_utils import normalizar_chave, _norm_atv, parse_intervalos_escolha
@@ -23,7 +23,7 @@ from .ui import (
     G, Y, C, DM, BL, RS,
     console, sub, cabecalho, subcabecalho, aviso, erro, ok, prompt,
     pedir_float, pedir_int,
-    confirmar, selecionar, selecionar_paginado,
+    confirmar, selecionar, selecionar_paginado, esperar,
 )
 from .context import contexto_sessao, dashboard_header
 from .monitor import _emitir_monitor_atual
@@ -42,7 +42,7 @@ def modulo_normalizar_ct(cfg):
     stg_path, n, custo_h = normalizar_ct313(caminho)
     if not stg_path:
         erro("Aba 'Preco Final' nao encontrada neste arquivo.")
-        input(DM + "\n  [ENTER] " + RS)
+        esperar()
         return
 
     if MODO_SOMENTE_HH:
@@ -59,7 +59,7 @@ def modulo_normalizar_ct(cfg):
         cfg["custo_hora_tf"] = round(custo_h, 4)
         salvar_config(cfg)
         ok(f"{len(tarifas)} tarifas integradas no config.")
-    input(DM + "\n  [ENTER para voltar] " + RS)
+    esperar("ENTER para voltar")
 
 
 
@@ -174,7 +174,7 @@ def modulo_importar_tarifas(cfg):
     except Exception as e:
         erro(f"Erro ao importar: {e}")
 
-    input(DM + "\n  [ENTER para voltar] " + RS)
+    esperar("ENTER para voltar")
 
 
 # ──────────────────────────────────────────────
@@ -527,6 +527,7 @@ def _prompt_proximas_metodologias(df_faz_base, meta_escopo, metodologias_executa
 
 
 def _executar_scheduler_fazenda_interativo(cfg, df_scope, faz, catalogo_scope):
+    from .scheduler_core import calcular_cronograma_inteligente
     metodologias_executadas = set()
     while True:
         df_faz_base = df_scope[df_scope["fazenda"] == faz].copy()
@@ -625,7 +626,7 @@ def _menu_ajustar_escopo_atividades(df_faz, cfg=None, atividades_catalogo=None):
 
         if op == "Ver listas completas (escopo x catalogo)":
             _mostrar_catalogo_atividades(atvs, catalogo_all)
-            input(DM + "\n  [ENTER] " + RS)
+            esperar()
             continue
 
         if op == "Substituir atividade":

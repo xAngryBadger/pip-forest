@@ -32,6 +32,13 @@ cloud/sessions/**
 
 # Sub-projects with own repos
 MinePal/
+ATM7/
+
+# Heap dumps
+*.heapsnapshot
+
+# Runtime config (per-session)
+src/atm/config.json
 
 # Environment
 .env

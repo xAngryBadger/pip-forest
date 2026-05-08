@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SRF Terminal — {{ session_id }}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
+#terminal-container { width: 100vw; height: 100vh; }
+#top-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: #2a2a2a; color: #ccc; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; padding: 4px 12px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid #444; height: 36px;
+}
+#top-bar a { color: #00ff66; text-decoration: none; }
+#top-bar .sep { color: #555; }
+#upload-btn {
+  background: #333; color: #00ff66; border: 1px solid #555; border-radius: 3px;
+  padding: 2px 8px; cursor: pointer; font-family: inherit; font-size: 11px;
+  margin-left: 8px;
+}
+#upload-btn:hover { background: #444; }
+#upload-input { display: none; }
+#status { margin-left: auto; font-size: 11px; }
+#status.connected { color: #00ff66; }
+#status.disconnected { color: #ff3b3b; }
+.xterm { padding-top: 36px; padding-bottom: 36px; }
+#file-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: #2a2a2a; border-top: 1px solid #444;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #ccc; padding: 4px 12px; display: none; align-items: center; gap: 8px;
+  height: 36px; overflow-x: auto; white-space: nowrap;
+}
+#file-bar.visible { display: flex; }
+#file-bar .file-label { color: #888; margin-right: 4px; }
+#file-bar a {
+  color: #00ff66; text-decoration: none; padding: 2px 8px;
+  border: 1px solid #444; border-radius: 3px; font-size: 11px;
+}
+#file-bar a:hover { background: #333; }
+</style>
+</head>
+<body>
+<div id="top-bar">
+  <a href="/app">SRF</a>
+  <span class="sep">|</span>
+  <span>{{ session_id }}</span>
+  <span class="sep">|</span>
+<button id="upload-btn">+arquivo</button>
+<input type="file" id="upload-input" accept=".xlsx,.xlsm,.xls,.csv" multiple>
+  <span id="status" class="disconnected">conectando...</span>
+</div>
+<div id="terminal-container"></div>
+<div id="file-bar">
+  <span class="file-label">Arquivos:</span>
+  <span id="file-links"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+
+<script>
+(function() {
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+    theme: {
+      background: '#1a1a1a',
+      foreground: '#e0e0e0',
+      cursor: '#00ff66',
+      cursorAccent: '#1a1a1a',
+      selectionBackground: '#00ff66',
+      selectionForeground: '#1a1a1a',
+      green: '#00ff66',
+      brightGreen: '#00ff66',
+      yellow: '#ffd600',
+      brightYellow: '#ffd600',
+      red: '#ff3b3b',
+      brightRed: '#ff3b3b',
+      cyan: '#00e5ff',
+      brightCyan: '#00e5ff',
+    },
+    allowProposedApi: true,
+    scrollback: 10000,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.loadAddon(new WebLinksAddon.WebLinksAddon());
+
+  const container = document.getElementById('terminal-container');
+  term.open(container);
+  fitAddon.fit();
+
+  const statusEl = document.getElementById('status');
+  const sid = '{{ session_id }}';
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
+  let ws = null;
+  let reconnectDelay = 1000;
+  let knownFiles = [];
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = function() {
+      statusEl.textContent = 'conectado';
+      statusEl.className = 'connected';
+      reconnectDelay = 1000;
+      term.focus();
+      term.write('\x1b[?25h');
+    };
+
+    ws.onmessage = function(evt) {
+      if (evt.data instanceof ArrayBuffer) {
+        term.write(new Uint8Array(evt.data));
+      } else if (typeof evt.data === 'string') {
+        term.write(evt.data);
+      }
+    };
+
+    ws.onclose = function() {
+      statusEl.textContent = 'desconectado';
+      statusEl.className = 'disconnected';
+      ws = null;
+      setTimeout(function() {
+        reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+        connect();
+      }, reconnectDelay);
+    };
+
+    ws.onerror = function() {
+      ws.close();
+    };
+  }
+
+  term.onData(function(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const encoder = new TextEncoder();
+      ws.send(encoder.encode(data));
+    }
+  });
+
+  term.onResize(function(size) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
+    }
+  });
+
+  window.addEventListener('resize', function() {
+    fitAddon.fit();
+  });
+
+  var uploadBtn = document.getElementById('upload-btn');
+  var uploadInput = document.getElementById('upload-input');
+  uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+uploadInput.addEventListener('change', function() {
+  var files = Array.from(uploadInput.files);
+  if (!files.length) return;
+  uploadBtn.textContent = 'enviando...';
+  var done = 0;
+  files.forEach(function(f) {
+    var fd = new FormData();
+    fd.append('file', f);
+    fetch('/term/upload/' + sid, {method: 'POST', body: fd})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      done++;
+      if (d.status === 'ok') {
+        term.write('\r\n\x1b[92m + "' + d.filename + '" carregado (' + d.size + ' bytes)\x1b[0m\r\n');
+      }
+      if (done === files.length) {
+        uploadBtn.textContent = '+arquivo';
+        uploadInput.value = '';
+        term.write('\r\n\x1b[92m + ' + done + ' arquivo(s) carregado(s)\x1b[0m\r\n');
+      }
+    })
+    .catch(function() {
+      done++;
+      if (done === files.length) {
+        uploadBtn.textContent = '+arquivo';
+        uploadInput.value = '';
+      }
+    });
+  });
+});
+  });
+
+  function pollFiles() {
+    fetch('/term/api/sessions/' + sid + '/files')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.files && data.files.length > 0) {
+          var changed = JSON.stringify(data.files) !== JSON.stringify(knownFiles);
+          if (changed) {
+            knownFiles = data.files;
+            var links = document.getElementById('file-links');
+            links.innerHTML = data.files.map(function(f) {
+              return '<a href="/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
+            }).join(' ');
+            document.getElementById('file-bar').classList.add('visible');
+            fitAddon.fit();
+          }
+        }
+      })
+      .catch(function() {});
+  }
+
+  setInterval(pollFiles, 10000);
+  pollFiles();
+
+  connect();
+})();
+</script>
+</body>
+</html>

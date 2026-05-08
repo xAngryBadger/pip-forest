@@ -1,0 +1,252 @@
+{% macro render_body(opts) %}
+{% if opts and opts.body %}
+<div class="mb-3">
+<div class="srf-output-block">
+<pre class="text-sm whitespace-pre-wrap p-3" style="overflow-x: auto; margin: 0;" data-selectable data-asci-pt>{{ opts.body }}</pre>
+</div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% if step %}
+<div class="card p-4 mb-4" id="step-zone" tabindex="-1">
+
+{% if step.type == "confirmar" %}
+{% set is_percurso = step.prompt and ("Executar" in step.prompt or "executar" in step.prompt or "percurso" in (step.prompt|lower)) %}
+{{ render_body(step.options) }}
+{% if is_percurso %}
+  <div class="mb-2">
+    <p class="font-bold text-lg mb-3" data-asci-pt>{{ step.prompt }}</p>
+        <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+          <input type="hidden" name="step_type" value="confirmar">
+          <input type="hidden" name="default" value="{{ 'sim' if step.default else 'nao' }}">
+          <div class="flex flex-wrap gap-2 mt-4" role="radiogroup" aria-label="Confirmação">
+            <button type="submit" name="value" value="sim" class="chip chip-sim" aria-label="Sim">Sim</button>
+            <button type="submit" name="value" value="nao" class="chip chip-nao" aria-label="Não">Não</button>
+            <button type="submit" name="value" value="abortar" class="chip chip-abortar" aria-label="Abortar">Abortar</button>
+            <button type="submit" name="value" value="ok" class="chip chip-ok" aria-label="OK">OK</button>
+          </div>
+          <p class="text-xs mt-2" style="color: var(--muted);">Padrão: {% if step.default %}Sim{% else %}Não{% endif %}</p>
+    </form>
+  </div>
+{% else %}
+  <div class="mb-3">
+    <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+        <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+          <input type="hidden" name="step_type" value="confirmar">
+          <input type="hidden" name="default" value="{{ 'sim' if step.default else 'nao' }}">
+          <div class="flex gap-2" role="radiogroup" aria-label="Confirmação">
+            <button type="submit" name="value" value="sim" class="chip chip-sim" aria-label="Sim">Sim</button>
+            <button type="submit" name="value" value="nao" class="chip chip-nao" aria-label="Não">Não</button>
+          </div>
+          <p class="text-xs mt-1" style="color: var(--muted);">Padrão: {% if step.default %}Sim{% else %}Não{% endif %}</p>
+    </form>
+  </div>
+{% endif %}
+
+{% elif step.type == "pedir_float" %}
+{{ render_body(step.options) }}
+<div class="mb-3" data-stepper data-step="0.1" data-allow-zero="{{ step.options.allow_zero | default('false') | lower }}">
+    <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+      <input type="hidden" name="step_type" value="pedir_float">
+      <input type="hidden" name="default" value="{{ step.default }}">
+      <div class="flex items-center gap-2">
+        <button type="button" data-stepper-minus class="btn btn-muted" aria-label="Diminuir" style="min-width:48px;min-height:48px;">−</button>
+        <input type="text" name="value" value="{{ step.default }}" class="w-24 text-center font-bold" step="0.1" autofocus>
+        <button type="button" data-stepper-plus class="btn btn-muted" aria-label="Aumentar" style="min-width:48px;min-height:48px;">+</button>
+        <button type="submit" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+{% elif step.type == "pedir_int" %}
+{{ render_body(step.options) }}
+<div class="mb-3" data-stepper data-step="1" data-allow-zero="{{ step.options.allow_zero | default('false') | lower }}">
+    <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+      <input type="hidden" name="step_type" value="pedir_int">
+      <input type="hidden" name="default" value="{{ step.default }}">
+      <div class="flex items-center gap-2">
+        <button type="button" data-stepper-minus class="btn btn-muted" aria-label="Diminuir" style="min-width:48px;min-height:48px;">−</button>
+        <input type="text" name="value" value="{{ step.default }}" class="w-24 text-center font-bold" autofocus>
+        <button type="button" data-stepper-plus class="btn btn-muted" aria-label="Aumentar" style="min-width:48px;min-height:48px;">+</button>
+        <button type="submit" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+{% elif step.type == "pedir_jornada" %}
+{{ render_body(step.options) }}
+<div class="mb-3" data-jornada>
+    <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+      <input type="hidden" name="step_type" value="pedir_jornada">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="chip chip-active" data-jornada-dec style="cursor:pointer;">Decimal</span>
+        <span class="chip" data-jornada-hm style="cursor:pointer;">HH:MM</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span data-jornada-label class="text-xs" style="color: var(--muted);">Decimal</span>
+        <input type="text" name="value" value="{{ step.default }}" class="w-24 text-center font-bold" placeholder="0.0" autofocus>
+        <button type="submit" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+{% elif step.type == "selecionar" %}
+{{ render_body(step.options) }}
+<div class="mb-3">
+<p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+<form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+<input type="hidden" name="step_type" value="selecionar">
+<ul class="mb-2" role="listbox" aria-label="Opções">
+{% for item in step.options["items"] %}
+<li class="mb-1">
+<button type="submit" name="value" value="{{ loop.index }}" class="btn w-full text-left min-h-[48px]" data-asci-pt>{{ loop.index }}. {{ item }}</button>
+</li>
+{% endfor %}
+{% if step.options.zero_label %}
+<li class="mb-1">
+<button type="submit" name="value" value="0" class="btn btn-muted w-full text-left min-h-[48px]">{{ step.options.zero_label }}</button>
+</li>
+{% endif %}
+</ul>
+</form>
+</div>
+
+{% elif step.type == "selecionar_paginado" %}
+{{ render_body(step.options) }}
+<div class="mb-3" data-paginate data-items="{{ step.options['items'] | tojson | forceescape }}" data-page-size="{{ step.options.page_size | default(5) }}">
+<p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+<form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+<input type="hidden" name="step_type" value="selecionar_paginado">
+<ul class="mb-2" data-paginate-list role="listbox" aria-label="Opções"></ul>
+<div class="flex items-center gap-2 mb-2">
+<button type="button" data-paginate-prev class="btn btn-muted" aria-label="Página anterior" style="min-width:48px;">◂</button>
+<span data-paginate-info class="text-xs font-bold" style="color: var(--muted);">1/1</span>
+<button type="button" data-paginate-next class="btn btn-muted" aria-label="Próxima página" style="min-width:48px;">▸</button>
+</div>
+{% if step.options.zero_label %}
+<button type="submit" name="value" value="0" class="btn btn-muted w-full text-left min-h-[48px]">{{ step.options.zero_label }}</button>
+{% endif %}
+</form>
+</div>
+
+{% elif step.type == "prompt" %}
+{{ render_body(step.options) }}
+<div class="mb-3">
+    <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+      <input type="hidden" name="step_type" value="prompt">
+      <div class="flex items-center gap-2">
+        <input type="text" name="value" value="{{ step.default or '' }}" class="flex-1" autofocus>
+        <button type="submit" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+{% elif step.type == "display" %}
+{{ render_body(step.options) }}
+<div class="mb-3">
+<div class="banner-{{ step.options.level or 'info' }} mb-3">
+<h3 class="font-bold" data-asci-pt>{{ step.prompt }}</h3>
+</div>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+      <input type="hidden" name="step_type" value="display">
+      <button type="submit" name="value" value="continuar" class="btn btn-primary">Continuar</button>
+    </form>
+  </div>
+
+{% elif step.type == "table" %}
+  <div class="mb-3">
+    <h3 class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</h3>
+    <div class="overflow-x-auto">
+      <table class="srf-table">
+        <thead>
+          <tr>
+          {% for h in step.options.headers %}
+            <th data-asci-pt>{{ h }}</th>
+          {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in step.options.rows %}
+          <tr>
+          {% for cell in row %}
+            <td data-asci-pt>{{ cell }}</td>
+          {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" class="mt-3" hx-disabled-elt="find button">
+      <input type="hidden" name="step_type" value="table">
+      <button type="submit" name="value" value="continuar" class="btn btn-primary">Continuar</button>
+    </form>
+  </div>
+
+{% elif step.type == "result" %}
+  <div class="mb-3">
+    <div class="banner-success mb-3">
+      <h3 class="font-bold" data-asci-pt>{{ step.prompt }}</h3>
+    </div>
+    {% if step.options and step.options.files %}
+    <h4 class="font-bold mb-2 text-sm">Arquivos Gerados</h4>
+    <ul class="mb-3">
+    {% for f in step.options.files %}
+      <li><a href="/download/{{ session_id }}/{{ f }}" style="color: var(--info);">{{ f }}</a></li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    <a href="/app" class="btn btn-muted">Voltar ao Menu</a>
+  </div>
+
+{% elif step.type == "error" %}
+  <div class="mb-3">
+    <div class="banner-error mb-3" role="alert">
+      <h3 class="font-bold">Erro</h3>
+      <p data-asci-pt>{{ step.prompt }}</p>
+      {% if step.options and step.options.error %}
+      <pre class="text-xs mt-2 whitespace-pre-wrap" style="color: var(--error);" data-selectable>{{ step.options.error }}</pre>
+      {% endif %}
+    </div>
+    <a href="/app" class="btn btn-muted">Voltar ao Menu</a>
+  </div>
+
+{% else %}
+  <div class="banner-warn mb-3" role="alert">
+    <p>Tipo de passo não reconhecido: {{ step.type }}</p>
+    <pre class="text-xs">{{ step }}</pre>
+  </div>
+{% endif %}
+
+</div>
+
+{% elif finished %}
+<div class="card p-6">
+{% if error %}
+  <div class="banner-error mb-4" role="alert">
+    <h2 class="font-bold">Erro</h2>
+    <p>{{ error }}</p>
+  </div>
+{% else %}
+  <div class="banner-success mb-4">
+    <h2 class="font-bold">Concluído</h2>
+  </div>
+{% endif %}
+<a href="/app" class="btn btn-muted">Voltar ao Menu</a>
+</div>
+
+{% else %}
+<div id="step-zone" class="card p-6 text-center" style="color: var(--muted);">
+<div class="srf-spinner mx-auto mb-3"></div>
+<p>Processando...</p>
+<div hx-get="/step/{{ session_id }}/pending"
+     hx-trigger="every 1s"
+     hx-target="#step-zone"
+     hx-swap="outerHTML">
+  </div>
+</div>
+{% endif %}

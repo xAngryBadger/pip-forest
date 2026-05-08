@@ -8,7 +8,7 @@ from .monitor import _emitir_monitor_rendimentos
 from .ui import (
     G, Y, C, DM, BL, RS,
     sub, aviso, erro, ok, prompt, pedir_float, pedir_int, confirmar,
-    selecionar, selecionar_paginado,
+    selecionar, selecionar_paginado, esperar,
 )
 
 def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
@@ -150,12 +150,12 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                         for a in cur_mec:
                             print(f" {C}✓{RS} {a}")
                     
-                    input(DM + "\n [ENTER] " + RS)
+                    esperar()
                     continue
 
                 if acao == "Ver listas completas (vinculadas x catalogo)":
                     _mostrar_catalogo_atividades(cur, pool_catalogo)
-                    input(DM + "\n [ENTER] " + RS)
+                    esperar()
 
                 return recursos
 
@@ -504,7 +504,7 @@ def menu_vincular_atividades_turma(turma, atividades_reais, atividades_catalogo=
                 print(DM + f"    - {str(x)[:62]}" + RS)
             if len(cur2) > 40:
                 print(DM + f"    ... +{len(cur2) - 40}" + RS)
-            input(DM + "\n  [ENTER] " + RS)
+            esperar()
         elif op == "7":
             cur2 = sorted(atv_set, key=lambda x: str(x))
             if not cur2:
@@ -543,7 +543,7 @@ def menu_vincular_atividades_turma(turma, atividades_reais, atividades_catalogo=
             _assistente_sn_vinculos()
         elif op == "9":
             _mostrar_catalogo_atividades(sorted(atv_set, key=str), _catalogo_all())
-            input(DM + "\n  [ENTER] " + RS)
+            esperar()
         else:
             aviso("Opcao invalida.")
 
@@ -557,6 +557,7 @@ def resolver_conflitos_e_reatribuir(turmas, atividades_reais):
     reatribuicao = {}
     paralelo = {}
     primaria = {}
+    conflitos_encontrados = False
 
     def candidatos(atv):
         return [t["nome"] for t in turmas if atv in t["atividades"]]
@@ -565,8 +566,9 @@ def resolver_conflitos_e_reatribuir(turmas, atividades_reais):
         c = candidatos(atv)
         if len(c) <= 1:
             continue
+        conflitos_encontrados = True
         sub()
-        print(Y + f"  Conflito: '{str(atv)[:58]}'" + RS)
+        print(Y + f" Conflito: '{str(atv)[:58]}'" + RS)
         print(DM + f"  Turmas: {', '.join(c)}" + RS)
         if confirmar(
             "  Varias turmas em PARALELO (dividem a mesma demanda no tempo)?",
@@ -597,9 +599,12 @@ def resolver_conflitos_e_reatribuir(turmas, atividades_reais):
             )
             if t_alvo:
                 reatribuicao[atv] = t_alvo
-                ok(
-                    f"Executora: '{t_alvo}' (sobrescreve vinculos anteriores para o cronograma)."
-                )
+            ok(
+                f"Executora: '{t_alvo}' (sobrescreve vinculos anteriores para o cronograma)."
+            )
+
+    if not conflitos_encontrados:
+        ok("Nenhuma atividade com conflito multi-turma.")
 
     return reatribuicao, paralelo, primaria
 

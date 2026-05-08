@@ -23,6 +23,7 @@ from .ui import (
     aviso, erro, ok, prompt,
     pedir_float, pedir_int, pedir_jornada,
     selecionar, selecionar_paginado, confirmar,
+    esperar, escolha,
     Table,
 )
 from .config import (
@@ -54,6 +55,7 @@ from .scheduler import (
     _mostrar_painel_hh_hm_pre_scheduler, menu_ajustes_hh_apenas_sessao,
     validar_e_completar_orcamento, dias_uteis_no_periodo,
     _selecionar_sequencia_padrao_sn, _distribuir_atividades_faltantes_turmas,
+    _demanda_global_touch,
 )
 from .turmas import (
     _cadastrar_recursos_mecanizados_sn, _catalogo_atividades_completo,
@@ -242,7 +244,7 @@ def calcular_cronograma_inteligente(
                     print(R + " [0] Cancelar comparativo" + RS)
                     print(DM + "    (opcão 2 permite escolher QUALQUER atividade mecanizada)" + RS)
                     sub()
-                    modo_escolha = input(DM + ">> Opção [1/2/3/0]: " + RS).strip() or "1"
+                    modo_escolha = escolha("Opção [1/2/3/0]", "1")
                     
                     if modo_escolha == "0":
                         modo_comparativo = False
@@ -263,22 +265,22 @@ def calcular_cronograma_inteligente(
                         for i, (manual, mec) in enumerate(pares_mecanizaveis, 1):
                             print(f" {Y}{i:2}{RS}. {manual}")
                             print(f" {DM}→{RS} {C}{mec}{RS}")
-                            print()
-                        
+                        print()
+
                         sub()
                         print(DM + "Digite os números das atividades para trocar (ex: 1,3,5)" + RS)
                         print(DM + "ou ENTER para TODAS, ou 0 para VOLTAR ao menu anterior" + RS)
-                        escolha = input(DM + " >> Escolha: " + RS).strip()
-                        
+                        escolha_val = escolha("Escolha")
+
                         # Verificar se quer voltar
-                        if escolha == "0":
-                            continue  # Volta ao início do while loop
-                        
+                        if escolha_val == "0":
+                            continue # Volta ao início do while loop
+
                         indices_trocar = []
-                        if escolha:
+                        if escolha_val:
                             try:
                                 # Parse lista de números
-                                for parte in escolha.split(","):
+                                for parte in escolha_val.split(","):
                                     idx = int(parte.strip()) - 1
                                     if 0 <= idx < len(pares_mecanizaveis):
                                         indices_trocar.append(idx)
@@ -326,7 +328,7 @@ def calcular_cronograma_inteligente(
                             print(DM + "Escolha uma atividade mecanizada (ou 0 para voltar):" + RS)
                             print(DM + "Comandos: [L] listar substituições atuais | [U] desfazer última | [A] ver sugestões automáticas" + RS)
 
-                            escolha_mec = input(DM + ">> Número (0 para voltar ao menu): " + RS).strip()
+                            escolha_mec = escolha("Número (0 para voltar ao menu)")
                             cmd_mec = escolha_mec.upper()
                             if cmd_mec == "0":
                                 break
@@ -377,7 +379,7 @@ def calcular_cronograma_inteligente(
                                 else:
                                     aviso("Nao ha sugestões automáticas para esta fazenda.")
                                 sub()
-                                input(DM + " [ENTER para voltar ao catálogo manual] " + RS)
+                                esperar("ENTER para voltar ao catálogo manual")
                                 continue
 
                             if not escolha_mec:
@@ -395,7 +397,7 @@ def calcular_cronograma_inteligente(
 
                                     print()
                                     print(DM + f"Qual atividade substituir por '{atividade_mecanizada_escolhida}'?" + RS)
-                                    escolha_manual = input(DM + ">> Número da atividade manual (0 para cancelar): " + RS).strip()
+                                    escolha_manual = escolha("Número da atividade manual (0 para cancelar)")
 
                                     if escolha_manual == "0":
                                         continue
@@ -456,7 +458,7 @@ def calcular_cronograma_inteligente(
                                 print(f" • {manual}")
                                 print(f" → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
                             sub()
-                            input(DM + " [ENTER para continuar] " + RS)
+                            esperar("ENTER para continuar")
                             break
 
                         aviso("Nenhuma substituição selecionada. Voltando ao menu.")
@@ -493,7 +495,7 @@ def calcular_cronograma_inteligente(
                                 print(f" • {manual[:50]}...")
                                 print(f" → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
                             sub()
-                            input(DM + " [ENTER para continuar] " + RS)
+                            esperar("ENTER para continuar")
                             break
 
                         aviso("Nenhum recurso externo foi vinculado. Voltando ao menu.")
@@ -927,7 +929,8 @@ def calcular_cronograma_inteligente(
             return {"acao": "retroceder_escopo"}
 
         if op_cp == "Revisar jornada/equipe":
-            print(DM + f"\n  Atual: {executores} operarios @ {jornada}h/dia" + RS)
+            print(DM + f"\n Atual: {executores} operarios @ {jornada}h/dia" + RS)
+            alterou = False
             if confirmar("Alterar jornada?", default=False):
                 jornada = pedir_jornada(
                     "Nova jornada (ex: 6.5 ou 6:30 = 6h30)", round(jornada, 2)
@@ -935,32 +938,41 @@ def calcular_cronograma_inteligente(
                 cfg["jornada_horas"] = jornada
                 salvar_config(cfg)
                 ok(f"Jornada atualizada: {jornada}h/dia")
+                alterou = True
             if confirmar("Alterar operarios?", default=False):
                 executores = pedir_int("Operarios totais", executores)
-            print(
-                G + f" Equipe: {executores} operarios @ {jornada}h/dia = {executores * jornada:.1f} HH/dia" + RS
-            )
+                print(
+                    G + f" Equipe: {executores} operarios @ {jornada}h/dia = {executores * jornada:.1f} HH/dia" + RS
+                )
+                alterou = True
+            if not alterou:
+                ok("Jornada/equipe mantidos sem alteracao.")
             continue
 
-            if op_cp == "Editar atividades de uma turma":
-                nomes_t = [t["nome"] for t in turmas]
-                nm = selecionar("TURMA", nomes_t)
-                if nm:
-                    for t in turmas:
-                        if t["nome"] == nm:
-                            menu_vincular_atividades_turma(
-                                t,
-                                atividades_reais,
-                                atividades_catalogo=catalogo_global,
-                            )
-                            break
-                continue
+        if op_cp == "Editar atividades de uma turma":
+            nomes_t = [t["nome"] for t in turmas]
+            nm = selecionar("TURMA", nomes_t)
+            if nm:
+                for t in turmas:
+                    if t["nome"] == nm:
+                        menu_vincular_atividades_turma(
+                            t,
+                            atividades_reais,
+                            atividades_catalogo=catalogo_global,
+                        )
+                        ok(f"Turma '{nm}' — edicao concluida.")
+                        break
+            else:
+                ok("Nenhuma turma selecionada.")
+            continue
 
-            if op_cp == "Reprocessar conflitos/reatribuicao":
-                reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
-                    turmas, atividades_reais
-                )
-                continue
+        if op_cp == "Reprocessar conflitos/reatribuicao":
+            reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
+                turmas, atividades_reais
+            )
+            if not paralelo and not reatribuicao:
+                ok("Nenhum conflito multi-turma encontrado.")
+            continue
 
             if op_cp == "Ajustar HH/ha desta sessao":
                 menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
@@ -981,7 +993,7 @@ def calcular_cronograma_inteligente(
     # ── Validacao orcamento estrito (antes das demandas) ──
     if not validar_e_completar_orcamento(cfg, atividades_reais, session_hh=session_hh):
         if not _batch:
-            input(DM + "\n  [ENTER para voltar] " + RS)
+            esperar("ENTER para voltar")
             return
         aviso("Modo batch: validacao de orcamento falhou; cenario cancelado.")
         return {"acao": "orcamento_invalido"}
@@ -1165,7 +1177,7 @@ def calcular_cronograma_inteligente(
                 "  Continuar mesmo assim (essas HH nao serao agendadas)?", default=False
             )
         if not continuar_sem_executor:
-            input(DM + "\n  [ENTER para voltar] " + RS)
+            esperar("ENTER para voltar")
             return
         for talhao, tarefas in demandas.items():
             for t in tarefas:
@@ -1323,6 +1335,7 @@ def calcular_cronograma_inteligente(
                             continue
                         consumo = min(rest, cap_pool)
                         demanda_global[key] -= consumo
+                        _demanda_global_touch()
                         cap_pool -= consumo
                         fez = True
                         _registrar_fim_plantio_talhao(talhao, dia)
@@ -1404,6 +1417,7 @@ def calcular_cronograma_inteligente(
 
                 consumo = min(rest, cap_dia)
                 demanda_global[key] -= consumo
+                _demanda_global_touch()
                 cap_dia -= consumo
                 _registrar_fim_plantio_talhao(item["talhao"], dia)
 
@@ -1491,6 +1505,7 @@ def calcular_cronograma_inteligente(
                         if consumo_ref <= 0.01:
                             continue
                         demanda_global[key_ref] -= consumo_ref
+                        _demanda_global_touch()
                         cap_dia -= consumo_ref
                         _registrar_fim_plantio_talhao(talhao, dia)
                         cronograma.append(
@@ -2393,7 +2408,7 @@ def calcular_cronograma_inteligente(
         sub()
     
     if esperar_enter:
-        input(DM + "\n [ENTER para voltar ao menu] " + RS)
+        esperar("ENTER para voltar ao menu")
     d_mc = (
         max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
         if (recursos_mec and cronograma_com_mec)
@@ -2852,7 +2867,7 @@ def _executar_lote_fazendas(
     )
 
     linha()
-    input(DM + "\n  [ENTER para voltar ao menu] " + RS)
+    esperar("ENTER para voltar ao menu")
 
 
 # ──────────────────────────────────────────────
@@ -2955,7 +2970,7 @@ def _executar_multi_equipes(
             aviso("Modo automatico cancelado. Prossiga com configuracao manual.")
 
         sub()
-        input(DM + " [ENTER para continuar] " + RS)
+        esperar("ENTER para continuar")
 
     equipes_config = []
     fazendas_restantes = list(fazendas)
@@ -3307,7 +3322,7 @@ def _executar_multi_equipes(
         aviso(f"Erro ao exportar multi-equipes: {ex}")
 
     linha()
-    input(DM + "\n  [ENTER para voltar ao menu] " + RS)
+    esperar("ENTER para voltar ao menu")
 
 
 # ──────────────────────────────────────────────

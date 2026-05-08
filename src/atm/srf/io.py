@@ -13,15 +13,12 @@ from .config import (
     PROFILES_DIR,
     MODO_SOMENTE_HH,
     CT_REAL_FILENAME,
-    DEMO_MICRO_FILENAME,
-    DEMO_MICRO_SOURCE_FILENAME,
     KNOWN_COLUMNS,
-    _is_demo_micro_path,
 )
 from .text_utils import normalizar_chave, remover_acentos
 from .territorio import fazendas_unicas_micro, _indice_fazendas_ct
 from .ui import (
-    G, Y, C, DM, BL, RS,
+    G, Y, R, C, DM, BL, RS,
     console, sub, subcabecalho, aviso, erro, ok, prompt,
     confirmar, selecionar, selecionar_paginado,
 )
@@ -43,6 +40,9 @@ def encontrar_coluna(cols, campo):
 
 
 def buscar_arquivos_excel():
+    if not os.path.isdir(INPUT_DIR):
+        os.makedirs(INPUT_DIR, exist_ok=True)
+        return []
     return [
         f
         for f in os.listdir(INPUT_DIR)
@@ -74,15 +74,19 @@ def _find_default_micro_path(cfg=None):
             p = os.path.join(INPUT_DIR, c)
             if os.path.exists(p):
                 return p
-        for f in buscar_arquivos_excel():
-            n = remover_acentos(f)
-            if "inovesa" in n or "consolidado" in n:
-                return os.path.join(INPUT_DIR, f)
-        for f in buscar_arquivos_excel():
-            n = remover_acentos(f)
-            if "exame" in n or "micro" in n:
-                return os.path.join(INPUT_DIR, f)
-        return None
+    for f in buscar_arquivos_excel():
+        n = remover_acentos(f)
+        if "micro" in n:
+            return os.path.join(INPUT_DIR, f)
+    for f in buscar_arquivos_excel():
+        n = remover_acentos(f)
+        if "inovesa" in n or "consolidado" in n:
+            return os.path.join(INPUT_DIR, f)
+    for f in buscar_arquivos_excel():
+        n = remover_acentos(f)
+        if "exame" in n:
+            return os.path.join(INPUT_DIR, f)
+    return None
 
 
 def _prefer_micro_sheet(abas):
@@ -117,6 +121,7 @@ def _prefer_micro_sheet(abas):
 
 
 def _find_default_ct_path():
+    import re
     preferido = os.path.join(INPUT_DIR, CT_REAL_FILENAME)
     if os.path.exists(preferido):
         return preferido
@@ -133,6 +138,13 @@ def _find_default_ct_path():
             continue
         n = remover_acentos(f)
         if "ct_313" in n or ("ct" in n and "313" in n):
+            return os.path.join(INPUT_DIR, f)
+
+    _ct_re = re.compile(r'ct[\s_]*\d{2,4}', re.IGNORECASE)
+    for f in buscar_arquivos_excel():
+        if f == STG_FILENAME:
+            continue
+        if _ct_re.search(remover_acentos(f)):
             return os.path.join(INPUT_DIR, f)
     return None
 
@@ -481,28 +493,10 @@ def _to_float_br(v, default=0.0):
         return float(default)
 
 
-def _resolver_fazenda_demo_ulianopolis(df):
+def garantir_fazendas_micro_no_ct(cfg, df):
     """
-    Fazenda alvo no modo DEMO:
-    1) Nome que contenha 'ulianopolis' (ex.: fazenda cadastrada como Ulianopolis SWG);
-    2) Senao, a fazenda com mais linhas no micro (planilhas municipio Ulianopolis sem 'Ulianopolis' no nome da fazenda).
-    """
-    fazendas = fazendas_unicas_micro(df)
-    for f in fazendas:
-        if "ulianopolis" in normalizar_chave(f):
-            return f
-    best, nmax = None, -1
-    for f in fazendas:
-        n = len(df[df["fazenda"] == f])
-        if n > nmax:
-            nmax, best = n, f
-    return best
-
-
-def garantir_fazenda_ulianopolis_no_ct(cfg, df):
-    """
-    Modo DEMO: acrescenta em fazendas_ct todas as fazendas presentes no micro demo,
-    para o aviso micro-vs-CT nao bloquear (CT pode nao listar municipio).
+    Acrescenta em fazendas_ct todas as fazendas presentes no micro
+    que ainda nao estao cadastradas, para o aviso micro-vs-CT nao bloquear.
     Retorna quantos nomes novos foram adicionados.
     """
     idx = _indice_fazendas_ct(cfg)
@@ -516,54 +510,3 @@ def garantir_fazenda_ulianopolis_no_ct(cfg, df):
             idx[nk] = f
             ad += 1
     return ad
-
-
-def reconstruir_demo_ulianopolis_a_partir_da_fonte():
-    """
-    Le USEESTAPLANILHAULIANOPOLIS.xlsx (Planilha1), filtra municipio Ulianopolis,
-    gera ulianopolisswg.xlsx no formato esperado pelo carregador (NOME FAZENDA, CHAVE POLIGONO, ...).
-    Retorna (n_linhas, n_atividades_unicas) ou None se a fonte nao existir.
-    """
-    src = os.path.join(INPUT_DIR, DEMO_MICRO_SOURCE_FILENAME)
-    if not os.path.exists(src):
-        return None
-    try:
-        raw = pd.read_excel(src, sheet_name=0)
-    except Exception:
-        return None
-    if raw.shape[1] < 11:
-        return None
-    # Colunas fixas pela ordem do export escritorio (USEESTA...)
-    muni = raw.iloc[:, 3]
-    mask = muni.astype(str).str.contains("ulian", case=False, na=False)
-    sub = raw.loc[mask].copy()
-    if sub.empty:
-        sub = raw.copy()
-    cod = sub.iloc[:, 0]
-    nome_faz = sub.iloc[:, 1]
-    nucleo = sub.iloc[:, 2]
-    atividades = sub.iloc[:, 9]
-    area = sub.iloc[:, 10]
-    chaves = []
-    for i in range(len(sub)):
-        chaves.append(
-            f"{str(cod.iloc[i]).strip()}_{str(nucleo.iloc[i]).strip()}_{i:04d}"
-        )
-    out = pd.DataFrame(
-        {
-            "NOME FAZENDA": nome_faz.astype(str).str.strip(),
-            "CHAVE POLÍGONO": chaves,
-            "ÁREA TRABALHADA ESTIMADA (HECTARE)": pd.to_numeric(area, errors="coerce"),
-            "ATIVIDADES": atividades.astype(str).str.strip(),
-        }
-    )
-    out = out.dropna(subset=["ATIVIDADES"])
-    out = out[
-        pd.to_numeric(
-            out["ÁREA TRABALHADA ESTIMADA (HECTARE)"], errors="coerce"
-        ).fillna(0)
-        > 0
-    ]
-    dest = os.path.join(INPUT_DIR, DEMO_MICRO_FILENAME)
-    out.to_excel(dest, index=False, sheet_name="MICROPLANEJAMENTO_ULIANOPOLIS")
-    return len(out), out["ATIVIDADES"].nunique()

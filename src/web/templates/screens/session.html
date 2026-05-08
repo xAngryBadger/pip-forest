@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}SRF — Sessão {{ session_id }}{% endblock %}
+{% block content %}
+<div id="session-view">
+
+{% if step %}
+{% include "components/step.html" %}
+{% elif finished %}
+{% if error %}
+<div class="card p-6">
+  <div class="banner-error mb-4" role="alert">
+    <h2 class="font-bold">Erro</h2>
+    <p>{{ error }}</p>
+  </div>
+  <a href="/app" class="btn btn-muted min-h-[48px]">Voltar ao Menu</a>
+</div>
+{% else %}
+<div class="card p-6">
+  <div class="banner-success mb-4">
+    <h2 class="font-bold">Concluído</h2>
+  </div>
+  {% if result_files %}
+  <h3 class="font-bold mb-2">Arquivos Gerados</h3>
+  <ul class="mb-4">
+  {% for f in result_files %}
+    <li><a href="/download/{{ session_id }}/{{ f }}" style="color: var(--info);">{{ f }}</a></li>
+  {% endfor %}
+  </ul>
+  {% endif %}
+  <a href="/app" class="btn btn-muted min-h-[48px]">Voltar ao Menu</a>
+</div>
+{% endif %}
+{% else %}
+<div id="step-zone" class="card p-6 text-center" style="color: var(--muted);">
+<div class="srf-spinner mx-auto mb-3"></div>
+<p>Aguardando resposta do motor...</p>
+<div hx-get="/step/{{ session_id }}/pending"
+     hx-trigger="every 1s"
+     hx-target="#step-zone"
+     hx-swap="outerHTML">
+  </div>
+</div>
+{% endif %}
+
+</div>
+
+<div class="mt-4">
+  <form action="/abort/{{ session_id }}" method="post">
+    <button type="submit" class="btn btn-danger text-sm min-h-[48px] w-full">Abortar Sessão</button>
+  </form>
+</div>
+{% endblock %}

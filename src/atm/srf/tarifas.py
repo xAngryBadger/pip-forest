@@ -18,7 +18,7 @@ from .constants import CT317_HARDCODE_HH_BASE, DEFAULT_DEPARA_EXAME_CT317
 from .ui import (
     G, Y, C, DM, BL, RS,
     sub, aviso, ok, erro, prompt, pedir_float,
-    confirmar, selecionar, selecionar_paginado, subcabecalho,
+    confirmar, selecionar, selecionar_paginado, subcabecalho, esperar,
 )
 from .text_utils import normalizar_chave, remover_acentos
 from .context import dashboard_header
@@ -845,7 +845,7 @@ def modulo_mapeamentos_de_para(cfg, df_micro=None):
                     print(DM + f"  {i:3}. {str(n)[:58]}" + RS)
                 if len(nomes_tarifa) > 60:
                     print(DM + f"  ... +{len(nomes_tarifa) - 60}" + RS)
-            input(DM + "\n  [ENTER] " + RS)
+            esperar()
         else:
             aviso("Opcao invalida.")
 

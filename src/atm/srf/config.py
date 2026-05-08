@@ -35,10 +35,6 @@ MODO_SOMENTE_HH = True
 CT_REAL_FILENAME = "ct317real.xlsx"
 STG_FILENAME = "CT_317_NORMALIZADA.xlsx"
 
-# Modo DEMO (Ulianopolis)
-DEMO_MICRO_FILENAME = "ulianopolisswg.xlsx"
-DEMO_MICRO_SOURCE_FILENAME = "USEESTAPLANILHAULIANOPOLIS.xlsx"
-
 # Known column mapping (fallback semantico so se nenhuma bater)
 KNOWN_COLUMNS = {
     "fazenda": ["NOME FAZENDA", "CODIGO FAZENDA"],
@@ -57,16 +53,10 @@ KNOWN_COLUMNS = {
 # MODE DETECTION
 # ──────────────────────────────────────────────
 
-def _is_demo_mode():
-    import sys as _sys
-    v = os.environ.get("ATM_DEMO", "").strip().lower()
-    if v in ("1", "true", "yes", "sim", "on"):
-        return True
-    return "--demo" in _sys.argv
-
 
 def _is_legacy_mode():
     import sys as _sys
+
     v = os.environ.get("ATM_LEGACY", "").strip().lower()
     if v in ("1", "true", "yes", "sim", "on"):
         return True
@@ -75,6 +65,7 @@ def _is_legacy_mode():
 
 def _is_beta_mode():
     import sys as _sys
+
     # Fluxo beta promovido a padrao; legado fica opt-in por flag/env.
     if _is_legacy_mode():
         return False
@@ -84,15 +75,10 @@ def _is_beta_mode():
     return True
 
 
-def _is_demo_micro_path(path_or_name):
-    if not path_or_name:
-        return False
-    return os.path.basename(str(path_or_name)).lower() == DEMO_MICRO_FILENAME.lower()
-
-
 # ──────────────────────────────────────────────
 # SEQUENCE DEFAULTS
 # ──────────────────────────────────────────────
+
 
 def _default_sequencia_dict():
     return {
@@ -118,57 +104,6 @@ def _default_sequencia_dict():
                 "exclusoes": [],
             },
         ],
-        # Ordem exata solicitada para manutencao SWG (conforme lista de atividades do Excel).
-        "swg_fases": [
-            {
-                "id": "swg_rocada_manual",
-                "filtros": ["rocada manual", "rocada manual"],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_limpeza_area",
-                "filtros": ["limpeza de area", "limpeza de area"],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_capina_coroa",
-                "filtros": ["capina manual coroa", "capina manual"],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_combate_formigas",
-                "filtros": ["combate a formigas", "combate a formiga", "formigas"],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_coveamento",
-                "filtros": [
-                    "coveam area nao subsol",
-                    "coveam area nao subsol",
-                    "coveamento",
-                ],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_adubacao_base",
-                "filtros": [
-                    "adubacao quim man de base",
-                    "adubacao quim man de base",
-                    "adubacao",
-                ],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_plantio_manual",
-                "filtros": ["plantio manual", "plantio"],
-                "exclusoes": [],
-            },
-            {
-                "id": "swg_irrigacao_inicial",
-                "filtros": ["irrigacao inicial", "irrigacao inicial", "irrigacao"],
-                "exclusoes": [],
-            },
-        ],
         "personalizado_ordem": [],
     }
 
@@ -179,10 +114,7 @@ def _merge_sequencia_defaults(seq):
     for k, v in d0.items():
         if k not in seq:
             seq[k] = v
-        elif (
-            k in ("implantacao_fases", "swg_fases", "personalizado_ordem")
-            and not seq[k]
-        ):
+        elif k in ("implantacao_fases", "personalizado_ordem") and not seq[k]:
             seq[k] = v
 
 
@@ -190,10 +122,6 @@ _SEQUENCIAS_DISPONIVEIS = [
     (
         "implantacao",
         "Rocada > Formiga > Coroamento > Coveamento > Adubacao > Plantio > Irrigacao (cascata)",
-    ),
-    (
-        "manutencao_swg",
-        "Rocada manual > Limpeza de area > Capina de coroa > Formigas > Coveamento > Adubacao > Plantio > Irrigacao (ordem SWG)",
     ),
     (
         "manutencao_seco",
@@ -211,41 +139,18 @@ _SEQUENCIAS_DISPONIVEIS = [
 # TERRITORY CONFIG (V6)
 # ──────────────────────────────────────────────
 
+
 def _territorio_config():
     """
     Configuracao de territorios/cidades para distribuicao automatica de equipes.
     """
     return {
         "cidades": {
-            "acailandia": {"nome": "Acailandia", "n_equipes_swg": 3, "n_equipes_inovesa": 4},
-            "dom_eliseu": {"nome": "Dom Eliseu", "n_equipes_swg": 2, "n_equipes_inovesa": 3},
-            "ulianopolis": {"nome": "Ulianopolis", "n_equipes_swg": 1, "n_equipes_inovesa": 2},
-            "cidelandia": {"nome": "Cidelandia", "n_equipes_swg": 1, "n_equipes_inovesa": 2},
+            "acailandia": {"nome": "Acailandia"},
+            "dom_eliseu": {"nome": "Dom Eliseu"},
+            "cidelandia": {"nome": "Cidelandia"},
         },
-        "empresas": {
-            "swg": {
-                "nome": "SWG",
-                "coordenadores_por_equipe": 1,
-                "operarios_por_equipe": 3,
-                "equipes_por_cidade": {
-                    "acailandia": 3,
-                    "dom_eliseu": 2,
-                    "ulianopolis": 1,
-                    "cidelandia": 1,
-                },
-            },
-            "inovesa": {
-                "nome": "Inovesa",
-                "coordenadores_por_equipe": 1,
-                "operarios_por_equipe": 4,
-                "equipes_por_cidade": {
-                    "acailandia": 4,
-                    "dom_eliseu": 3,
-                    "ulianopolis": 2,
-                    "cidelandia": 2,
-                },
-            },
-        },
+        "empresas": {},
     }
 
 
@@ -258,7 +163,6 @@ def _detectar_cidade_por_fazenda(nome_fazenda: str) -> str:
     cidade_keywords = {
         "acailandia": ["acailandia", "acailand", "ailandia"],
         "dom_eliseu": ["dom eliseu", "eliseu", "dom_eliseu"],
-        "ulianopolis": ["ulianopolis", "ulianopol", "ulianopolis"],
         "cidelandia": ["cidelandia", "cideland", "cidelndia", "buritirana"],
     }
     for cidade, keywords in cidade_keywords.items():
@@ -273,7 +177,7 @@ def _distribuir_fazendas_por_territorio(fazendas: list) -> dict:
     Distribui fazendas por territorio/cidade automaticamente.
     Retorna: (distribuicao_dict, nao_identificadas_list)
     """
-    distribuicao = {"acailandia": [], "dom_eliseu": [], "ulianopolis": [], "cidelandia": []}
+    distribuicao = {"acailandia": [], "dom_eliseu": [], "cidelandia": []}
     nao_identificadas = []
 
     for faz in fazendas:
@@ -289,7 +193,7 @@ def _distribuir_fazendas_por_territorio(fazendas: list) -> dict:
 def _calcular_equipes_territorio(cidade: str, empresa: str = "auto") -> dict:
     """
     Calcula configuracao de equipes para um territorio.
-    empresa: "swg", "inovesa", ou "auto" (detecta da fazenda)
+    empresa: nome da empresa (deve existir em cfg_territorio["empresas"]) ou "auto"
     """
     cfg_territorio = _territorio_config()
     if cidade not in cfg_territorio["cidades"]:
@@ -298,7 +202,12 @@ def _calcular_equipes_territorio(cidade: str, empresa: str = "auto") -> dict:
     info_cidade = cfg_territorio["cidades"][cidade]
 
     if empresa == "auto":
-        empresa = "swg"
+        if not cfg_territorio["empresas"]:
+            return None
+        empresa = next(iter(cfg_territorio["empresas"]))
+
+    if empresa not in cfg_territorio["empresas"]:
+        return None
 
     info_empresa = cfg_territorio["empresas"][empresa]
     n_equipes = info_empresa["equipes_por_cidade"].get(cidade, 1)
@@ -349,6 +258,7 @@ def _sugerir_config_territorio(fazendas: list, modo_simplificado: bool = True) -
 # ──────────────────────────────────────────────
 # CONFIG PERSISTENCE
 # ──────────────────────────────────────────────
+
 
 def carregar_config():
     """Load (or create) config.json, apply defaults, apply preco_final overrides if available."""
