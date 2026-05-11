@@ -131,7 +131,7 @@ _SEQUENCIAS_DISPONIVEIS = [
         "manutencao_umido",
         "[EM PROGRESSO] Manutencao periodo umido — regras ainda nao definidas",
     ),
-    ("personalizado", "Ordem livre (sem bloqueio global plantio/irrigacao)"),
+    ("personalizado", "Sequencia personalizada (defina grupos sequenciais/paralelos)"),
 ]
 
 

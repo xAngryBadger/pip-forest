@@ -511,7 +511,7 @@ def calcular_cronograma_inteligente(
     if _batch:
         modo_seq = ctx["modo_seq"]
     else:
-        modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg)
+        modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
     modo_ctx = f"seq:{modo_seq}"
     modo_existente = contexto_sessao.modo_atual
@@ -2503,7 +2503,7 @@ def _executar_lote_fazendas(
     seq_cfg = cfg.get("sequencia") or {}
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
-    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg)
+    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
     # Bloqueio / reforco / pool
     usar_bloqueio_global = False
@@ -2907,7 +2907,7 @@ def _executar_multi_equipes(
     seq_cfg = cfg.get("sequencia") or {}
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
-    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg)
+    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
     hoje = datetime.datetime.now()
     mes_ref = pedir_int("Mes inicial (1-12)", hoje.month)

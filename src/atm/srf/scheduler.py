@@ -635,10 +635,123 @@ def dias_uteis_no_periodo(mes_ini, ano_ini, meses):
             a += 1
     return dias
 
+def _configurar_sequencia_personalizada(atividades_reais, seq_cfg):
+    """Interactive personalizado sequence builder.
+
+    User defines ordered groups (cascade phases):
+    - Activities in the SAME group run in parallel (no cascade constraint between them)
+    - Groups run sequentially (group N+1 only starts after group N finishes per-talhao)
+    Uses existing 1,3,5 input style for activity selection.
+    """
+    subcabecalho("SEQUENCIA PERSONALIZADA")
+    if not atividades_reais:
+        aviso("Nenhuma atividade disponivel para configurar sequencia.")
+        return
+
+    atv_list = sorted(atividades_reais, key=str)
+    print(G + BL + "\n Atividades disponiveis no micro:" + RS)
+    for i, a in enumerate(atv_list, 1):
+        print(C + f"  {i:3d}. {str(a)[:60]}" + RS)
+
+    print(DM + "\n Defina grupos sequenciais (fases da cascata):" + RS)
+    print(DM + " - Atividades no MESMO grupo rodam em paralelo" + RS)
+    print(DM + " - Grupos rodam em sequencia (grupo N+1 so inicia quando N terminar)" + RS)
+    print(DM + " - Use formato 1,3,5 ou intervalos 1-5 para selecionar" + RS)
+
+    grupos = []
+    num_grupo = 1
+    ids_usados = set()
+
+    while True:
+        restantes = [a for i, a in enumerate(atv_list, 1) if i not in ids_usados]
+        if not restantes:
+            ok("Todas as atividades foram alocadas!")
+            break
+
+        print(G + f"\n Grupo {num_grupo}:" + RS)
+        if ids_usados:
+            print(DM + f" Restantes: {len(restantes)} atividade(s)" + RS)
+            for i, a in enumerate(atv_list, 1):
+                if i not in ids_usados:
+                    print(C + f"  {i:3d}. {str(a)[:60]}" + RS)
+
+        resp = prompt(
+            f"Atividades do grupo {num_grupo} (1,3,5 ou 1-5, ENTER=finalizar)",
+            "",
+        )
+        if not resp.strip():
+            if num_grupo == 1:
+                aviso("Pelo menos um grupo deve ser definido.")
+                continue
+            break
+
+        indices = _parse_indices_usuario(resp, len(atv_list))
+        if not indices:
+            aviso("Nenhum indice valido. Use formato 1,3,5 ou 1-5.")
+            continue
+
+        novos = [i for i in indices if i not in ids_usados]
+        if not novos:
+            aviso("Todos os indices selecionados ja foram alocados.")
+            continue
+
+        filtros_grupo = []
+        nomes_grupo = []
+        for idx in novos:
+            atv = atv_list[idx - 1]
+            filtros_grupo.append(str(atv))
+            nomes_grupo.append(str(atv)[:30])
+            ids_usados.add(idx)
+
+        grupo_id = f"grupo_{num_grupo}"
+        grupos.append({
+            "id": grupo_id,
+            "filtros": filtros_grupo,
+            "exclusoes": [],
+        })
+
+        print(G + f" Grupo {num_grupo}: {', '.join(nomes_grupo)}" + RS)
+        num_grupo += 1
+
+    if not grupos:
+        return
+
+    seq_cfg["personalizado_ordem"] = grupos
+    seq_cfg["modo"] = "personalizado"
+
+    print(G + BL + "\n Ordem definida:" + RS)
+    for i, g in enumerate(grupos, 1):
+        nomes = [f[:35] for f in g["filtros"]]
+        print(G + f" Fase {i}: " + C + ", ".join(nomes) + RS)
+
+    if len(grupos) == 1:
+        print(DM + " Apenas 1 grupo — sem restricao de cascata (tudo paralelo)." + RS)
 
 
+def _parse_indices_usuario(texto, max_idx):
+    """Parse '1,3,5' or '1-5' style input into list of 1-based indices."""
+    resultado = set()
+    try:
+        for parte in texto.replace(" ", "").split(","):
+            parte = parte.strip()
+            if not parte:
+                continue
+            if "-" in parte:
+                limits = parte.split("-", 1)
+                a, b = int(limits[0]), int(limits[1])
+                for i in range(min(a, b), max(a, b) + 1):
+                    if 1 <= i <= max_idx:
+                        resultado.add(i)
+            else:
+                i = int(parte)
+                if 1 <= i <= max_idx:
+                    resultado.add(i)
+    except (ValueError, IndexError):
+        return []
+    return sorted(resultado)
 
-def _selecionar_sequencia_padrao_sn(cfg, seq_cfg):
+
+def _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais=None):
     sub()
     print(G + BL + "  SELECIONAR SEQUENCIA PADRAO:" + RS)
     print(DM + "  Responda S para a sequencia desejada (apenas UMA):" + RS + "\n")
@@ -653,10 +766,12 @@ def _selecionar_sequencia_padrao_sn(cfg, seq_cfg):
             break
     if not escolhido:
         aviso("Nenhuma sequencia selecionada. Repetindo...")
-        return _selecionar_sequencia_padrao_sn(cfg, seq_cfg)
+        return _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
     seq_cfg["modo"] = escolhido
     ok(f"Sequencia: {escolhido}")
-    if confirmar("  Salvar como padrao para proximas execucoes?", default=True):
+    if escolhido == "personalizado" and atividades_reais:
+        _configurar_sequencia_personalizada(atividades_reais, seq_cfg)
+    if confirmar(" Salvar como padrao para proximas execucoes?", default=True):
         cfg["sequencia"] = seq_cfg
         salvar_config(cfg)
     return escolhido
