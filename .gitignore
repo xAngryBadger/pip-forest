@@ -57,3 +57,4 @@ Thumbs.db
 # Keep directories but ignore contents
 cloud/builds/.gitkeep
 */__pycache__/
+data/sessions/
