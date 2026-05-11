@@ -51,7 +51,7 @@ from .cronograma import (
 )
 from .scheduler import (
     classificar_fase_cascata_valor,
-    _demanda_plantio_talhao, _min_fase_cascata,
+    _demanda_plantio_talhao, _min_fase_cascata, _min_fase_cascata_por_talhao,
     pode_agendar_atividade_cascata, diagnosticar_sequencia_atividades,
     auditar_cadeia_dados, _somente_bloqueado_restante,
     _mostrar_painel_hh_hm_pre_scheduler, menu_ajustes_hh_apenas_sessao,
@@ -1287,7 +1287,7 @@ def calcular_cronograma_inteligente(
             cap_pool = float(executores) * float(jornada)
             while cap_pool > 0.01:
                 fez = False
-                min_fase_dia = _min_fase_cascata(
+                min_fase_dia = _min_fase_cascata_por_talhao(
                     demanda_global,
                     seq_cfg,
                     modo_seq,
@@ -1377,7 +1377,7 @@ def calcular_cronograma_inteligente(
             # Process items in queue order
             idx = 0
             while cap_dia > 0.01 and idx < len(fila):
-                min_fase_dia = _min_fase_cascata(
+                min_fase_dia = _min_fase_cascata_por_talhao(
                     demanda_global,
                     seq_cfg,
                     modo_seq,
@@ -1468,7 +1468,7 @@ def calcular_cronograma_inteligente(
                             )
                         )
                     for t in tarefas_t:
-                        min_fase_dia = _min_fase_cascata(
+                        min_fase_dia = _min_fase_cascata_por_talhao(
                             demanda_global,
                             seq_cfg,
                             modo_seq,

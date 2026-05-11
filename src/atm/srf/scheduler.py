@@ -108,23 +108,34 @@ def limpeza_permitida_por_talhao(
 
 
 def _min_fase_cascata(
-    demanda_global,
-    seq_cfg,
-    modo,
-    usar_cascata,
-    usar_bloqueio_global,
-    atividades_bloqueadas,
-    atividades_plantio,
-    atividades_irrig,
-    dia,
-    dia_termino_plantio,
-    tem_plantio_por_talhao,
+    demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
+    atividades_bloqueadas, atividades_plantio, atividades_irrig,
+    dia, dia_termino_plantio, tem_plantio_por_talhao,
 ):
-    """Menor fase entre demandas ainda > 0 e elegiveis neste dia."""
+    """Menor fase entre demandas ainda > 0 e elegiveis neste dia (GLOBAL, backward compat)."""
+    por_talhao = _min_fase_cascata_por_talhao(
+        demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
+        atividades_bloqueadas, atividades_plantio, atividades_irrig,
+        dia, dia_termino_plantio, tem_plantio_por_talhao,
+    )
+    vals = [v for v in por_talhao.values() if v is not None]
+    return min(vals) if vals else None
+
+
+def _min_fase_cascata_por_talhao(
+    demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
+    atividades_bloqueadas, atividades_plantio, atividades_irrig,
+    dia, dia_termino_plantio, tem_plantio_por_talhao,
+):
+    """Menor fase POR TALHAO entre demandas ainda > 0 e elegiveis neste dia.
+
+    Retorna dict {talhao: min_fase_valor} — phase N+1 so comeca no talhao X
+    quando phase N terminar naquele talhao especifico (nao espera todos).
+    """
     if not usar_cascata or modo in ("manutencao_seco", "manutencao_umido"):
-        return None
+        return {}
     bloqueadas = set(atividades_bloqueadas or [])
-    vals = []
+    por_talhao = defaultdict(list)
     for (talhao, atv), hh in demanda_global.items():
         if hh <= 0.01:
             continue
@@ -133,39 +144,27 @@ def _min_fase_cascata(
                 continue
         if eh_limpeza_quimica_pos_plantio(atv, seq_cfg):
             if not limpeza_permitida_por_talhao(
-                talhao,
-                dia,
-                seq_cfg,
-                dia_termino_plantio,
-                tem_plantio_por_talhao.get(talhao, False),
+                talhao, dia, seq_cfg,
+                dia_termino_plantio, tem_plantio_por_talhao.get(talhao, False),
             ):
                 continue
         fv = classificar_fase_cascata_valor(
             atv, seq_cfg, modo, atividades_plantio, atividades_irrig
         )
-        vals.append(fv)
-    if not vals:
-        return None
-    return min(vals)
+        por_talhao[talhao].append(fv)
+    return {t: min(vs) for t, vs in por_talhao.items() if vs}
 
 
 def pode_agendar_atividade_cascata(
-    talhao,
-    atv,
-    demanda_global,
-    seq_cfg,
-    modo,
-    usar_cascata,
-    usar_bloqueio_global,
-    atividades_bloqueadas,
-    atividades_plantio,
-    atividades_irrig,
-    dia,
-    dia_termino_plantio,
-    tem_plantio_por_talhao,
+    talhao, atv, demanda_global, seq_cfg, modo, usar_cascata,
+    usar_bloqueio_global, atividades_bloqueadas, atividades_plantio,
+    atividades_irrig, dia, dia_termino_plantio, tem_plantio_por_talhao,
     min_fase_dia,
 ):
-    """Regras combinadas: cascata, bloqueio global, plantio antes de irrigacao, limpeza pos-plantio."""
+    """Regras combinadas: cascata, bloqueio global, plantio antes de irrigacao, limpeza pos-plantio.
+
+    min_fase_dia aceita dict {talhao: fase} (per-talhao) ou scalar (global backward compat).
+    """
     hh = demanda_global.get((talhao, atv), 0)
     if hh <= 0.01:
         return False
@@ -174,11 +173,8 @@ def pode_agendar_atividade_cascata(
             return False
     if eh_limpeza_quimica_pos_plantio(atv, seq_cfg):
         if not limpeza_permitida_por_talhao(
-            talhao,
-            dia,
-            seq_cfg,
-            dia_termino_plantio,
-            tem_plantio_por_talhao.get(talhao, False),
+            talhao, dia, seq_cfg,
+            dia_termino_plantio, tem_plantio_por_talhao.get(talhao, False),
         ):
             return False
     if atv in atividades_irrig or _match_filtros_fase(
@@ -190,11 +186,11 @@ def pode_agendar_atividade_cascata(
         fv = classificar_fase_cascata_valor(
             atv, seq_cfg, modo, atividades_plantio, atividades_irrig
         )
-        if (
-            min_fase_dia is not None
-            and abs(fv - min_fase_dia) > 1e-6
-            and fv > min_fase_dia + 1e-6
-        ):
+        if isinstance(min_fase_dia, dict):
+            mf = min_fase_dia.get(talhao)
+        else:
+            mf = min_fase_dia
+        if mf is not None and abs(fv - mf) > 1e-6 and fv > mf + 1e-6:
             return False
     return True
 
