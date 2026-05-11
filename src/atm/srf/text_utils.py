@@ -5,7 +5,6 @@ Zero internal dependencies. Every other SRF module may safely import from here.
 """
 
 import re
-import calendar
 import unicodedata
 
 # ──────────────────────────────────────────────
@@ -93,83 +92,6 @@ def _formatar_periodo_meta(mes_ref, ano_ref, prazo_meses):
     mes_fim = ((mes_fim - 1) % 12) + 1
     fim = f"{mes_fim:02d}/{ano_fim}"
     return (inicio, fim)
-
-
-def _formatar_data_dia(dia, mes, ano):
-    """Formata data DD/MM/AAAA; assume valores inteiros validos."""
-    return f"{int(dia):02d}/{int(mes):02d}/{int(ano)}"
-
-
-# Mapeamento de dias da semana para abreviacoes brasileiras
-_DIAS_SEMANA_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
-_DIAS_SEMANA_COMPLETO = [
-    "Segunda-feira",
-    "Terca-feira",
-    "Quarta-feira",
-    "Quinta-feira",
-    "Sexta-feira",
-    "Sabado",
-    "Domingo",
-]
-
-
-def _converter_dia_simulado_para_data(
-    dia_simulado: int, dia_ref: int, mes_ref: int, ano_ref: int
-):
-    """
-    Converte dia simulado (1, 2, 3...) para data real.
-    Considera todos os dias do calendario (incluindo fins de semana).
-
-    Retorna: (data_str, dia_semana_curto, dia_semana_completo, data_obj)
-    Ex: (1, 20, 4, 2025) -> ("20/04/2025", "Seg", "Segunda-feira", date_obj)
-    """
-    try:
-        from datetime import date, timedelta
-
-        dia_simulado = int(dia_simulado)
-        dia_ref = int(dia_ref)
-        mes_ref = int(mes_ref)
-        ano_ref = int(ano_ref)
-
-        # Data de inicio
-        data_inicio = date(ano_ref, mes_ref, dia_ref)
-
-        # Adiciona (dia_simulado - 1) dias (dia 1 = data_inicio)
-        data_real = data_inicio + timedelta(days=dia_simulado - 1)
-
-        # Formata data como DD/MM/AAAA
-        data_str = f"{data_real.day:02d}/{data_real.month:02d}/{data_real.year}"
-
-        # Obtem dia da semana (0=Segunda, 6=Domingo)
-        dia_semana_idx = data_real.weekday()
-        dia_semana_curto = _DIAS_SEMANA_CURTO[dia_semana_idx]
-        dia_semana_completo = _DIAS_SEMANA_COMPLETO[dia_semana_idx]
-
-        return (data_str, dia_semana_curto, dia_semana_completo, data_real)
-    except Exception:
-        return (f"Dia_{dia_simulado}", "-", "-", None)
-
-
-def _calcular_data_fim_por_meses(dia_inicio, mes_ref, ano_ref, prazo_meses):
-    """
-    Calcula data final (dia/mes/ano) a partir de um dia inicial e prazo em meses.
-    Ajusta o dia para o maximo do mes final.
-    """
-    try:
-        dia_inicio = int(dia_inicio)
-        mes_ref = int(mes_ref)
-        ano_ref = int(ano_ref)
-        prazo_meses = int(round(float(prazo_meses)))
-    except Exception:
-        return None
-    if prazo_meses <= 0:
-        return (dia_inicio, mes_ref, ano_ref)
-    mes_fim = mes_ref + (prazo_meses - 1)
-    ano_fim = ano_ref + (mes_fim - 1) // 12
-    mes_fim = ((mes_fim - 1) % 12) + 1
-    ultimo_dia = calendar.monthrange(ano_fim, mes_fim)[1]
-    dia_fim = min(max(1, dia_inicio), int(ultimo_dia))
-    return (dia_fim, mes_fim, ano_fim)
 
 
 # ──────────────────────────────────────────────
