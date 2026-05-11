@@ -7,7 +7,6 @@ from collections import defaultdict
 from rich.table import Table
 
 from .config import salvar_config, _SEQUENCIAS_DISPONIVEIS
-from .constants import CT317_HARDCODE_HH_BASE
 from .text_utils import normalizar_chave, atividades_por_filtro, _norm_atv
 from .tarifas import resolver_rendimento_hh, resolver_chave_tarifa
 from .ui import (

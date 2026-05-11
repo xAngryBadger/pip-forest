@@ -1,13 +1,10 @@
 """Core scheduler logic — the main scheduling algorithm, batch and multi-team executors."""
 
-import copy
 import datetime
 import calendar
 import io
-import json
 import math
 import os
-import re
 from collections import defaultdict
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -32,7 +29,6 @@ from .config import (
     _distribuir_fazendas_por_territorio,
     _detectar_cidade_por_fazenda,
     _agrupar_fazendas_por_empresa,
-    _calcular_config_empresa,
     _sugerir_config_empresa,
     salvar_config,
 )
