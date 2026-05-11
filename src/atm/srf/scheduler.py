@@ -107,21 +107,6 @@ def limpeza_permitida_por_talhao(
     return dia >= d + off
 
 
-def _min_fase_cascata(
-    demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
-    atividades_bloqueadas, atividades_plantio, atividades_irrig,
-    dia, dia_termino_plantio, tem_plantio_por_talhao,
-):
-    """Menor fase entre demandas ainda > 0 e elegiveis neste dia (GLOBAL, backward compat)."""
-    por_talhao = _min_fase_cascata_por_talhao(
-        demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
-        atividades_bloqueadas, atividades_plantio, atividades_irrig,
-        dia, dia_termino_plantio, tem_plantio_por_talhao,
-    )
-    vals = [v for v in por_talhao.values() if v is not None]
-    return min(vals) if vals else None
-
-
 def _min_fase_cascata_por_talhao(
     demanda_global, seq_cfg, modo, usar_cascata, usar_bloqueio_global,
     atividades_bloqueadas, atividades_plantio, atividades_irrig,

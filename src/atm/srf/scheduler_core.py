@@ -51,7 +51,7 @@ from .cronograma import (
 )
 from .scheduler import (
     classificar_fase_cascata_valor,
-    _demanda_plantio_talhao, _min_fase_cascata, _min_fase_cascata_por_talhao,
+    _demanda_plantio_talhao, _min_fase_cascata_por_talhao,
     pode_agendar_atividade_cascata, diagnosticar_sequencia_atividades,
     auditar_cadeia_dados, _somente_bloqueado_restante,
     _mostrar_painel_hh_hm_pre_scheduler, menu_ajustes_hh_apenas_sessao,
@@ -3068,7 +3068,13 @@ def _executar_multi_equipes(
                             "atividades": [],
                         }
                     ]
-                    faz_eq = sug["fazendas"]
+                    fazs_emp = sug["fazendas"]
+                    n_por_eq = max(1, len(fazs_emp) // n_eq_emp)
+                    inicio_emp = n_emp_idx - 1
+                    faz_eq = fazs_emp[inicio_emp:inicio_emp + n_por_eq]
+                    sobrando = n_emp_idx == n_eq_emp and len(fazs_emp) > inicio_emp + n_por_eq
+                    if sobrando:
+                        faz_eq = fazs_emp[inicio_emp:]
 
                     ok(f"Configuracao automatica: {nome_eq}")
                     print(G + f" Empresa: {sug['nome_empresa']}" + RS)

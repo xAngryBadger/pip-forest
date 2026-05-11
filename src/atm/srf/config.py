@@ -239,6 +239,7 @@ def _sugerir_config_empresa(fazendas_por_empresa: dict, cfg: dict) -> dict:
         "sugestoes": sugestoes,
         "total_equipes": sum(s["n_equipes"] for s in sugestoes),
         "total_operarios": sum(s["total_operarios"] for s in sugestoes),
+        "total_coordenadores": sum(s["total_coordenadores"] for s in sugestoes),
     }
 
 
