@@ -8,7 +8,7 @@ from collections import defaultdict
 import pandas as pd
 
 from .config import salvar_config, OUTPUT_DIR, PERFIS_DIR
-from .constants import CT317_HARDCODE_HH_BASE
+from .constants import CT317_HARDCODE_HH_BASE, _FASE_CORES_HEX
 from .text_utils import normalizar_chave, atividades_por_filtro, _slug_ficheiro_seguro
 from .tarifas import resolver_chave_tarifa
 from .scheduler import (
@@ -28,20 +28,6 @@ from .ui import (
     sub, aviso, ok, prompt, selecionar,
     linha, pedir_int,
 )
-
-_FASE_CORES_HEX = {
-    "rocada": "4472C4",
-    "formiga": "ED7D31",
-    "coroamento": "70AD47",
-    "coveamento": "FFC000",
-    "adubacao_quimica": "9B59B6",
-    "plantio": "2ECC71",
-    "irrigacao": "3498DB",
-    "limpeza_quimica": "95A5A6",
-    "demais": "BDC3C7",
-    "reforco": "D5DBDB",
-    "pool": "1ABC9C",
-}
 
 
 def _fase_nome_pt(fase_id):
