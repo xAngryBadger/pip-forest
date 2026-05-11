@@ -32,7 +32,7 @@ from .config import (
     salvar_config,
 )
 from .context import contexto_sessao, dashboard_header
-from .monitor import _abrir_monitor_janela
+from .monitor import init_monitor, _abrir_monitor_janela
 from .tarifas import normalizar_ct313, carregar_stg_tarifas
 from .territorio import (
     aviso_fazendas_micro_sem_cadastro_ct,
@@ -264,6 +264,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
 
 
 def main():
+    init_monitor(contexto_sessao)
     beta = _is_beta_mode()
     legacy = _is_legacy_mode()
     sub_titulo = ""
