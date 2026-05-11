@@ -136,28 +136,15 @@ _SEQUENCIAS_DISPONIVEIS = [
 
 
 # ──────────────────────────────────────────────
-# TERRITORY CONFIG (V6)
+# EMPRESA CONFIG (from xlsx / config.json)
 # ──────────────────────────────────────────────
-
-
-def _territorio_config():
-    """
-    Configuracao de territorios/cidades para distribuicao automatica de equipes.
-    """
-    return {
-        "cidades": {
-            "acailandia": {"nome": "Acailandia"},
-            "dom_eliseu": {"nome": "Dom Eliseu"},
-            "cidelandia": {"nome": "Cidelandia"},
-        },
-        "empresas": {},
-    }
 
 
 def _detectar_cidade_por_fazenda(nome_fazenda: str) -> str:
     """
     Detecta a cidade/territorio baseado no nome da fazenda.
     Retorna o codigo da cidade ou None se nao detectar.
+    Usado apenas como metadado de exibicao — nao determina a atribuicao de equipes.
     """
     nome_norm = normalizar_chave(str(nome_fazenda))
     cidade_keywords = {
@@ -190,65 +177,65 @@ def _distribuir_fazendas_por_territorio(fazendas: list) -> dict:
     return distribuicao, nao_identificadas
 
 
-def _calcular_equipes_territorio(cidade: str, empresa: str = "auto") -> dict:
+def _agrupar_fazendas_por_empresa(df_scope) -> dict:
     """
-    Calcula configuracao de equipes para um territorio.
-    empresa: nome da empresa (deve existir em cfg_territorio["empresas"]) ou "auto"
+    Agrupa fazendas pelo valor da coluna 'equipe' no DataFrame.
+    Retorna: {nome_empresa: [fazenda1, fazenda2, ...], ...}
     """
-    cfg_territorio = _territorio_config()
-    if cidade not in cfg_territorio["cidades"]:
-        return None
+    if df_scope is None or "equipe" not in df_scope.columns:
+        return {}
+    grupos = {}
+    for _, row in df_scope.iterrows():
+        eq = str(row.get("equipe", "")).strip()
+        faz = str(row.get("fazenda", "")).strip()
+        if not eq or eq in ("nan", "None", "") or not faz:
+            continue
+        if eq not in grupos:
+            grupos[eq] = set()
+        grupos[eq].add(faz)
+    return {k: sorted(v) for k, v in grupos.items()}
 
-    info_cidade = cfg_territorio["cidades"][cidade]
 
-    if empresa == "auto":
-        if not cfg_territorio["empresas"]:
-            return None
-        empresa = next(iter(cfg_territorio["empresas"]))
+def _calcular_config_empresa(nome_empresa: str, cfg: dict) -> dict:
+    """
+    Calcula configuracao de equipes para uma empresa.
+    Le de cfg["empresas"][nome_empresa] — se nao existir, usa defaults.
+    """
+    empresas_cfg = cfg.get("empresas") or {}
+    info = empresas_cfg.get(nome_empresa, {})
 
-    if empresa not in cfg_territorio["empresas"]:
-        return None
-
-    info_empresa = cfg_territorio["empresas"][empresa]
-    n_equipes = info_empresa["equipes_por_cidade"].get(cidade, 1)
-    operarios_por_eq = info_empresa["operarios_por_equipe"]
-    coordenadores = info_empresa["coordenadores_por_equipe"]
-    total_por_eq = operarios_por_eq + coordenadores
+    operarios_por_eq = info.get("operarios_por_equipe", 10)
+    coordenadores_por_eq = info.get("coordenadores_por_equipe", 1)
+    n_equipes = info.get("n_equipes", 1)
+    jornada = info.get("jornada", 4.3)
+    total_por_eq = operarios_por_eq + coordenadores_por_eq
 
     return {
-        "cidade": cidade,
-        "nome_cidade": info_cidade["nome"],
-        "empresa": empresa,
-        "nome_empresa": info_empresa["nome"],
+        "empresa": nome_empresa,
+        "nome_empresa": nome_empresa,
         "n_equipes": n_equipes,
         "operarios_por_equipe": operarios_por_eq,
-        "coordenadores_por_equipe": coordenadores,
+        "coordenadores_por_equipe": coordenadores_por_eq,
         "total_por_equipe": total_por_eq,
         "total_operarios": n_equipes * operarios_por_eq,
-        "total_coordenadores": n_equipes * coordenadores,
+        "total_coordenadores": n_equipes * coordenadores_por_eq,
         "total_geral": n_equipes * total_por_eq,
+        "jornada": jornada,
     }
 
 
-def _sugerir_config_territorio(fazendas: list, modo_simplificado: bool = True) -> dict:
+def _sugerir_config_empresa(fazendas_por_empresa: dict, cfg: dict) -> dict:
     """
-    Sugere configuracao completa de equipes baseada na distribuicao de fazendas.
+    Sugere configuracao completa de equipes baseada na distribuicao por empresa.
     """
-    distribuicao, nao_id = _distribuir_fazendas_por_territorio(fazendas)
     sugestoes = []
-
-    for cidade, fazs in distribuicao.items():
-        if not fazs:
-            continue
-        config = _calcular_equipes_territorio(cidade)
-        if config:
-            config["fazendas"] = fazs
-            config["n_fazendas"] = len(fazs)
-            sugestoes.append(config)
+    for nome_emp, fazs in fazendas_por_empresa.items():
+        config = _calcular_config_empresa(nome_emp, cfg)
+        config["fazendas"] = fazs
+        config["n_fazendas"] = len(fazs)
+        sugestoes.append(config)
 
     return {
-        "distribuicao": distribuicao,
-        "nao_identificadas": nao_id,
         "sugestoes": sugestoes,
         "total_equipes": sum(s["n_equipes"] for s in sugestoes),
         "total_operarios": sum(s["total_operarios"] for s in sugestoes),
@@ -285,6 +272,8 @@ def carregar_config():
         cfg["comparativo"] = {}
     if "execucao_compacta" not in cfg["comparativo"]:
         cfg["comparativo"]["execucao_compacta"] = True
+    if "empresas" not in cfg:
+        cfg["empresas"] = {}
     # NOTE: preco_final JSON loading depends on tarifas sub-system;
     # the caller (original monolith) handles this inline.
     # When full modularization is complete, this will be a hook.

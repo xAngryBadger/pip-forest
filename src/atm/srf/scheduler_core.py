@@ -30,8 +30,10 @@ from .config import (
     OUTPUT_DIR,
     _merge_sequencia_defaults,
     _distribuir_fazendas_por_territorio,
-    _calcular_equipes_territorio,
-    _sugerir_config_territorio,
+    _detectar_cidade_por_fazenda,
+    _agrupar_fazendas_por_empresa,
+    _calcular_config_empresa,
+    _sugerir_config_empresa,
     salvar_config,
 )
 from .constants import CT317_HARDCODE_HH_BASE
@@ -2918,13 +2920,69 @@ def _executar_multi_equipes(
     data_inicio_txt = _formatar_data_dia(dia_ref, mes_ref, ano_ref)
 
     # ──────────────────────────────────────────────
-    # MODO TERRITÓRIO AUTOMÁTICO (V6 NOVO)
+    # MODO EMPRESA AUTOMATICO (V8)
     # ──────────────────────────────────────────────
-    usar_modo_territorio = False
-    distribuicao_territorio = None
-    config_territorio = None
+    usar_modo_empresa = False
+    config_empresa = None
 
-    if confirmar(
+    fazendas_por_empresa = _agrupar_fazendas_por_empresa(df_scope)
+
+    if fazendas_por_empresa:
+        n_emp = len(fazendas_por_empresa)
+        if confirmar(
+            f"Distribuir {len(fazendas)} fazenda(s) automaticamente por empresa ({n_emp} empresa(s) detectada(s) no micro)?",
+            default=True,
+        ):
+            dashboard_header()
+            subcabecalho("DISTRIBUICAO POR EMPRESA")
+            print(DM + " Agrupando fazendas por empresa..." + RS)
+
+            config_empresa = _sugerir_config_empresa(fazendas_por_empresa, cfg)
+
+            print(G + BL + "\n Distribuicao detectada:" + RS)
+            for sug in config_empresa["sugestoes"]:
+                print(
+                    G
+                    + f" [{sug['nome_empresa']}]: "
+                    + C
+                    + f"{sug['n_fazendas']} fazenda(s), "
+                    + f"{sug['n_equipes']} equipe(s) "
+                    + f"({sug['total_operarios']} operarios)"
+                    + RS
+                )
+                for f in sug["fazendas"]:
+                    cidade = _detectar_cidade_por_fazenda(f)
+                    cidade_str = f" ({cidade})" if cidade else ""
+                    print(DM + f" - {f}{cidade_str}" + RS)
+
+            fazendas_com_empresa = set()
+            for fazs in fazendas_por_empresa.values():
+                fazendas_com_empresa.update(fazs)
+            nao_id = [f for f in fazendas if f not in fazendas_com_empresa]
+            if nao_id:
+                print(Y + f"\n Fazendas sem empresa no micro ({len(nao_id)}):" + RS)
+                for f in nao_id[:5]:
+                    print(Y + f" - {f}" + RS)
+                if len(nao_id) > 5:
+                    print(Y + f" ... e mais {len(nao_id) - 5}" + RS)
+
+            print(
+                G + BL
+                + f"\n Total: {config_empresa['total_equipes']} equipes, "
+                + f"{config_empresa['total_operarios']} operarios"
+                + RS
+            )
+
+            if confirmar("Aceitar esta distribuicao automatica?", default=True):
+                usar_modo_empresa = True
+                n_equipes = config_empresa["total_equipes"]
+                ok(f"Modo empresa ativado: {n_emp} empresa(s), {n_equipes} equipes automaticas.")
+            else:
+                aviso("Modo automatico cancelado. Prossiga com configuracao manual.")
+
+            sub()
+            esperar("ENTER para continuar")
+    elif confirmar(
         "Usar modo automatico de distribuicao por territorio/cidade?",
         default=False,
     ):
@@ -2933,41 +2991,49 @@ def _executar_multi_equipes(
         print(DM + " Analisando fazendas e distribuindo por cidade..." + RS)
 
         distribuicao, nao_id = _distribuir_fazendas_por_territorio(fazendas)
-        config_territorio = _sugerir_config_territorio(fazendas)
 
-        # Mostrar distribuição
-        print(G + BL + "\n Distribuicao detectada:" + RS)
+        print(G + BL + "\n Distribuicao por cidade:" + RS)
         for cidade, fazs in distribuicao.items():
             if fazs:
-                cfg_eq = _calcular_equipes_territorio(cidade)
-                if cfg_eq:
-                    print(
-                        G
-                        + f"  [{cfg_eq['nome_cidade']}]: "
-                        + C
-                        + f"{len(fazs)} fazenda(s), "
-                        + f"{cfg_eq['n_equipes']} equipe(s) "
-                        + f"({cfg_eq['total_operarios']} operarios)"
-                        + RS
-                    )
-                    for f in fazs:
-                        print(DM + f"      - {f}" + RS)
+                print(
+                    G + f" [{cidade}]: " + C + f"{len(fazs)} fazenda(s)" + RS
+                )
+                for f in fazs:
+                    print(DM + f" - {f}" + RS)
 
         if nao_id:
-            print(Y + f"\n  Fazendas nao identificadas ({len(nao_id)}):" + RS)
+            print(Y + f"\n Fazendas nao identificadas ({len(nao_id)}):" + RS)
             for f in nao_id[:5]:
-                print(Y + f"      - {f}" + RS)
+                print(Y + f" - {f}" + RS)
             if len(nao_id) > 5:
-                print(Y + f"      ... e mais {len(nao_id) - 5}" + RS)
+                print(Y + f" ... e mais {len(nao_id) - 5}" + RS)
 
-        print(G + BL + f"\n Total: {config_territorio['total_equipes']} equipes, " + f"{config_territorio['total_operarios']} operarios" + RS)
+        n_equipes = len(distribuicao) or 1
+        ok(f"Modo territorio: {n_equipes} grupo(s) por cidade.")
+        usar_modo_empresa = True
 
-        if confirmar("Aceitar esta distribuicao automatica?", default=True):
-            usar_modo_territorio = True
-            n_equipes = config_territorio["total_equipes"]
-            ok(f"Modo territorio ativado: {n_equipes} equipes automaticas.")
-        else:
-            aviso("Modo automatico cancelado. Prossiga com configuracao manual.")
+        config_empresa = {
+            "sugestoes": [
+                {
+                    "empresa": cidade,
+                    "nome_empresa": cidade,
+                    "n_equipes": 1,
+                    "operarios_por_equipe": 10,
+                    "coordenadores_por_equipe": 1,
+                    "total_por_equipe": 11,
+                    "total_operarios": 10,
+                    "total_coordenadores": 1,
+                    "total_geral": 11,
+                    "jornada": 4.3,
+                    "fazendas": fazs,
+                    "n_fazendas": len(fazs),
+                }
+                for cidade, fazs in distribuicao.items()
+                if fazs
+            ],
+            "total_equipes": n_equipes,
+            "total_operarios": n_equipes * 10,
+        }
 
         sub()
         esperar("ENTER para continuar")
@@ -2980,42 +3046,35 @@ def _executar_multi_equipes(
         print(G + BL + f" EQUIPE {ie}/{n_equipes}" + RS)
 
         # ──────────────────────────────────────────────
-        # CONFIGURAÇÃO AUTOMÁTICA POR TERRITÓRIO (V6 NOVO)
+        # CONFIGURACAO AUTOMATICA POR EMPRESA (V8)
         # ──────────────────────────────────────────────
-        if usar_modo_territorio and config_territorio:
-            # Encontrar a configuração de território para esta equipe
-            cfg_territorio_eq = None
+        if usar_modo_empresa and config_empresa:
+            cfg_empresa_eq = None
             equipe_idx_atual = ie - 1
             acum_equipes = 0
 
-            for sug in config_territorio["sugestoes"]:
-                n_eq_cidade = sug["n_equipes"]
-                if equipe_idx_atual < acum_equipes + n_eq_cidade:
-                    # Esta equipe pertence a esta cidade
-                    cidade_eq = sug["cidade"]
-                    n_cidade = equipe_idx_atual - acum_equipes + 1
-                    nome_eq = f"{sug['nome_empresa']} {sug['nome_cidade']} Eq{n_cidade}"
-                    j_eq = 4.3
+            for sug in config_empresa["sugestoes"]:
+                n_eq_emp = sug["n_equipes"]
+                if equipe_idx_atual < acum_equipes + n_eq_emp:
+                    empresa_eq = sug["empresa"]
+                    n_emp_idx = equipe_idx_atual - acum_equipes + 1
+                    nome_eq = f"{sug['nome_empresa']} Eq{n_emp_idx}"
+                    j_eq = sug.get("jornada", 4.3)
                     exec_eq = sug["operarios_por_equipe"]
                     turmas_eq = [
                         {
-                            "nome": f"{sug['nome_empresa']} {sug['nome_cidade']}",
+                            "nome": sug["nome_empresa"],
                             "operarios": exec_eq,
                             "atividades": [],
                         }
                     ]
-                    # Distribuir fazendas desta cidade entre as equipes dela
-                    fazs_cidade = sug["fazendas"]
-                    n_por_eq = max(1, len(fazs_cidade) // n_eq_cidade)
-                    inicio_idx = n_cidade - 1
-                    faz_eq = fazs_cidade[inicio_idx : inicio_idx + n_por_eq]
+                    faz_eq = sug["fazendas"]
 
                     ok(f"Configuracao automatica: {nome_eq}")
-                    print(G + f"  Cidade: {sug['nome_cidade']}" + RS)
-                    print(G + f"  Empresa: {sug['nome_empresa']}" + RS)
-                    print(G + f"  Operarios: {exec_eq}" + RS)
-                    print(G + f"  Fazendas: {len(faz_eq)}" + RS)
-                    cfg_territorio_eq = {
+                    print(G + f" Empresa: {sug['nome_empresa']}" + RS)
+                    print(G + f" Operarios: {exec_eq}" + RS)
+                    print(G + f" Fazendas: {len(faz_eq)}" + RS)
+                    cfg_empresa_eq = {
                         "nome": nome_eq,
                         "jornada": j_eq,
                         "executores": exec_eq,
@@ -3023,37 +3082,37 @@ def _executar_multi_equipes(
                         "fazendas": faz_eq,
                     }
                     break
-                acum_equipes += n_eq_cidade
+                acum_equipes += n_eq_emp
 
-            if cfg_territorio_eq:
-                nome_eq = cfg_territorio_eq["nome"]
-                j_eq = cfg_territorio_eq["jornada"]
-                exec_eq = cfg_territorio_eq["executores"]
-                turmas_eq = cfg_territorio_eq["turmas"]
-                faz_eq = cfg_territorio_eq["fazendas"]
-                prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
+        if usar_modo_empresa and cfg_empresa_eq:
+            nome_eq = cfg_empresa_eq["nome"]
+            j_eq = cfg_empresa_eq["jornada"]
+            exec_eq = cfg_empresa_eq["executores"]
+            turmas_eq = cfg_empresa_eq["turmas"]
+            faz_eq = cfg_empresa_eq["fazendas"]
+            prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
 
-                data_fim_txt = None
-                if confirmar(
-                    f"Informar dia final manualmente para '{nome_eq}'?", default=False
-                ):
-                    mes_fim = pedir_int("Mes final (1-12)", mes_ref)
-                    mes_fim = max(1, min(12, int(mes_fim)))
-                    ano_fim = pedir_int("Ano final", ano_ref)
-                    dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
-                    dia_fim = pedir_int(
-                        f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
+            data_fim_txt = None
+            if confirmar(
+                f"Informar dia final manualmente para '{nome_eq}'?", default=False
+            ):
+                mes_fim = pedir_int("Mes final (1-12)", mes_ref)
+                mes_fim = max(1, min(12, int(mes_fim)))
+                ano_fim = pedir_int("Ano final", ano_ref)
+                dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
+                dia_fim = pedir_int(
+                    f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
+                )
+                dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
+                data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
+            else:
+                fim_calc = _calcular_data_fim_por_meses(
+                    dia_ref, mes_ref, ano_ref, prazo_eq
+                )
+                if fim_calc:
+                    data_fim_txt = _formatar_data_dia(
+                        fim_calc[0], fim_calc[1], fim_calc[2]
                     )
-                    dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
-                    data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
-                else:
-                    fim_calc = _calcular_data_fim_por_meses(
-                        dia_ref, mes_ref, ano_ref, prazo_eq
-                    )
-                    if fim_calc:
-                        data_fim_txt = _formatar_data_dia(
-                            fim_calc[0], fim_calc[1], fim_calc[2]
-                        )
         else:
             # ──────────────────────────────────────────────
             # CONFIGURAÇÃO MANUAL (modo tradicional)
