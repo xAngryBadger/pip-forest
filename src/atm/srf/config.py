@@ -7,6 +7,7 @@ External: os, json
 
 import json
 import os
+import shutil
 
 from .text_utils import normalizar_chave
 
@@ -294,6 +295,11 @@ def carregar_config():
 
 
 def salvar_config(cfg):
-    """Persist cfg to config.json."""
+    """Persist cfg to config.json. Creates .bak backup before overwriting."""
+    if os.path.exists(CFGP):
+        try:
+            shutil.copy2(CFGP, CFGP + ".bak")
+        except Exception:
+            pass
     with open(CFGP, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)

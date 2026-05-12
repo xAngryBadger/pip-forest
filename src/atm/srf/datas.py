@@ -26,29 +26,30 @@ def _converter_dia_simulado_para_data(
 ):
     """
     Converte dia simulado (1, 2, 3...) para data real.
-    Considera todos os dias do calendario (incluindo fins de semana).
+    Dia simulado = dia UTIL (seg-sex). Fins de semana sao pulados.
 
     Retorna: (data_str, dia_semana_curto, dia_semana_completo, data_obj)
-    Ex: (1, 20, 4, 2025) -> ("20/04/2025", "Seg", "Segunda-feira", date_obj)
+    Ex: (1, 20, 4, 2025) -> ("20/04/2025", "Dom", "Domingo", date_obj)
     """
     try:
-        from datetime import date, timedelta
-
         dia_simulado = int(dia_simulado)
         dia_ref = int(dia_ref)
         mes_ref = int(mes_ref)
         ano_ref = int(ano_ref)
 
-        # Data de inicio
         data_inicio = date(ano_ref, mes_ref, dia_ref)
 
-        # Adiciona (dia_simulado - 1) dias (dia 1 = data_inicio)
-        data_real = data_inicio + timedelta(days=dia_simulado - 1)
+        uteis_restantes = dia_simulado
+        data_real = data_inicio
+        while uteis_restantes > 0:
+            if data_real.weekday() < 5:
+                uteis_restantes -= 1
+                if uteis_restantes == 0:
+                    break
+            data_real += timedelta(days=1)
 
-        # Formata data como DD/MM/AAAA
         data_str = f"{data_real.day:02d}/{data_real.month:02d}/{data_real.year}"
 
-        # Obtem dia da semana (0=Segunda, 6=Domingo)
         dia_semana_idx = data_real.weekday()
         dia_semana_curto = _DIAS_SEMANA_CURTO[dia_semana_idx]
         dia_semana_completo = _DIAS_SEMANA_COMPLETO[dia_semana_idx]

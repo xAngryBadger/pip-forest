@@ -110,6 +110,20 @@ def calcular_cronograma_inteligente(
     """
     _batch = ctx is not None
     comparativo_cfg = None
+
+    _colunas_obrigatorias = ["fazenda", "atividade", "area_ha"]
+    _faltando = [c for c in _colunas_obrigatorias if c not in df_faz.columns]
+    if _faltando:
+        erro(f"Colunas obrigatorias ausentes no micro: {', '.join(_faltando)}")
+        return None
+    _areas_neg = df_faz[df_faz["area_ha"].astype(float) < 0]
+    if not _areas_neg.empty:
+        aviso(f"{len(_areas_neg)} talhao(oes) com area_ha negativa — serao zerados")
+        df_faz.loc[_areas_neg.index, "area_ha"] = 0.0
+    tarifas = cfg.get("tarifas") or {}
+    if not tarifas:
+        aviso("Nenhuma tarifa carregada — rendimentos serao estimados (fallback)")
+
     contexto_sessao.atualizar_configuracoes(cfg)
     contexto_sessao.atualizar_fazenda(fazenda, df_faz)
     _emitir_monitor_atual()
@@ -2491,6 +2505,7 @@ def calcular_cronograma_inteligente(
             "dias_simulado": resultado_mecanizado.get("dias_simulado"),
             "total_hh": resultado_mecanizado.get("total_hh"),
             "total_hm": resultado_mecanizado.get("total_hm"),
+            "total_custo": resultado_mecanizado.get("total_custo", 0),
             "substituicoes_aplicadas": [
                 {
                     "manual": manual,
@@ -2728,13 +2743,18 @@ def _executar_lote_fazendas(
             ctx_base["turmas"] = turmas
             ctx_base["executores"] = sum(t["operarios"] for t in turmas)
 
-        r = calcular_cronograma_inteligente(
-            cfg,
-            df_scope[df_scope["fazenda"] == fz].copy(),
-            fz,
-            esperar_enter=False,
-            ctx=dict(ctx_base),
-        )
+        try:
+            r = calcular_cronograma_inteligente(
+                cfg,
+                df_scope[df_scope["fazenda"] == fz].copy(),
+                fz,
+                esperar_enter=False,
+                ctx=dict(ctx_base),
+            )
+        except Exception as _err_faz:
+            erro(f"Falha ao processar fazenda {fz}: {_err_faz}")
+            traceback.print_exc()
+            r = None
         if r:
             dias_faz = int(r.get("dias_simulado", 0))
             dia_inicio_acum = dias_acumulados + 1
