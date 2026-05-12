@@ -11,7 +11,7 @@ from .text_utils import normalizar_chave, atividades_por_filtro, _norm_atv
 from .tarifas import resolver_rendimento_hh, resolver_chave_tarifa
 from .ui import (
     G, Y, C, DM, BL, RS,
-    console, sub, aviso, erro, ok, prompt, pedir_float, confirmar,
+    console, sub, subcabecalho, aviso, erro, ok, prompt, pedir_float, confirmar,
     selecionar_paginado,
 )
 
@@ -48,8 +48,6 @@ def eh_limpeza_quimica_pos_plantio(atv, seq_cfg):
 def _fases_ordem_config(seq_cfg, modo):
     if modo == "personalizado" and seq_cfg.get("personalizado_ordem"):
         return seq_cfg["personalizado_ordem"]
-    if modo == "manutencao_swg":
-        return seq_cfg.get("swg_fases") or []
     return seq_cfg.get("implantacao_fases") or []
 
 
@@ -167,15 +165,12 @@ def pode_agendar_atividade_cascata(
         if _demanda_plantio_talhao(talhao, demanda_global, atividades_plantio):
             return False
     if usar_cascata and modo not in ("manutencao_seco", "manutencao_umido"):
-        fv = classificar_fase_cascata_valor(
-            atv, seq_cfg, modo, atividades_plantio, atividades_irrig
-        )
-        if isinstance(min_fase_dia, dict):
+            fv = classificar_fase_cascata_valor(
+                atv, seq_cfg, modo, atividades_plantio, atividades_irrig
+            )
             mf = min_fase_dia.get(talhao)
-        else:
-            mf = min_fase_dia
-        if mf is not None and abs(fv - mf) > 1e-6 and fv > mf + 1e-6:
-            return False
+            if mf is not None and abs(fv - mf) > 1e-6 and fv > mf + 1e-6:
+                return False
     return True
 
 
