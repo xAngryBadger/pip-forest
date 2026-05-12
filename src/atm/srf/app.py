@@ -6,7 +6,7 @@ import pandas as pd
 
 from .config import (
     salvar_config, INPUT_DIR, OUTPUT_DIR, STG_FILENAME,
-    MODO_SOMENTE_HH, carregar_config,
+    carregar_config, modo_somente_hh,
 )
 from .constants import CT317_HARDCODE_HH_BASE
 from .text_utils import normalizar_chave, _norm_atv, parse_intervalos_escolha
@@ -45,7 +45,7 @@ def modulo_normalizar_ct(cfg):
         esperar()
         return
 
-    if MODO_SOMENTE_HH:
+    if modo_somente_hh(cfg):
         ok(f"Gerado {STG_FILENAME}: {n} atividades (modo somente HH).")
     else:
         ok(f"Gerado {STG_FILENAME}: {n} atividades | custo/hora TF = R${custo_h:.2f}")
@@ -215,6 +215,80 @@ def avaliar_terreno(df_faz):
 
 
 
+def _aplicar_filtro_regiao(df):
+    """Filtro opcional por regiao (municipio/estado). Retorna (df_filtrado, regiao_info ou None)."""
+    tem_mun = "municipio" in df.columns
+    tem_est = "estado" in df.columns
+    if not tem_mun and not tem_est:
+        return df, None
+    df_filt = df.copy()
+    regiao_info = {}
+    estados_disp = []
+    municipios_disp = []
+    if tem_est:
+        estados_disp = sorted(
+            {str(x).strip() for x in df["estado"].dropna().tolist() if str(x).strip()}
+        )
+    if tem_mun:
+        municipios_disp = sorted(
+            {str(x).strip() for x in df["municipio"].dropna().tolist() if str(x).strip()}
+        )
+    n_est = len(estados_disp)
+    n_mun = len(municipios_disp)
+    print(G + BL + "\n FILTRO POR REGIAO" + RS)
+    print(DM + f" {n_est} estado(s), {n_mun} municipio(s) detectado(s) no micro." + RS)
+    if not confirmar("Filtrar por regiao (municipio/estado)?", default=False):
+        ok("Filtro de regiao ignorado — todos os dados incluidos.")
+        return df_filt, None
+    sel_estado = None
+    sel_municipio = None
+    if tem_est and estados_disp:
+        if n_est == 1:
+            sel_estado = estados_disp[0]
+            ok(f"Unico estado: {sel_estado}")
+        else:
+            op_est = ["TODOS"] + estados_disp
+            sel_estado = selecionar("ESTADO", op_est)
+            if sel_estado == "TODOS":
+                sel_estado = None
+    if sel_estado and tem_mun:
+        mun_filtrados = sorted(
+            {
+                str(x).strip()
+                for x in df_filt[df_filt["estado"].astype(str).str.strip() == sel_estado]["municipio"].dropna().tolist()
+                if str(x).strip()
+            }
+        )
+    elif tem_mun:
+        mun_filtrados = municipios_disp
+    else:
+        mun_filtrados = []
+    if mun_filtrados:
+        if len(mun_filtrados) == 1:
+            sel_municipio = mun_filtrados[0]
+            ok(f"Unico municipio: {sel_municipio}")
+        else:
+            op_mun = ["TODOS"] + mun_filtrados
+            sel_municipio = selecionar("MUNICIPIO", op_mun)
+            if sel_municipio == "TODOS":
+                sel_municipio = None
+    if sel_estado:
+        df_filt = df_filt[df_filt["estado"].astype(str).str.strip() == sel_estado]
+        regiao_info["estado"] = sel_estado
+    if sel_municipio:
+        df_filt = df_filt[df_filt["municipio"].astype(str).str.strip() == sel_municipio]
+        regiao_info["municipio"] = sel_municipio
+    if regiao_info:
+        loc_str = " / ".join(filter(None, [regiao_info.get("municipio"), regiao_info.get("estado")]))
+        ok(
+            f"Filtrado por regiao: {loc_str} ({len(df_filt)} registros, "
+            f"{df_filt['fazenda'].nunique()} fazenda(s))"
+        )
+    else:
+        ok("Nenhum filtro de regiao aplicado — todos os dados incluidos.")
+    return df_filt, regiao_info or None
+
+
 def _aplicar_filtro_empresa_e_escopo(df):
     """Filtro por EQUIPE (empresa) e escopo (uma fazenda / todas). Retorna (df_filtrado, empresa ou None)."""
     tem_equipe = "equipe" in df.columns
@@ -231,13 +305,22 @@ def _aplicar_filtro_empresa_e_escopo(df):
                 norm_to_raw[nk] = e
         equipes = sorted(norm_to_raw.values(), key=str)
         if equipes:
-            print(G + BL + "\n  FILTRO POR EMPRESA (EQUIPE)" + RS)
-            print(DM + f"  {len(equipes)} empresa(s) encontrada(s) no micro." + RS)
-            equipes_disp = ["TODAS"] + equipes
-            eq = selecionar("EMPRESA / EQUIPE", equipes_disp)
-            if eq and eq != "TODAS":
-                empresa_filtro = eq
-                nk_sel = normalizar_chave(eq)
+            print(G + BL + "\n FILTRO POR EMPRESA (EQUIPE)" + RS)
+            print(DM + f" {len(equipes)} empresa(s) encontrada(s) no micro." + RS)
+            if not confirmar("Filtrar por empresa?", default=False):
+                ok("Filtro de empresa ignorado — todos os dados incluidos.")
+                contexto_sessao.atualizar_equipe(None)
+                _emitir_monitor_atual()
+                return df_filt, None
+            if len(equipes) == 1:
+                empresa_filtro = equipes[0]
+                ok(f"Unica empresa: {empresa_filtro}")
+            else:
+                eq = selecionar("EMPRESA / EQUIPE", equipes)
+                if eq:
+                    empresa_filtro = eq
+            if empresa_filtro:
+                nk_sel = normalizar_chave(empresa_filtro)
                 sem_eq = df_filt["equipe"].isna() | (
                     df_filt["equipe"].astype(str).str.strip() == ""
                 )
@@ -245,17 +328,17 @@ def _aplicar_filtro_empresa_e_escopo(df):
                 if n_sem:
                     print(
                         DM
-                        + f"  Excluindo {n_sem} linha(s) sem EQUIPE preenchida (nao entram no filtro por empresa)."
+                        + f" Excluindo {n_sem} linha(s) sem EQUIPE preenchida (nao entram no filtro por empresa)."
                         + RS
                     )
-                df_filt = df_filt[~sem_eq]
+                    df_filt = df_filt[~sem_eq]
                 df_filt = df_filt[
                     df_filt["equipe"]
                     .astype(str)
                     .apply(lambda x: normalizar_chave(x.strip()) == nk_sel)
                 ]
                 ok(
-                    f"Filtrado por equipe: {eq} ({len(df_filt)} registros, "
+                    f"Filtrado por equipe: {empresa_filtro} ({len(df_filt)} registros, "
                     f"{df_filt['atividade'].nunique()} atividade(s), {df_filt['fazenda'].nunique()} fazenda(s))"
                 )
     if empresa_filtro:

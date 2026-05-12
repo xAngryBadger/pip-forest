@@ -370,7 +370,7 @@ def _run_scheduler_single(session: Session, fazenda: str):
 
     try:
         _chain_redirector.install_tee(session._output_buf)
-        from src.atm.srf.app import _selecionar_talhoes_fazenda, _metodologias_presentes
+        from src.atm.srf.app import _selecionar_talhoes_fazenda, _metodologias_presentes, _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
         from src.atm.srf.scheduler_core import calcular_cronograma_inteligente
 
         micro_path, df = _load_micro_df(session, cfg)
@@ -378,14 +378,23 @@ def _run_scheduler_single(session: Session, fazenda: str):
             session.mark_finished("Nenhum arquivo micro valido encontrado")
             return
 
+        df_scope, regiao_info = _aplicar_filtro_regiao(df)
+        if df_scope is None or df_scope.empty:
+            session.mark_finished("Nenhum dado apos filtro de regiao")
+            return
+        df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope)
+        if df_scope is None or df_scope.empty:
+            session.mark_finished("Nenhum dado apos filtros")
+            return
+
         faz_norm = fazenda.strip().upper()
-        faz_col_stripped = df["fazenda"].astype(str).str.strip().str.upper()
-        match = df[faz_col_stripped == faz_norm]
+        faz_col_stripped = df_scope["fazenda"].astype(str).str.strip().str.upper()
+        match = df_scope[faz_col_stripped == faz_norm]
         if match.empty:
-            faz_col_stripped_contains = df["fazenda"].astype(str).str.strip().str.upper()
-            match = df[faz_col_stripped_contains.str.contains(faz_norm, na=False)]
+            faz_col_stripped_contains = df_scope["fazenda"].astype(str).str.strip().str.upper()
+            match = df_scope[faz_col_stripped_contains.str.contains(faz_norm, na=False)]
         if match.empty:
-            disponiveis = sorted(df["fazenda"].dropna().unique().tolist())
+            disponiveis = sorted(df_scope["fazenda"].dropna().unique().tolist())
             session.mark_finished(f"Fazenda '{fazenda}' nao encontrada. Disponiveis: {disponiveis[:10]}")
             return
         fazenda_real = match.iloc[0]["fazenda"]
@@ -404,7 +413,7 @@ def _run_scheduler_single(session: Session, fazenda: str):
             "orcamento_estrito": contexto_sessao.orcamento_estrito,
         }
 
-        _executar_scheduler_fazenda_interativo(cfg, df, fazenda_real, None)
+        _executar_scheduler_fazenda_interativo(cfg, df_scope, fazenda_real, None)
         _collect_result_files(session, fazenda_real)
         session.mark_finished()
 
@@ -415,7 +424,6 @@ def _run_scheduler_single(session: Session, fazenda: str):
         _chain_redirector.uninstall_tee()
         uninstall_bridge()
         set_current_session(None)
-
 
 def _run_scheduler_batch(session: Session):
     from src.atm.srf.scheduler_core import _executar_lote_fazendas
@@ -432,14 +440,18 @@ def _run_scheduler_batch(session: Session):
 
     try:
         with _chain_redirector._original_redirect_stdout(session._output_buf), _chain_redirector._original_redirect_stderr(session._output_buf):
-            from src.atm.srf.app import _aplicar_filtro_empresa_e_escopo
+            from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
 
             micro_path, df = _load_micro_df(session, cfg)
             if df is None:
                 session.mark_finished("Nenhum arquivo micro valido encontrado")
                 return
 
-            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df)
+            df_scope, regiao_info = _aplicar_filtro_regiao(df)
+            if df_scope is None or df_scope.empty:
+                session.mark_finished("Nenhum dado apos filtro de regiao")
+                return
+            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope)
             if df_scope is None or df_scope.empty:
                 session.mark_finished("Nenhum dado apos filtros")
                 return
@@ -473,14 +485,18 @@ def _run_scheduler_multi(session: Session):
 
     try:
         with _chain_redirector._original_redirect_stdout(session._output_buf), _chain_redirector._original_redirect_stderr(session._output_buf):
-            from src.atm.srf.app import _aplicar_filtro_empresa_e_escopo
+            from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
 
             micro_path, df = _load_micro_df(session, cfg)
             if df is None:
                 session.mark_finished("Nenhum arquivo micro valido encontrado")
                 return
 
-            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df)
+            df_scope, regiao_info = _aplicar_filtro_regiao(df)
+            if df_scope is None or df_scope.empty:
+                session.mark_finished("Nenhum dado apos filtro de regiao")
+                return
+            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope)
             if df_scope is None or df_scope.empty:
                 session.mark_finished("Nenhum dado apos filtros")
                 return

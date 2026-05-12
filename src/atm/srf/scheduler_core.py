@@ -31,6 +31,7 @@ from .config import (
     _agrupar_fazendas_por_empresa,
     _sugerir_config_empresa,
     salvar_config,
+    modo_somente_hh,
 )
 from .constants import CT317_HARDCODE_HH_BASE
 from .context import contexto_sessao, dashboard_header
@@ -38,6 +39,7 @@ from .monitor import _emitir_monitor_state, _emitir_monitor_relatorio, _emitir_m
 from .tarifas import (
     resolver_rendimento_hh, resolver_rendimento_hm,
     resolver_chave_tarifa, aviso_politica_tarifas_planas,
+    resolver_custo_hora, resolver_preco_ha,
 )
 from .de_para import auto_mapear_de_para, aplicar_depara_padrao_exame
 from .cronograma import (
@@ -1004,6 +1006,7 @@ def calcular_cronograma_inteligente(
     demandas = {} # {talhao: [{atividade, area, hh_total}, ...]}
     total_hh = 0.0
     total_hm = 0.0
+    total_custo = 0.0
     hm_only_atividades = set()
     fallback_hh_items = []
 
@@ -1051,8 +1054,11 @@ def calcular_cronograma_inteligente(
 
             horas = area * rend_hh_ha
             hm_horas = area * hm_ha
+            custo_h = resolver_custo_hora(cfg, tarifas, t_nome) or 0.0
+            custo_task = horas * custo_h
             total_hh += horas
             total_hm += hm_horas
+            total_custo += custo_task
 
             tarifa_row = tarifas.get(t_nome, {})
             tipo_tarifa = str(tarifa_row.get("tipo", "")).lower()
@@ -1073,6 +1079,8 @@ def calcular_cronograma_inteligente(
                     "hh_total": horas,
                     "hm_ha": hm_ha,
                     "hm_total": hm_horas,
+                    "custo_hora": custo_h,
+                    "custo_total": custo_task,
                     "chave_tarifa": t_nome,
                     "origem": origem_linha,
                     "rendimento_fonte": rfonte,
@@ -1083,6 +1091,8 @@ def calcular_cronograma_inteligente(
 
     print(DM + f"\n  Total HH da fazenda (bruto): {total_hh:.1f} horas-homem" + RS)
     print(DM + f"  Total HM da fazenda (bruto): {total_hm:.1f} horas-maquina" + RS)
+    if not modo_somente_hh(cfg):
+        print(DM + f" Custo MO total (bruto): R$ {total_custo:,.2f}" + RS)
     if total_hm > 0.01:
         print(
             DM
@@ -1184,9 +1194,13 @@ def calcular_cronograma_inteligente(
                     atv, turmas, reatribuicao, paralelo, primaria
                 ):
                     t["hh_total"] = 0.0
+                    t["custo_total"] = 0.0
         total_hh = sum(t["hh_total"] for tarefas in demandas.values() for t in tarefas)
+        total_custo = sum(t["custo_total"] for tarefas in demandas.values() for t in tarefas)
         aviso("HH sem executora foram zeradas no cronograma.")
         print(DM + f"  Total HH agendavel: {total_hh:.1f} horas-homem" + RS)
+        if not modo_somente_hh(cfg):
+            print(DM + f" Custo MO agendavel: R$ {total_custo:,.2f}" + RS)
 
     sub()
     print(G + BL + "  GERANDO CRONOGRAMA (talhao a talhao)..." + RS + "\n")
@@ -1346,7 +1360,8 @@ def calcular_cronograma_inteligente(
                                 "Turma": "Pelotao_Unificado",
                                 "Operarios": executores,
                                 "HH": round(consumo, 2),
-                                "Modo": "PoolPosBloqueio",
+"Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
+            "Modo": "PoolPosBloqueio",
                             }
                         )
                         if cap_pool <= 0.01:
@@ -1427,7 +1442,8 @@ def calcular_cronograma_inteligente(
                         "Atividade": item["atividade"],
                         "Turma": turma["nome"],
                         "Operarios": n_ops,
-                        "HH": round(consumo, 2),
+            "HH": round(consumo, 2),
+            "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])), 2) if not modo_somente_hh(cfg) else 0.0,
                     }
                 )
 
@@ -1514,7 +1530,8 @@ def calcular_cronograma_inteligente(
                                 "Atividade": atv,
                                 "Turma": turma["nome"],
                                 "Operarios": n_ops,
-                                "HH": round(consumo_ref, 2),
+            "HH": round(consumo_ref, 2),
+            "Custo_MO": round(consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
                                 "Modo": "Reforco",
                             }
                         )
@@ -2002,6 +2019,10 @@ def calcular_cronograma_inteligente(
                 },
                 {"Metrica": "HH Total Simulado", "Valor": f"{total_hh:,.1f}"},
                 {
+                    "Metrica": "Custo MO Total",
+                    "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
+                },
+                {
                     "Metrica": "Fonte dos dados",
                     "Valor": "100% CT"
                     if pct_fallback < 0.01
@@ -2132,6 +2153,10 @@ def calcular_cronograma_inteligente(
                         "Metrica": "Ganho de prazo (dias)",
                         "Valor": int(dias_simulado) - int(d_comb),
                     },
+                        {
+                            "Metrica": "Custo MO Total",
+                            "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
+                        },
                 ]
                 for rec in recursos_mec:
                     rows_mec_op.append(
@@ -2452,6 +2477,7 @@ def calcular_cronograma_inteligente(
         "dias_mecanizado": d_mc,
         "ganho_mecanizado_dias": int(ganho_mc),
         "total_hh": float(total_hh),
+        "total_custo": float(total_custo),
         "total_hm": float(total_hm),
         "cronograma": cronograma_base,
         "turmas_snapshot": [
@@ -2806,6 +2832,8 @@ def _executar_lote_fazendas(
         t_ep = Table(title=f"Cascata de execucao — {tit_cons}")
         t_ep.add_column("Fazenda", style="cyan")
         t_ep.add_column("HH", justify="right")
+        if not modo_somente_hh(cfg):
+            t_ep.add_column("Custo R$", justify="right")
         t_ep.add_column("Dias", justify="right")
         t_ep.add_column("Inicio", justify="right")
         t_ep.add_column("Fim", justify="right")
@@ -2821,22 +2849,24 @@ def _executar_lote_fazendas(
                 cor_st = "[yellow]"
             else:
                 cor_st = "[red]"
-            t_ep.add_row(
-                str(r["fazenda"])[:28],
-                f"{float(r.get('total_hh', 0)):,.1f}",
-                str(r.get("dias_simulado", 0)),
-                f"Dia {r.get('dia_inicio_acumulado', '?')}",
-                f"Dia {r.get('dia_fim_acumulado', '?')}",
-                f"{pct:.0f}%",
-                f"{r.get('saldo_meta_apos', '?')} dias",
-                f"{cor_st}{st}[/]",
-            )
+        t_ep.add_row(
+            str(r["fazenda"])[:28],
+            f"{float(r.get('total_hh', 0)):,.1f}",
+            *([f"R$ {float(r.get('total_custo', 0)):,.2f}"] if not modo_somente_hh(cfg) else []),
+            str(r.get("dias_simulado", 0)),
+            f"Dia {r.get('dia_inicio_acumulado', '?')}",
+            f"Dia {r.get('dia_fim_acumulado', '?')}",
+            f"{pct:.0f}%",
+            f"{r.get('saldo_meta_apos', '?')} dias",
+            f"{cor_st}{st}[/]",
+        )
         hh_total_all = sum(float(x.get("total_hh", 0)) for x in resultados)
         st_global = "OK" if dias_acumulados <= dias_meta else "EXCEDIDO"
         cor_g = "[green]" if st_global == "OK" else "[red]"
         t_ep.add_row(
             "TOTAL",
             f"{hh_total_all:,.1f}",
+            *([f"R$ {sum(float(x.get('total_custo', 0)) for x in resultados):,.2f}"] if not modo_somente_hh(cfg) else []),
             str(dias_acumulados),
             "Dia 1",
             f"Dia {dias_acumulados}",
@@ -3332,6 +3362,7 @@ def _executar_multi_equipes(
                 "dias_meta": dias_meta_eq,
                 "dias_acumulados": dias_acum_eq,
                 "hh_total": sum(float(x.get("total_hh", 0)) for x in eq_resultados),
+                "total_custo": sum(float(x.get("total_custo", 0)) for x in eq_resultados),
                 "n_fazendas": len(ec["fazendas"]),
                 "status": "DENTRO" if dias_acum_eq <= dias_meta_eq else "EXCEDIDO",
                 "resultados_fazendas": eq_resultados,
@@ -3345,6 +3376,8 @@ def _executar_multi_equipes(
     t_meq.add_column("Exec.", justify="right")
     t_meq.add_column("Fazendas", justify="right")
     t_meq.add_column("HH", justify="right")
+    if not modo_somente_hh(cfg):
+        t_meq.add_column("Custo R$", justify="right")
     t_meq.add_column("Dias acum.", justify="right")
     t_meq.add_column("Meta (dias)", justify="right")
     t_meq.add_column("Saldo", justify="right")
@@ -3358,6 +3391,7 @@ def _executar_multi_equipes(
             str(eq["executores"]),
             str(eq["n_fazendas"]),
             f"{eq['hh_total']:,.1f}",
+            *([f"R$ {eq.get('total_custo', 0):,.2f}"] if not modo_somente_hh(cfg) else []),
             str(eq["dias_acumulados"]),
             str(eq["dias_meta"]),
             f"{saldo} dias",
@@ -3385,7 +3419,8 @@ def _executar_multi_equipes(
                       "Meta_consumida_%": r.get("pct_meta_consumida"),
                       "Saldo": r.get("saldo_meta_apos"),
                       "Status": r.get("status_meta_continuo"),
-                      "HH": r.get("total_hh"),
+        "HH": r.get("total_hh"),
+        "Custo_MO": r.get("total_custo") if not modo_somente_hh(cfg) else None,
                   }
                   rows_eq.append(row_eq)
         rows_sumario = []
@@ -3398,7 +3433,8 @@ def _executar_multi_equipes(
                     "Executores": eq["executores"],
                     "Jornada": eq["jornada"],
                     "Fazendas": eq["n_fazendas"],
-                    "HH_total": eq["hh_total"],
+        "HH_total": eq["hh_total"],
+        "Custo_total": eq.get("total_custo", 0) if not modo_somente_hh(cfg) else None,
                     "Dias_acumulados": eq["dias_acumulados"],
                     "Meta_dias": eq["dias_meta"],
                     "Status": eq["status"],

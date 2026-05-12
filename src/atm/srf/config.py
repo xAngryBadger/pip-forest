@@ -31,7 +31,15 @@ PRECO_FINAL_JSON_DOWNLOADS = os.path.join(
 _PRECO_FINAL_JSON_CACHE = {"path": "", "mtime": None, "mapa": {}}
 
 # ATM 6.1: foco operacional (atividades + HH). Valores em R$ ficam desativados temporariamente.
+# Tornou-se toggle via config.json (chave "modo_somente_hh"). Constante e' o fallback.
 MODO_SOMENTE_HH = True
+
+
+def modo_somente_hh(cfg=None):
+    """Retorna True se o modo somente HH esta ativo. Le de cfg se disponivel, senao usa a constante."""
+    if cfg is not None:
+        return cfg.get("modo_somente_hh", MODO_SOMENTE_HH)
+    return MODO_SOMENTE_HH
 CT_REAL_FILENAME = "ct317real.xlsx"
 STG_FILENAME = "CT_317_NORMALIZADA.xlsx"
 
@@ -46,6 +54,8 @@ KNOWN_COLUMNS = {
         "AREA TRABALHADA ESTIMADA (HECTARE)",
     ],
     "atividade": ["ATIVIDADES", "ATIVIDADE"],
+    "municipio": ["MUNICIPIO", "CIDADE"],
+    "estado": ["ESTADO", "UF"],
 }
 
 
@@ -275,6 +285,8 @@ def carregar_config():
         cfg["comparativo"]["execucao_compacta"] = True
     if "empresas" not in cfg:
         cfg["empresas"] = {}
+    if "modo_somente_hh" not in cfg:
+        cfg["modo_somente_hh"] = MODO_SOMENTE_HH
     # NOTE: preco_final JSON loading depends on tarifas sub-system;
     # the caller (original monolith) handles this inline.
     # When full modularization is complete, this will be a hook.

@@ -24,7 +24,7 @@ from .ui import (
 from .config import (
     INPUT_DIR,
     STG_FILENAME,
-    MODO_SOMENTE_HH,
+    modo_somente_hh,
     _is_beta_mode,
     _is_legacy_mode,
     DIR,
@@ -33,7 +33,7 @@ from .config import (
 )
 from .context import contexto_sessao, dashboard_header
 from .monitor import init_monitor, _abrir_monitor_janela
-from .tarifas import normalizar_ct313, carregar_stg_tarifas
+from .tarifas import normalizar_ct313, carregar_stg_tarifas, modulo_importar_precos_contrato, modulo_importar_custos_globais_brutos
 from .territorio import (
     aviso_fazendas_micro_sem_cadastro_ct,
     modulo_validar_fazendas_ct,
@@ -49,6 +49,7 @@ from .de_para import aplicar_depara_padrao_exame
 from .app import (
     modulo_importar_tarifas,
     modulo_normalizar_ct,
+    _aplicar_filtro_regiao,
     _aplicar_filtro_empresa_e_escopo,
 )
 from .scheduler_core import (
@@ -67,6 +68,9 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         ("4", "Mapeamentos de_para (micro -> tarifa)"),
         ("5", "Trocar planilha de microplanejamento (.xlsx)"),
         ("6", "Fazendas micro vs CT (lista fazendas_ct)"),
+        ("7", "Alternar modo custo (Somente HH / HH + R$)"),
+        ("8", "Importar Precos Contrato (PRECO_FINAL + CD/CI)"),
+        ("9", "Importar Custos Globais Brutos (CD/CI direto)"),
         ("M", "Abrir Monitor em Janela Separada"),
         ("0", "Sair"),
     ]
@@ -99,9 +103,17 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         )
         print(
             G
-            + f"  Orcamento estrito: "
+            + f" Orcamento estrito: "
             + C
             + ("Sim" if cfg.get("orcamento_estrito", True) else "Nao")
+            + RS
+        )
+        hh_mode = modo_somente_hh(cfg)
+        print(
+            G
+            + f" Modo custo: "
+            + C
+            + ("Somente HH" if hh_mode else "HH + R$")
             + RS
         )
         if "equipe" in df.columns:
@@ -121,10 +133,10 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
                 + os.path.basename(nome_arquivo_micro)
                 + RS
             )
-        if demo_mode and _is_demo_micro_path(nome_arquivo_micro):
+        if _is_demo_micro_path(nome_arquivo_micro):
             print(
                 Y
-                + f"  DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
+                + f"   DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
                 + RS
             )
         sub()
@@ -134,7 +146,11 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         v = prompt("Opcao").strip()
         if v == "1":
             contexto_sessao.atualizar_modo("single")
-            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df)
+            df_scope, regiao_info = _aplicar_filtro_regiao(df)
+            if df_scope is None or df_scope.empty:
+                aviso("Nenhum dado apos filtro de regiao.")
+                continue
+            df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope)
             if df_scope is None or df_scope.empty:
                 aviso("Nenhum dado apos filtros.")
                 continue
@@ -242,6 +258,17 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
             esperar()
         elif v == "6":
             modulo_validar_fazendas_ct(cfg, df)
+        elif v == "7":
+            atual = modo_somente_hh(cfg)
+            cfg["modo_somente_hh"] = not atual
+            salvar_config(cfg)
+            novo = "Somente HH" if not atual else "HH + R$"
+            ok(f"Modo custo alterado para: {novo}")
+            esperar("ENTER para voltar")
+        elif v == "8":
+            modulo_importar_precos_contrato(cfg)
+        elif v == "9":
+            modulo_importar_custos_globais_brutos(cfg)
         elif v.upper() == "M":
             dashboard_header()
             subcabecalho("ABRIR MONITOR EXTERNO")
@@ -268,7 +295,8 @@ def main():
     beta = _is_beta_mode()
     legacy = _is_legacy_mode()
     sub_titulo = ""
-    if MODO_SOMENTE_HH:
+    cfg = carregar_config()
+    if modo_somente_hh(cfg):
         sub_titulo = (sub_titulo + " | " if sub_titulo else "") + "MODO SOMENTE HH"
     if beta:
         if sub_titulo:
@@ -281,8 +309,7 @@ def main():
         else:
             sub_titulo = "LEGACY - comportamento anterior sem comparativos padrao"
     cabecalho(sub_titulo)
-    print(DM + "  Inicializando sistema...\n" + RS)
-    cfg = carregar_config()
+    print(DM + " Inicializando sistema...\n" + RS)
     salvar_config(cfg)
 
     micro_padrao = _find_default_micro_path(cfg)

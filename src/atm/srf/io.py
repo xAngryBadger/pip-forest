@@ -6,12 +6,8 @@ import os
 import pandas as pd
 
 from .config import (
-    salvar_config,
-    STG_FILENAME,
-    INPUT_DIR,
-    OUTPUT_DIR,
+    INPUT_DIR, OUTPUT_DIR,
     PROFILES_DIR,
-    MODO_SOMENTE_HH,
     CT_REAL_FILENAME,
     KNOWN_COLUMNS,
 )
@@ -240,6 +236,8 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
         chv_col = encontrar_coluna(cols, "chave")
         area_col = encontrar_coluna(cols, "area")
         atv_col = encontrar_coluna(cols, "atividade")
+        mun_col = encontrar_coluna(cols, "municipio")
+        est_col = encontrar_coluna(cols, "estado")
 
         # BETA: planilhas de testes podem nao ter CHAVE POLIGONO; usar NUCLEO como fallback automatico.
         if modo_auto and not chv_col:
@@ -295,7 +293,16 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
         if equipe_col:
             sel_cols.append(equipe_col)
             sel_names.append("equipe")
-            print(G + f"  Coluna EQUIPE detectada: " + C + f"{equipe_col}" + RS)
+            print(G + f" Coluna EQUIPE detectada: " + C + f"{equipe_col}" + RS)
+
+        if mun_col:
+            sel_cols.append(mun_col)
+            sel_names.append("municipio")
+            print(G + f" Coluna MUNICIPIO detectada: " + C + f"{mun_col}" + RS)
+        if est_col:
+            sel_cols.append(est_col)
+            sel_names.append("estado")
+            print(G + f" Coluna ESTADO detectada: " + C + f"{est_col}" + RS)
 
         metodologia_col = None
         pref_metodologia = str(cfg.get("coluna_metodologia_micro", "") or "").strip()
@@ -377,7 +384,7 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
 
         df_filtro = df[sel_cols].copy()
         df_filtro.columns = sel_names
-        for c_txt in ("fazenda", "chave", "atividade", "equipe", "metodologia"):
+        for c_txt in ("fazenda", "chave", "atividade", "equipe", "metodologia", "municipio", "estado"):
             if c_txt in df_filtro.columns:
                 df_filtro[c_txt] = (
                     df_filtro[c_txt]
