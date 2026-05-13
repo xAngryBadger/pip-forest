@@ -7,9 +7,8 @@ import pandas as pd
 
 from .config import (
     INPUT_DIR, OUTPUT_DIR,
-    PROFILES_DIR,
-    CT_REAL_FILENAME,
-    KNOWN_COLUMNS,
+    PROFILES_DIR, CT_REAL_FILENAME,
+    STG_FILENAME, KNOWN_COLUMNS,
 )
 from .text_utils import normalizar_chave, remover_acentos
 from .territorio import fazendas_unicas_micro, _indice_fazendas_ct

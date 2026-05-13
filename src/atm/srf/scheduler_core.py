@@ -1223,6 +1223,7 @@ def calcular_cronograma_inteligente(
                     t["custo_total"] = 0.0
         total_hh = sum(t["hh_total"] for tarefas in demandas.values() for t in tarefas)
         total_custo = sum(t["custo_total"] for tarefas in demandas.values() for t in tarefas)
+        total_hm = sum(t.get("hm_total", 0) for tarefas in demandas.values() for t in tarefas)
         aviso("HH sem executora foram zeradas no cronograma.")
         print(DM + f"  Total HH agendavel: {total_hh:.1f} horas-homem" + RS)
         if not modo_somente_hh(cfg):
@@ -1389,8 +1390,8 @@ def calcular_cronograma_inteligente(
                                     "Turma": "Pelotao_Unificado",
                                     "Operarios": executores,
                                     "HH": round(consumo, 2),
-    "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
-                "Modo": "PoolPosBloqueio",
+"Custo_MO": consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)) if not modo_somente_hh(cfg) else 0.0,
+            "Modo": "PoolPosBloqueio",
                                 }
                             )
                             if cap_pool <= 0.01:
@@ -1472,7 +1473,7 @@ def calcular_cronograma_inteligente(
                             "Turma": turma["nome"],
                             "Operarios": n_ops,
                 "HH": round(consumo, 2),
-                "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])), 2) if not modo_somente_hh(cfg) else 0.0,
+                "Custo_MO": consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])) if not modo_somente_hh(cfg) else 0.0,
                         }
                     )
 
@@ -1560,7 +1561,7 @@ def calcular_cronograma_inteligente(
                                     "Turma": turma["nome"],
                                     "Operarios": n_ops,
                 "HH": round(consumo_ref, 2),
-                "Custo_MO": round(consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
+                "Custo_MO": consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)) if not modo_somente_hh(cfg) else 0.0,
                                     "Modo": "Reforco",
                                 }
                             )
