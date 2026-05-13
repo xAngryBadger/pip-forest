@@ -1029,8 +1029,20 @@ def calcular_cronograma_inteligente(
         tarefas = []
         for _, row in df_t.iterrows():
             atv = row["atividade"]
-            area = float(row["area_ha"])
-            pen = float(row["penalidade"])
+            try:
+                area = float(row["area_ha"])
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"Valor invalido para area_ha no talhao '{talhao}' "
+                    f"atividade '{atv}': {row['area_ha']!r}"
+                ) from exc
+            try:
+                pen = float(row["penalidade"])
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"Valor invalido para penalidade no talhao '{talhao}' "
+                    f"atividade '{atv}': {row['penalidade']!r}"
+                ) from exc
 
             t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
             rend_base = resolver_rendimento_hh(
@@ -1302,253 +1314,256 @@ def calcular_cronograma_inteligente(
             break
 
         dia += 1
-        pool_only = (
-            usar_bloqueio_global
-            and usar_pool_pos_bloqueio
-            and _somente_bloqueado_restante(demanda_global, atividades_bloqueadas)
-        )
-        if pool_only:
-            cap_pool = float(executores) * float(jornada)
-            while cap_pool > 0.01:
-                fez = False
-                min_fase_dia = _min_fase_cascata_por_talhao(
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
-                )
-                for talhao in talhoes_ordenados:
-                    tlist = list(demandas.get(talhao, []))
-                    tlist.sort(
-                        key=lambda t: (
-                            0
-                            if t["atividade"] in atividades_plantio
-                            else (1 if t["atividade"] in atividades_irrig else 2),
-                            str(t["atividade"]),
-                        )
+        if dia % 100 == 0 or dia == 1:
+            restante = sum(1 for v in demanda_global.values() if v > 0.01)
+            print(DM + f"  dia {dia}/{MAX_DIAS} ({restante} demandas restantes)" + RS, end="\r")
+            pool_only = (
+                usar_bloqueio_global
+                and usar_pool_pos_bloqueio
+                and _somente_bloqueado_restante(demanda_global, atividades_bloqueadas)
+            )
+            if pool_only:
+                cap_pool = float(executores) * float(jornada)
+                while cap_pool > 0.01:
+                    fez = False
+                    min_fase_dia = _min_fase_cascata_por_talhao(
+                        demanda_global,
+                        seq_cfg,
+                        modo_seq,
+                        usar_cascata,
+                        usar_bloqueio_global,
+                        atividades_bloqueadas,
+                        atividades_plantio,
+                        atividades_irrig,
+                        dia,
+                        dia_termino_plantio,
+                        tem_plantio_por_talhao,
                     )
-                    for t in tlist:
-                        atv = t["atividade"]
-                        if atv not in atividades_bloqueadas:
-                            continue
-                        key = (talhao, atv)
-                        rest = demanda_global.get(key, 0.0)
-                        if rest <= 0.01:
-                            continue
-                        if not pode_agendar_atividade_cascata(
-                            talhao,
-                            atv,
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
-                            min_fase_dia,
-                        ):
-                            continue
-                        consumo = min(rest, cap_pool)
-                        demanda_global[key] -= consumo
-                        _demanda_global_touch()
-                        cap_pool -= consumo
-                        fez = True
-                        _registrar_fim_plantio_talhao(talhao, dia)
-                        cronograma.append(
-                            {
-                                "Dia": dia,
-                                "Fazenda": fazenda,
-                                "Talhao": talhao,
-                                "Atividade": atv,
-                                "Turma": "Pelotao_Unificado",
-                                "Operarios": executores,
-                                "HH": round(consumo, 2),
-"Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
-            "Modo": "PoolPosBloqueio",
-                            }
+                    for talhao in talhoes_ordenados:
+                        tlist = list(demandas.get(talhao, []))
+                        tlist.sort(
+                            key=lambda t: (
+                                0
+                                if t["atividade"] in atividades_plantio
+                                else (1 if t["atividade"] in atividades_irrig else 2),
+                                str(t["atividade"]),
+                            )
                         )
+                        for t in tlist:
+                            atv = t["atividade"]
+                            if atv not in atividades_bloqueadas:
+                                continue
+                            key = (talhao, atv)
+                            rest = demanda_global.get(key, 0.0)
+                            if rest <= 0.01:
+                                continue
+                            if not pode_agendar_atividade_cascata(
+                                talhao,
+                                atv,
+                                demanda_global,
+                                seq_cfg,
+                                modo_seq,
+                                usar_cascata,
+                                usar_bloqueio_global,
+                                atividades_bloqueadas,
+                                atividades_plantio,
+                                atividades_irrig,
+                                dia,
+                                dia_termino_plantio,
+                                tem_plantio_por_talhao,
+                                min_fase_dia,
+                            ):
+                                continue
+                            consumo = min(rest, cap_pool)
+                            demanda_global[key] -= consumo
+                            _demanda_global_touch()
+                            cap_pool -= consumo
+                            fez = True
+                            _registrar_fim_plantio_talhao(talhao, dia)
+                            cronograma.append(
+                                {
+                                    "Dia": dia,
+                                    "Fazenda": fazenda,
+                                    "Talhao": talhao,
+                                    "Atividade": atv,
+                                    "Turma": "Pelotao_Unificado",
+                                    "Operarios": executores,
+                                    "HH": round(consumo, 2),
+    "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
+                "Modo": "PoolPosBloqueio",
+                                }
+                            )
+                            if cap_pool <= 0.01:
+                                break
                         if cap_pool <= 0.01:
                             break
-                    if cap_pool <= 0.01:
+                    if not fez:
                         break
-                if not fez:
-                    break
+                for turma in turmas:
+                    fila = turma_filas[turma["nome"]]
+                    while (
+                        fila
+                        and demanda_global.get((fila[0]["talhao"], fila[0]["atividade"]), 0)
+                        < 0.01
+                    ):
+                        fila.pop(0)
+                continue
+
             for turma in turmas:
                 fila = turma_filas[turma["nome"]]
+                n_ops = turma["operarios"]
+                cap_dia = n_ops * jornada
+
+                # Process items in queue order
+                idx = 0
+                while cap_dia > 0.01 and idx < len(fila):
+                    min_fase_dia = _min_fase_cascata_por_talhao(
+                        demanda_global,
+                        seq_cfg,
+                        modo_seq,
+                        usar_cascata,
+                        usar_bloqueio_global,
+                        atividades_bloqueadas,
+                        atividades_plantio,
+                        atividades_irrig,
+                        dia,
+                        dia_termino_plantio,
+                        tem_plantio_por_talhao,
+                    )
+                    item = fila[idx]
+                    key = (item["talhao"], item["atividade"])
+                    rest = demanda_global.get(key, 0)
+
+                    if rest < 0.01:
+                        idx += 1  # Already done (by another turma perhaps)
+                        continue
+
+                    if not pode_agendar_atividade_cascata(
+                        item["talhao"],
+                        item["atividade"],
+                        demanda_global,
+                        seq_cfg,
+                        modo_seq,
+                        usar_cascata,
+                        usar_bloqueio_global,
+                        atividades_bloqueadas,
+                        atividades_plantio,
+                        atividades_irrig,
+                        dia,
+                        dia_termino_plantio,
+                        tem_plantio_por_talhao,
+                        min_fase_dia,
+                    ):
+                        idx += 1
+                        continue
+
+                    consumo = min(rest, cap_dia)
+                    demanda_global[key] -= consumo
+                    _demanda_global_touch()
+                    cap_dia -= consumo
+                    _registrar_fim_plantio_talhao(item["talhao"], dia)
+
+                    cronograma.append(
+                        {
+                            "Dia": dia,
+                            "Fazenda": fazenda,
+                            "Talhao": item["talhao"],
+                            "Atividade": item["atividade"],
+                            "Turma": turma["nome"],
+                            "Operarios": n_ops,
+                "HH": round(consumo, 2),
+                "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])), 2) if not modo_somente_hh(cfg) else 0.0,
+                        }
+                    )
+
+                    if demanda_global[key] < 0.01:
+                        idx += 1  # Move to next item in queue
+                    # else stay on same item (partially done today)
+
+                # Clean up completed items from front of queue
                 while (
                     fila
                     and demanda_global.get((fila[0]["talhao"], fila[0]["atividade"]), 0)
                     < 0.01
                 ):
                     fila.pop(0)
-            continue
 
-        for turma in turmas:
-            fila = turma_filas[turma["nome"]]
-            n_ops = turma["operarios"]
-            cap_dia = n_ops * jornada
-
-            # Process items in queue order
-            idx = 0
-            while cap_dia > 0.01 and idx < len(fila):
-                min_fase_dia = _min_fase_cascata_por_talhao(
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
-                )
-                item = fila[idx]
-                key = (item["talhao"], item["atividade"])
-                rest = demanda_global.get(key, 0)
-
-                if rest < 0.01:
-                    idx += 1  # Already done (by another turma perhaps)
-                    continue
-
-                if not pode_agendar_atividade_cascata(
-                    item["talhao"],
-                    item["atividade"],
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
-                    min_fase_dia,
-                ):
-                    idx += 1
-                    continue
-
-                consumo = min(rest, cap_dia)
-                demanda_global[key] -= consumo
-                _demanda_global_touch()
-                cap_dia -= consumo
-                _registrar_fim_plantio_talhao(item["talhao"], dia)
-
-                cronograma.append(
-                    {
-                        "Dia": dia,
-                        "Fazenda": fazenda,
-                        "Talhao": item["talhao"],
-                        "Atividade": item["atividade"],
-                        "Turma": turma["nome"],
-                        "Operarios": n_ops,
-            "HH": round(consumo, 2),
-            "Custo_MO": round(consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])), 2) if not modo_somente_hh(cfg) else 0.0,
-                    }
-                )
-
-                if demanda_global[key] < 0.01:
-                    idx += 1  # Move to next item in queue
-                # else stay on same item (partially done today)
-
-            # Clean up completed items from front of queue
-            while (
-                fila
-                and demanda_global.get((fila[0]["talhao"], fila[0]["atividade"]), 0)
-                < 0.01
-            ):
-                fila.pop(0)
-
-            # Mutirao/realloc automatico:
-            # se ainda sobrou capacidade no dia, ajuda demanda de outras atividades nao bloqueadas.
-            if usar_reforco_automatico and cap_dia > 0.01:
-                for talhao in talhoes_ordenados:
-                    if cap_dia <= 0.01:
-                        break
-                    tarefas_t = list(demandas.get(talhao, []))
-                    if usar_cascata:
-                        tarefas_t.sort(
-                            key=lambda t: (
-                                classificar_fase_cascata_valor(
-                                    t["atividade"],
-                                    seq_cfg,
-                                    modo_seq,
-                                    atividades_plantio,
-                                    atividades_irrig,
-                                ),
-                                str(t["atividade"]),
+                # Mutirao/realloc automatico:
+                # se ainda sobrou capacidade no dia, ajuda demanda de outras atividades nao bloqueadas.
+                if usar_reforco_automatico and cap_dia > 0.01:
+                    for talhao in talhoes_ordenados:
+                        if cap_dia <= 0.01:
+                            break
+                        tarefas_t = list(demandas.get(talhao, []))
+                        if usar_cascata:
+                            tarefas_t.sort(
+                                key=lambda t: (
+                                    classificar_fase_cascata_valor(
+                                        t["atividade"],
+                                        seq_cfg,
+                                        modo_seq,
+                                        atividades_plantio,
+                                        atividades_irrig,
+                                    ),
+                                    str(t["atividade"]),
+                                )
                             )
-                        )
-                    for t in tarefas_t:
-                        min_fase_dia = _min_fase_cascata_por_talhao(
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
-                        )
-                        atv = t["atividade"]
-                        key_ref = (talhao, atv)
-                        rest_ref = demanda_global.get(key_ref, 0.0)
-                        if rest_ref <= 0.01:
-                            continue
-                        if not pode_agendar_atividade_cascata(
-                            talhao,
-                            atv,
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
-                            min_fase_dia,
-                        ):
-                            continue
-                        consumo_ref = min(rest_ref, cap_dia)
-                        if consumo_ref <= 0.01:
-                            continue
-                        demanda_global[key_ref] -= consumo_ref
-                        _demanda_global_touch()
-                        cap_dia -= consumo_ref
-                        _registrar_fim_plantio_talhao(talhao, dia)
-                        cronograma.append(
-                            {
-                                "Dia": dia,
-                                "Fazenda": fazenda,
-                                "Talhao": talhao,
-                                "Atividade": atv,
-                                "Turma": turma["nome"],
-                                "Operarios": n_ops,
-            "HH": round(consumo_ref, 2),
-            "Custo_MO": round(consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
-                                "Modo": "Reforco",
-                            }
-                        )
+                        for t in tarefas_t:
+                            min_fase_dia = _min_fase_cascata_por_talhao(
+                                demanda_global,
+                                seq_cfg,
+                                modo_seq,
+                                usar_cascata,
+                                usar_bloqueio_global,
+                                atividades_bloqueadas,
+                                atividades_plantio,
+                                atividades_irrig,
+                                dia,
+                                dia_termino_plantio,
+                                tem_plantio_por_talhao,
+                            )
+                            atv = t["atividade"]
+                            key_ref = (talhao, atv)
+                            rest_ref = demanda_global.get(key_ref, 0.0)
+                            if rest_ref <= 0.01:
+                                continue
+                            if not pode_agendar_atividade_cascata(
+                                talhao,
+                                atv,
+                                demanda_global,
+                                seq_cfg,
+                                modo_seq,
+                                usar_cascata,
+                                usar_bloqueio_global,
+                                atividades_bloqueadas,
+                                atividades_plantio,
+                                atividades_irrig,
+                                dia,
+                                dia_termino_plantio,
+                                tem_plantio_por_talhao,
+                                min_fase_dia,
+                            ):
+                                continue
+                            consumo_ref = min(rest_ref, cap_dia)
+                            if consumo_ref <= 0.01:
+                                continue
+                            demanda_global[key_ref] -= consumo_ref
+                            _demanda_global_touch()
+                            cap_dia -= consumo_ref
+                            _registrar_fim_plantio_talhao(talhao, dia)
+                            cronograma.append(
+                                {
+                                    "Dia": dia,
+                                    "Fazenda": fazenda,
+                                    "Talhao": talhao,
+                                    "Atividade": atv,
+                                    "Turma": turma["nome"],
+                                    "Operarios": n_ops,
+                "HH": round(consumo_ref, 2),
+                "Custo_MO": round(consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)), 2) if not modo_somente_hh(cfg) else 0.0,
+                                    "Modo": "Reforco",
+                                }
+                            )
 
     # Baseline mecanizado: HM-only do orcamento entra automaticamente no cronograma base.
     hm_only_list = sorted(hm_only_atividades, key=str)
@@ -1574,6 +1589,8 @@ def calcular_cronograma_inteligente(
     )
 
     dias_simulado_hum = dia
+    if dia > 1:
+        print()
     d_mec_base = max([int(x.get("Dia", 0)) for x in cronograma_mec_base], default=0)
     dias_simulado = max(dias_simulado_hum, d_mec_base)
 

@@ -259,13 +259,28 @@ def _sugerir_config_empresa(fazendas_por_empresa: dict, cfg: dict) -> dict:
 # ──────────────────────────────────────────────
 
 
+def _load_json_safe(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def carregar_config():
     """Load (or create) config.json, apply defaults, apply preco_final overrides if available."""
     if not os.path.exists(CFGP):
         with open(CFGP, "w", encoding="utf-8") as f:
             json.dump({"de_para": {}, "tarifas": {}, "atividades": {}}, f)
-    with open(CFGP, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
+    try:
+        cfg = _load_json_safe(CFGP)
+    except json.JSONDecodeError:
+        bak = CFGP + ".bak"
+        if os.path.exists(bak):
+            try:
+                cfg = _load_json_safe(bak)
+                shutil.copy2(bak, CFGP)
+            except json.JSONDecodeError:
+                cfg = {}
+        else:
+            cfg = {}
     for k in ("de_para", "tarifas", "atividades"):
         if k not in cfg:
             cfg[k] = {}
@@ -294,8 +309,19 @@ def carregar_config():
     return cfg
 
 
+def _normalize_for_json(obj):
+    if isinstance(obj, set):
+        return sorted(obj, key=str)
+    if isinstance(obj, dict):
+        return {k: _normalize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_for_json(i) for i in obj]
+    return obj
+
+
 def salvar_config(cfg):
     """Persist cfg to config.json. Creates .bak backup before overwriting."""
+    cfg = _normalize_for_json(cfg)
     if os.path.exists(CFGP):
         try:
             shutil.copy2(CFGP, CFGP + ".bak")

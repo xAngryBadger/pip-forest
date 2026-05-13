@@ -15,17 +15,19 @@ from src.web.session import (
     set_current_session,
     register_session,
     remove_session,
+    _cfgp_lock,
 )
 
 
 def _load_session_config(session: Session):
     import src.atm.srf.config as _cfg
-    _old = _cfg.CFGP
-    _cfg.CFGP = str(session.data_dir / "config.json")
-    try:
-        return _cfg.carregar_config()
-    finally:
-        _cfg.CFGP = _old
+    with _cfgp_lock:
+        _old = _cfg.CFGP
+        _cfg.CFGP = str(session.data_dir / "config.json")
+        try:
+            return _cfg.carregar_config()
+        finally:
+            _cfg.CFGP = _old
 
 
 _LOOP_DETECTION_MAX = 3
@@ -49,6 +51,20 @@ class _TeeStream:
 
     def __getattr__(self, name):
         return getattr(self._original, name)
+
+
+class _TeeStringIO(StringIO):
+    def __init__(self, parent_buf):
+        super().__init__()
+        self._parent_buf = parent_buf
+
+    def write(self, s):
+        self._parent_buf.write(s)
+        return super().write(s)
+
+    def flush(self):
+        self._parent_buf.flush()
+        super().flush()
 
 
 class _ChainRedirect:

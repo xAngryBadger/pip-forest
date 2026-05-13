@@ -16,6 +16,7 @@ _STEP_TIMEOUT = int(os.environ.get("SRF_STEP_TIMEOUT", "3600"))
 
 _sessions: dict[str, "Session"] = {}
 _sessions_lock = threading.Lock()
+_cfgp_lock = threading.Lock()
 
 
 class Session:
@@ -40,14 +41,20 @@ class Session:
         cfg_src = base_config_path or str(_BASE_DATA_DIR / "config.json")
         if not os.path.exists(cfg_src):
             cfg_src = cfg_module.CFGP
-        if os.path.exists(cfg_src):
-            shutil.copy2(cfg_src, self.data_dir / "config.json")
-        _old_cfgp = cfg_module.CFGP
-        cfg_module.CFGP = str(self.data_dir / "config.json")
-        try:
-            self.cfg = cfg_module.carregar_config()
-        finally:
-            cfg_module.CFGP = _old_cfgp
+        cfg_dst = self.data_dir / "config.json"
+        with _cfgp_lock:
+            _old_cfgp = cfg_module.CFGP
+            cfg_module.CFGP = str(cfg_dst)
+            try:
+                if os.path.exists(cfg_src) and not cfg_dst.exists():
+                    shutil.copy2(cfg_src, cfg_dst)
+                self.cfg = cfg_module.carregar_config()
+            except Exception:
+                if cfg_dst.exists():
+                    cfg_dst.unlink()
+                raise
+            finally:
+                cfg_module.CFGP = _old_cfgp
 
         planilhas_src = _BASE_DATA_DIR / "planilhas"
         planilhas_dst = self.data_dir / "planilhas"

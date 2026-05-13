@@ -54,13 +54,15 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                 break
 
             if acao == "Adicionar atividade":
-                disp = [a for a in pool_catalogo if a not in rec.get("atividades", set())]
+                disp = [a for a in pool_catalogo if a not in rec.get("atividades", [])]
                 if not disp:
                     aviso("Nao ha atividade nova para adicionar.")
                     continue
                 idx_add = selecionar_paginado("ADICIONAR ATIVIDADE", disp)
                 if idx_add >= 0:
-                    rec.setdefault("atividades", set()).add(disp[idx_add])
+                    rec.setdefault("atividades", [])
+                    if disp[idx_add] not in rec["atividades"]:
+                        rec["atividades"].append(disp[idx_add])
                     ok("Atividade adicionada.")
                 continue
 
@@ -70,7 +72,9 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                     continue
                 idx_rm = selecionar_paginado("REMOVER ATIVIDADE", cur)
                 if idx_rm >= 0:
-                    rec.setdefault("atividades", set()).discard(cur[idx_rm])
+                    rec.setdefault("atividades", [])
+                    if cur[idx_rm] in rec["atividades"]:
+                        rec["atividades"].remove(cur[idx_rm])
                     ok("Atividade removida.")
                 continue
 
@@ -86,8 +90,11 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                 idx_dst = selecionar_paginado("ATIVIDADE DESTINO", disp)
                 if idx_dst >= 0:
                     dst = disp[idx_dst]
-                    rec.setdefault("atividades", set()).discard(src)
-                    rec.setdefault("atividades", set()).add(dst)
+                    rec.setdefault("atividades", [])
+                    if src in rec["atividades"]:
+                        rec["atividades"].remove(src)
+                    if dst not in rec["atividades"]:
+                        rec["atividades"].append(dst)
                     ok(f"Substituida: '{src[:45]}' -> '{dst[:45]}'.")
                 continue
 
@@ -199,18 +206,20 @@ def _cadastrar_recursos_mecanizados_sn(atividades_reais, cfg=None, atividades_ca
         custo = pedir_float("Custo (R$/h, 0 se placeholder)", 0.0, allow_zero=True)
         print(G + BL + f"\n  Selecionar atividades para '{nome}' (S/N):" + RS)
         print(DM + "  s=sim  n=nao  a=nao e encerrar  ok=sim e encerrar" + RS)
-        atvs = set()
+        atvs = []
         cur_all = sorted(pool, key=str)
         for i, a in enumerate(cur_all, 1):
             v = prompt(f"[{i}/{len(cur_all)}] Vincular '{str(a)[:54]}'? (s/n/a/ok)", "")
             v = str(v).strip().lower()
             if v in ("s", "sim", "y", "yes"):
-                atvs.add(a)
+                if a not in atvs:
+                    atvs.append(a)
             elif v == "a":
                 ok("Selecao encerrada (sem vincular esta).")
                 break
             elif v == "ok":
-                atvs.add(a)
+                if a not in atvs:
+                    atvs.append(a)
                 ok("Selecao encerrada por comando rapido.")
                 break
         if not atvs:
