@@ -201,9 +201,10 @@ def _agrupar_fazendas_por_empresa(df_scope) -> dict:
         faz = str(row.get("fazenda", "")).strip()
         if not eq or eq in ("nan", "None", "") or not faz:
             continue
-        if eq not in grupos:
-            grupos[eq] = set()
-        grupos[eq].add(faz)
+    if eq not in grupos:
+        grupos[eq] = []
+    if faz not in grupos[eq]:
+        grupos[eq].append(faz)
     return {k: sorted(v) for k, v in grupos.items()}
 
 

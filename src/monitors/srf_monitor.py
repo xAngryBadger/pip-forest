@@ -237,13 +237,14 @@ def _render_territorio(d: Dict[str, Any]):
         if cidade not in distrib_por_cidade:
             distrib_por_cidade[cidade] = {
                 'fazendas': [],
-                'equipes': set(),
+                'equipes': [],
                 'area_total': 0
             }
-        
-        distrib_por_cidade[cidade]['fazendas'].append(faz)
-        distrib_por_cidade[cidade]['equipes'].add(equipe)
-        distrib_por_cidade[cidade]['area_total'] += area
+
+    distrib_por_cidade[cidade]['fazendas'].append(faz)
+    if equipe not in distrib_por_cidade[cidade]['equipes']:
+        distrib_por_cidade[cidade]['equipes'].append(equipe)
+    distrib_por_cidade[cidade]['area_total'] += area
     
     # Ordena por área total (decrescente)
     sorted_cidades = sorted(

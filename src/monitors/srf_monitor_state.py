@@ -53,10 +53,21 @@ def ler_estado(path: str) -> Dict[str, Any]:
 
 
 def gravar_atomico(path: str, data: Dict[str, Any]) -> None:
+    normalized = _normalize_for_json(data)
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(normalized, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
+
+
+def _normalize_for_json(obj):
+    if isinstance(obj, set):
+        return sorted(obj, key=str)
+    if isinstance(obj, dict):
+        return {k: _normalize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_for_json(i) for i in obj]
+    return obj
 
 
 def _deep_merge(base: Dict[str, Any], patch: Dict[str, Any]) -> None:

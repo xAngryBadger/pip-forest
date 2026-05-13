@@ -2,6 +2,7 @@
 
 import calendar
 import math
+import threading
 from collections import defaultdict
 
 from rich.table import Table
@@ -225,25 +226,30 @@ def diagnosticar_sequencia_atividades(atividades_reais, seq_cfg, modo):
 
 _ha_nao_bloqueado_cache = {}
 _ha_nao_bloqueado_version = [0]
+_ha_nao_bloqueado_lock = threading.Lock()
 
 
 def _demanda_global_touch():
-    _ha_nao_bloqueado_version[0] += 1
+    with _ha_nao_bloqueado_lock:
+        _ha_nao_bloqueado_version[0] += 1
 
 
 def _ha_trabalho_nao_bloqueado(demanda_global, atividades_bloqueadas):
     """True se ainda existe demanda >0 para atividade fora do grupo bloqueado."""
     bloqueadas = set(atividades_bloqueadas or [])
     bkey = frozenset(bloqueadas)
-    ver = _ha_nao_bloqueado_version[0]
-    cached = _ha_nao_bloqueado_cache.get(bkey)
-    if cached and cached[0] == ver:
-        return cached[1]
+    with _ha_nao_bloqueado_lock:
+        ver = _ha_nao_bloqueado_version[0]
+        cached = _ha_nao_bloqueado_cache.get(bkey)
+        if cached and cached[0] == ver:
+            return cached[1]
     for (_, atv), hh in demanda_global.items():
         if hh > 0.01 and atv not in bloqueadas:
-            _ha_nao_bloqueado_cache[bkey] = (ver, True)
+            with _ha_nao_bloqueado_lock:
+                _ha_nao_bloqueado_cache[bkey] = (ver, True)
             return True
-    _ha_nao_bloqueado_cache[bkey] = (ver, False)
+    with _ha_nao_bloqueado_lock:
+        _ha_nao_bloqueado_cache[bkey] = (ver, False)
     return False
 
 

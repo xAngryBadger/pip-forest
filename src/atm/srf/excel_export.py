@@ -7,7 +7,7 @@ from collections import defaultdict
 
 import pandas as pd
 
-from .config import salvar_config, OUTPUT_DIR, PERFIS_DIR
+from .config import salvar_config, OUTPUT_DIR, PERFIS_DIR, _normalize_for_json
 from .constants import CT317_HARDCODE_HH_BASE, _FASE_CORES_HEX
 from .text_utils import normalizar_chave, atividades_por_filtro, _slug_ficheiro_seguro
 from .tarifas import resolver_chave_tarifa
@@ -471,7 +471,7 @@ def _salvar_perfil_equipe(turmas, executores, jornada, nome_perfil):
     }
     caminho = os.path.join(PERFIS_DIR, f"{_slug_ficheiro_seguro(nome_perfil)}.json")
     with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=2)
+        json.dump(_normalize_for_json(dados), f, ensure_ascii=False, indent=2)
     return caminho
 
 

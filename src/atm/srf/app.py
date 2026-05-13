@@ -16,7 +16,7 @@ from .tarifas import (
 from .territorio import fazendas_unicas_micro
 from .io import (
     selecionar_arquivo, encontrar_coluna,
-    carregar_planilha_microplanejamento,
+    carregar_planilha_microplanejamento, _to_float_br,
 )
 from .datas import _formatar_data_dia
 from .ui import (
@@ -139,11 +139,11 @@ def modulo_importar_tarifas(cfg):
                 continue
             hh = 0 if not col_hh else row.get(col_hh, 0)
             preco = 0 if not col_preco else row.get(col_preco, 0)
-            if pd.notna(hh) and str(hh).strip() != "":
-                hh_val = float(str(hh).replace(",", "."))
-            else:
-                hh_val = resolver_rendimento_hh(cfg, tarifas, nome)
-            preco_val = float(str(preco).replace(",", ".")) if pd.notna(preco) else 0.0
+        if pd.notna(hh) and str(hh).strip() != "":
+            hh_val = _to_float_br(hh)
+        else:
+            hh_val = resolver_rendimento_hh(cfg, tarifas, nome)
+            preco_val = _to_float_br(preco) if pd.notna(preco) else 0.0
             tarifas[nome] = {
                 "rendimento_hh": hh_val,
                 "preco_unit": preco_val,
