@@ -9,7 +9,7 @@ def _formatar_data_dia(dia, mes, ano):
 
 
 # Mapeamento de dias da semana para abreviacoes brasileiras
-_DIAS_SEMANA_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+_DIAS_SEMANA_CURTO = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
 _DIAS_SEMANA_COMPLETO = [
     "Segunda-feira",
     "Terça-feira",

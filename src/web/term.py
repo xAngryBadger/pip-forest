@@ -10,11 +10,8 @@ import termios
 import threading
 import datetime
 import shutil
-import tty
 import uuid
 from pathlib import Path
-
-from src.web.auth import is_authenticated
 
 _sessions: dict[str, "TermSession"] = {}
 _sessions_lock = threading.Lock()

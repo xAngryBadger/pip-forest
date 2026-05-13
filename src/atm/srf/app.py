@@ -8,17 +8,14 @@ from .config import (
     salvar_config, INPUT_DIR, OUTPUT_DIR, STG_FILENAME,
     carregar_config, modo_somente_hh,
 )
-from .constants import CT317_HARDCODE_HH_BASE
 from .text_utils import normalizar_chave, _norm_atv, parse_intervalos_escolha
 from .tarifas import (
     normalizar_ct313, carregar_stg_tarifas, resolver_rendimento_hh,
 )
-from .territorio import fazendas_unicas_micro
 from .io import (
     selecionar_arquivo, encontrar_coluna,
     carregar_planilha_microplanejamento, _to_float_br,
 )
-from .datas import _formatar_data_dia
 from .ui import (
     G, Y, C, DM, BL, RS,
     console, sub, cabecalho, subcabecalho, aviso, erro, ok, prompt,

@@ -1,6 +1,5 @@
 """File I/O — data loading, file selection, column mapping, demo reconstruction."""
 
-import json
 import os
 
 import pandas as pd

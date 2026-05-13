@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from src.web.auth import check_password, mark_authenticated, is_authenticated, revoke_authentication
-from src.web.session import get_session, list_sessions, remove_session, cleanup_old_sessions
+from src.web.session import get_session, list_sessions
 from src.web.bridge import start_session, abort_session
 from src.web.step_schema import STEP_TYPES
 from src.web import term as term_module

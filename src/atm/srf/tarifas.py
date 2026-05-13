@@ -1,9 +1,7 @@
 """Tarifas — resolucao de rendimento, CT317 normalizer, de-para CRUD, precos."""
 
-import copy
 import datetime
 import json
-import math
 import os
 from statistics import median
 
@@ -14,7 +12,7 @@ from .config import (
     _PRECO_FINAL_JSON_CACHE, STG_FILENAME,
     CT_REAL_FILENAME, salvar_config, carregar_config,
 )
-from .constants import CT317_HARDCODE_HH_BASE, DEFAULT_DEPARA_EXAME_CT317
+from .constants import CT317_HARDCODE_HH_BASE
 from .ui import (
     G, Y, C, DM, BL, RS,
     sub, aviso, ok, erro, prompt, pedir_float,

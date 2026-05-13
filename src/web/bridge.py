@@ -1,4 +1,3 @@
-import queue
 import threading
 import traceback
 import os
@@ -386,8 +385,7 @@ def _run_scheduler_single(session: Session, fazenda: str):
 
     try:
         _chain_redirector.install_tee(session._output_buf)
-        from src.atm.srf.app import _selecionar_talhoes_fazenda, _metodologias_presentes, _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
-        from src.atm.srf.scheduler_core import calcular_cronograma_inteligente
+        from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
 
         micro_path, df = _load_micro_df(session, cfg)
         if df is None:
@@ -536,7 +534,6 @@ def _collect_result_files(session, fazenda=None):
     dossier_dir = Path(OUTPUT_DIR)
     if not dossier_dir.exists():
         return
-    import datetime
     created_ts = session.created_at.timestamp()
     existing = set(session.result_files)
     for f in sorted(dossier_dir.glob("*.xlsx")):

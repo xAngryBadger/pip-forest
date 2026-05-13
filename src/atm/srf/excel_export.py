@@ -7,10 +7,9 @@ from collections import defaultdict
 
 import pandas as pd
 
-from .config import salvar_config, OUTPUT_DIR, PERFIS_DIR, _normalize_for_json
-from .constants import CT317_HARDCODE_HH_BASE, _FASE_CORES_HEX
-from .text_utils import normalizar_chave, atividades_por_filtro, _slug_ficheiro_seguro
-from .tarifas import resolver_chave_tarifa
+from .config import OUTPUT_DIR, PERFIS_DIR, _normalize_for_json
+from .constants import _FASE_CORES_HEX
+from .text_utils import atividades_por_filtro, _slug_ficheiro_seguro
 from .scheduler import (
     eh_limpeza_quimica_pos_plantio,
     _match_filtros_fase,
@@ -49,8 +48,6 @@ def _fase_nome_pt(fase_id):
 
 def _classificar_fase_nome(atv, seq_cfg, modo, atvs_plantio, atvs_irrig):
     """Retorna (fase_id, fase_valor) para rotulagem no Excel."""
-    from collections import OrderedDict as _OD
-
     if eh_limpeza_quimica_pos_plantio(atv, seq_cfg):
         return "limpeza_quimica", 8.0
     if atv in atvs_plantio or _match_filtros_fase(

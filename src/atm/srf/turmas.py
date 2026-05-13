@@ -1,6 +1,5 @@
 """Team (turma) management — resource editing, activity linking, conflict resolution, candidate detection."""
 
-from .config import salvar_config
 from .constants import CT317_HARDCODE_HH_BASE
 from .text_utils import normalizar_chave, atividades_por_filtro, _norm_atv, filtrar_atividades_por_texto
 from .tarifas import resolver_chave_tarifa
