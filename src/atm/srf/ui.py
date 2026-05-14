@@ -31,9 +31,6 @@ def _is_web_mode():
     return getattr(_tl, "_WEB_MODE", _WEB_MODE_INIT)
 
 
-def _is_web_mode():
-    return getattr(_tl, "_WEB_MODE", _WEB_MODE_INIT)
-
 try:
     from rich.console import Console
     from rich.table import Table

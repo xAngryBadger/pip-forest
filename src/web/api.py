@@ -72,7 +72,13 @@ async def login_submit(request: Request, password: str = Form(...)):
         token = str(uuid.uuid4())[:16]
         mark_authenticated(token)
         response = RedirectResponse(url="/app", status_code=303)
-        response.set_cookie("srf_token", token, httponly=True, max_age=86400, samesite="lax")
+        _is_secure = request.url.scheme == "https"
+        response.set_cookie(
+            "srf_token", token,
+            httponly=True, max_age=86400,
+            samesite="none" if _is_secure else "lax",
+            secure=_is_secure,
+        )
         return response
     return _render("login.html", {"request": request, "error": "Senha incorreta"})
 
@@ -403,6 +409,10 @@ async def terminal_start(request: Request):
 
 @app.websocket("/ws/term/{session_id}")
 async def websocket_terminal(websocket: WebSocket, session_id: str):
+    token = websocket.cookies.get("srf_token")
+    if not token or not is_authenticated(token):
+        await websocket.close(code=4003)
+        return
     ts = term_module.get_session(session_id)
     if not ts:
         await websocket.close(code=4004)
