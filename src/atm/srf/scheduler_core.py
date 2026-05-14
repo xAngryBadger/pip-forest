@@ -5,10 +5,15 @@ import calendar
 import io
 import math
 import os
+import traceback
 from collections import defaultdict
 from contextlib import redirect_stdout, redirect_stderr
 
 import pandas as pd
+
+_HH_EPSILON = 0.01
+DIAS_UTEIS_POR_MES = 22.0
+_JORNADA_DEFAULT_H = 4.6
 
 from .text_utils import (
     normalizar_chave, _norm_atv, _slug_ficheiro_seguro,
@@ -39,7 +44,7 @@ from .monitor import _emitir_monitor_state, _emitir_monitor_relatorio, _emitir_m
 from .tarifas import (
     resolver_rendimento_hh, resolver_rendimento_hm,
     resolver_chave_tarifa, aviso_politica_tarifas_planas,
-    resolver_custo_hora, resolver_preco_ha,
+    resolver_custo_hora,
 )
 from .de_para import auto_mapear_de_para, aplicar_depara_padrao_exame
 from .cronograma import (
@@ -659,9 +664,9 @@ def calcular_cronograma_inteligente(
         contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
         # Não chamar dashboard_header() aqui para evitar flickering
 
-        j_def = float(cfg.get("jornada_horas") or 4.6)
+        j_def = float(cfg.get("jornada_horas") or _JORNADA_DEFAULT_H)
         if j_def <= 0:
-            j_def = 4.6
+            j_def = _JORNADA_DEFAULT_H
         executores = pedir_int(
             "Operarios totais (quem realmente trabalha)",
             9,
@@ -1119,7 +1124,7 @@ def calcular_cronograma_inteligente(
     print(DM + f"  Total HM da fazenda (bruto): {total_hm:.1f} horas-maquina" + RS)
     if not modo_somente_hh(cfg):
         print(DM + f" Custo MO total (bruto): R$ {total_custo:,.2f}" + RS)
-    if total_hm > 0.01:
+    if total_hm > _HH_EPSILON:
         print(
             DM
             + "  Regra de fluxo HM-only: atividades mecanizadas rodam em paralelo e a equipe humana"
@@ -1192,7 +1197,7 @@ def calcular_cronograma_inteligente(
     sem_executor = []
     for talhao, tarefas in demandas.items():
         for t in tarefas:
-            if t["hh_total"] < 0.01:
+            if t["hh_total"] < _HH_EPSILON:
                 continue
             atv = t["atividade"]
             if not turmas_que_executam(atv, turmas, reatribuicao, paralelo, primaria):
@@ -1216,7 +1221,7 @@ def calcular_cronograma_inteligente(
         for talhao, tarefas in demandas.items():
             for t in tarefas:
                 atv = t["atividade"]
-                if t["hh_total"] > 0.01 and not turmas_que_executam(
+                if t["hh_total"] > _HH_EPSILON and not turmas_que_executam(
                     atv, turmas, reatribuicao, paralelo, primaria
                 ):
                     t["hh_total"] = 0.0
@@ -1246,7 +1251,7 @@ def calcular_cronograma_inteligente(
         for talhao in talhoes_ordenados:
             for tarefa in demandas.get(talhao, []):
                 atv = tarefa["atividade"]
-                if tarefa["hh_total"] > 0.01 and turma["nome"] in turmas_que_executam(
+                if tarefa["hh_total"] > _HH_EPSILON and turma["nome"] in turmas_que_executam(
                     atv, turmas, reatribuicao, paralelo, primaria
                 ):
                     fila.append(
@@ -1278,7 +1283,7 @@ def calcular_cronograma_inteligente(
     tem_plantio_por_talhao = {}
     for th in talhoes_ordenados:
         tem_plantio_por_talhao[th] = any(
-            t["atividade"] in atividades_plantio and t["hh_total"] > 0.01
+            t["atividade"] in atividades_plantio and t["hh_total"] > _HH_EPSILON
             for t in demandas.get(th, [])
         )
     dia_termino_plantio = {}
@@ -1310,13 +1315,13 @@ def calcular_cronograma_inteligente(
             dia_termino_plantio[th] = dia_atual
 
     while dia < MAX_DIAS:
-        tem_trabalho = any(v > 0.01 for v in demanda_global.values())
+        tem_trabalho = any(v > _HH_EPSILON for v in demanda_global.values())
         if not tem_trabalho:
             break
 
         dia += 1
         if dia % 100 == 0 or dia == 1:
-            restante = sum(1 for v in demanda_global.values() if v > 0.01)
+            restante = sum(1 for v in demanda_global.values() if v > _HH_EPSILON)
             print(DM + f"  dia {dia}/{MAX_DIAS} ({restante} demandas restantes)" + RS, end="\r")
             pool_only = (
                 usar_bloqueio_global
@@ -1325,7 +1330,7 @@ def calcular_cronograma_inteligente(
             )
             if pool_only:
                 cap_pool = float(executores) * float(jornada)
-                while cap_pool > 0.01:
+                while cap_pool > _HH_EPSILON:
                     fez = False
                     min_fase_dia = _min_fase_cascata_por_talhao(
                         demanda_global,
@@ -1356,7 +1361,7 @@ def calcular_cronograma_inteligente(
                                 continue
                             key = (talhao, atv)
                             rest = demanda_global.get(key, 0.0)
-                            if rest <= 0.01:
+                            if rest <= _HH_EPSILON:
                                 continue
                             if not pode_agendar_atividade_cascata(
                                 talhao,
@@ -1394,9 +1399,9 @@ def calcular_cronograma_inteligente(
             "Modo": "PoolPosBloqueio",
                                 }
                             )
-                            if cap_pool <= 0.01:
+                            if cap_pool <= _HH_EPSILON:
                                 break
-                        if cap_pool <= 0.01:
+                        if cap_pool <= _HH_EPSILON:
                             break
                     if not fez:
                         break
@@ -1405,7 +1410,7 @@ def calcular_cronograma_inteligente(
                     while (
                         fila
                         and demanda_global.get((fila[0]["talhao"], fila[0]["atividade"]), 0)
-                        < 0.01
+                        < _HH_EPSILON
                     ):
                         fila.pop(0)
                 continue
@@ -1417,7 +1422,7 @@ def calcular_cronograma_inteligente(
 
                 # Process items in queue order
                 idx = 0
-                while cap_dia > 0.01 and idx < len(fila):
+                while cap_dia > _HH_EPSILON and idx < len(fila):
                     min_fase_dia = _min_fase_cascata_por_talhao(
                         demanda_global,
                         seq_cfg,
@@ -1435,7 +1440,7 @@ def calcular_cronograma_inteligente(
                     key = (item["talhao"], item["atividade"])
                     rest = demanda_global.get(key, 0)
 
-                    if rest < 0.01:
+                    if rest < _HH_EPSILON:
                         idx += 1  # Already done (by another turma perhaps)
                         continue
 
@@ -1477,7 +1482,7 @@ def calcular_cronograma_inteligente(
                         }
                     )
 
-                    if demanda_global[key] < 0.01:
+                    if demanda_global[key] < _HH_EPSILON:
                         idx += 1  # Move to next item in queue
                     # else stay on same item (partially done today)
 
@@ -1485,15 +1490,15 @@ def calcular_cronograma_inteligente(
                 while (
                     fila
                     and demanda_global.get((fila[0]["talhao"], fila[0]["atividade"]), 0)
-                    < 0.01
+                    < _HH_EPSILON
                 ):
                     fila.pop(0)
 
                 # Mutirao/realloc automatico:
                 # se ainda sobrou capacidade no dia, ajuda demanda de outras atividades nao bloqueadas.
-                if usar_reforco_automatico and cap_dia > 0.01:
+                if usar_reforco_automatico and cap_dia > _HH_EPSILON:
                     for talhao in talhoes_ordenados:
-                        if cap_dia <= 0.01:
+                        if cap_dia <= _HH_EPSILON:
                             break
                         tarefas_t = list(demandas.get(talhao, []))
                         if usar_cascata:
@@ -1526,7 +1531,7 @@ def calcular_cronograma_inteligente(
                             atv = t["atividade"]
                             key_ref = (talhao, atv)
                             rest_ref = demanda_global.get(key_ref, 0.0)
-                            if rest_ref <= 0.01:
+                            if rest_ref <= _HH_EPSILON:
                                 continue
                             if not pode_agendar_atividade_cascata(
                                 talhao,
@@ -1546,7 +1551,7 @@ def calcular_cronograma_inteligente(
                             ):
                                 continue
                             consumo_ref = min(rest_ref, cap_dia)
-                            if consumo_ref <= 0.01:
+                            if consumo_ref <= _HH_EPSILON:
                                 continue
                             demanda_global[key_ref] -= consumo_ref
                             _demanda_global_touch()
@@ -1571,7 +1576,7 @@ def calcular_cronograma_inteligente(
     cronograma_mec_base = []
     recursos_mec_base = []
     if hm_only_list:
-        cronograma_mec_base, recursos_mec_base = construir_cronograma_mecanizado_auto_hm_tarifa(
+        cronograma_mec_base, _ = construir_cronograma_mecanizado_auto_hm_tarifa(
             demandas,
             fazenda,
             jornada,
@@ -1600,7 +1605,7 @@ def calcular_cronograma_inteligente(
     exec_teoricos = (
         math.ceil(total_hh / (dias_meta * jornada)) if (dias_meta * jornada) > 0 else 1
     )
-    meses_simulado = dias_simulado / 22.0 if dias_simulado > 0 else 0
+    meses_simulado = dias_simulado / DIAS_UTEIS_POR_MES if dias_simulado > 0 else 0
 
     # ── Tabela semanal ──
     table = Table(title=f"Cronograma - {fazenda} ({executores} Exec.)")
@@ -1789,7 +1794,7 @@ def calcular_cronograma_inteligente(
         nm = turma["nome"]
         cap = float(dias_simulado_hum) * float(turma["operarios"]) * float(jornada)
         us = hh_por_turma.get(nm, 0.0)
-        pct = (100.0 * us / cap) if cap > 0.01 else 0.0
+        pct = (100.0 * us / cap) if cap > _HH_EPSILON else 0.0
         if pct > crit_pct:
             crit_pct, crit_nm = pct, nm
         t_occ.add_row(
@@ -1798,13 +1803,13 @@ def calcular_cronograma_inteligente(
             f"{cap:.1f}",
             f"{pct:.0f}%",
         )
-    if hh_por_turma.get("Pelotao_Unificado", 0) > 0.01:
+    if hh_por_turma.get("Pelotao_Unificado", 0) > _HH_EPSILON:
         d_pool = len(
             set(c["Dia"] for c in cronograma if c.get("Turma") == "Pelotao_Unificado")
         )
         pu = hh_por_turma["Pelotao_Unificado"]
         cap_p = float(d_pool) * float(executores) * float(jornada)
-        pct_p = (100.0 * pu / cap_p) if cap_p > 0.01 else 0.0
+        pct_p = (100.0 * pu / cap_p) if cap_p > _HH_EPSILON else 0.0
         t_occ.add_row(
             "Pelotao_Unificado",
             f"{pu:.1f}",
@@ -2057,7 +2062,7 @@ def calcular_cronograma_inteligente(
                 {
                     "Metrica": "Fonte dos dados",
                     "Valor": "100% CT"
-                    if pct_fallback < 0.01
+                    if pct_fallback < _HH_EPSILON
                     else f"{100 - pct_fallback:.0f}% CT ({n_fb} fallbacks)",
                 },
                 {"Metrica": "", "Valor": ""},
@@ -2146,8 +2151,8 @@ def calcular_cronograma_inteligente(
                     from srf_excel_format import aplicar_formatacao_operacional
 
                     aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma_base)
-                except Exception:
-                    pass
+                except Exception as _fmt_err:
+                    aviso(f"Formatacao operacional falhou (formatador externo): {_fmt_err}")
 
             ok(f"Dossier operacional exportado: {nome_op}")
 
@@ -2221,8 +2226,8 @@ def calcular_cronograma_inteligente(
                         from srf_excel_format import aplicar_formatacao_operacional
 
                         aplicar_formatacao_operacional(wb_mo, d_comb, cronograma_com_mec)
-                    except Exception:
-                        pass
+                    except Exception as _fmt_err:
+                        aviso(f"Formatacao mecanizado falhou (formatador externo): {_fmt_err}")
 
                 ok(f"Dossier cenario mecanizado (operacional): {nome_mec_op}")
         except Exception as ex:
@@ -2244,7 +2249,7 @@ def calcular_cronograma_inteligente(
     )
     if recursos_mec and cronograma_com_mec:
         d_mc = max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
-        m_mc = d_mc / 22.0 if d_mc > 0 else 0.0
+        m_mc = d_mc / DIAS_UTEIS_POR_MES if d_mc > 0 else 0.0
         print(C + f"  Duracao cenario mecanizado : {d_mc} dias ({m_mc:.1f} meses)" + RS)
         print(
             C
@@ -2268,7 +2273,7 @@ def calcular_cronograma_inteligente(
             + f"  [SUGESTAO] ~{exec_teoricos} executores @ {jornada}h/dia cumpririam a meta."
             + RS
         )
-        if dias_meta > 0 and total_hh > 0.01:
+        if dias_meta > 0 and total_hh > _HH_EPSILON:
             ex5 = math.ceil(total_hh / (dias_meta * 5.0))
             ex6 = math.ceil(total_hh / (dias_meta * 6.0))
             print(
@@ -2413,8 +2418,8 @@ def calcular_cronograma_inteligente(
         economia_hh = hh_manual - hh_mec
         economia_hm = hm_mec - hm_manual
         cap_hh_dia = float(executores) * float(jornada)
-        dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > 0.01 else 0.0
-        dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > 0.01 else 0.0
+        dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
+        dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
         delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
         cronograma_mec_ref = resultado_mecanizado.get("cronograma") or []
         turmas_mec_comp = sorted(
@@ -2451,7 +2456,7 @@ def calcular_cronograma_inteligente(
             print(f"  {G}✓{RS} Redução de {G}{economia_dias}{RS} dias com mecanização")
         if economia_hh > 0:
             print(f"  {G}✓{RS} Economia de {G}{economia_hh:.1f}{RS} HH (mão de obra humana)")
-        if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > 0.01:
+        if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > _HH_EPSILON:
             print(
                 DM
                 + f"  Nota: a reducao de HH equivale a ~{delta_dias_eq_hh:.2f} dia(s), "
@@ -2604,9 +2609,9 @@ def _executar_lote_fazendas(
             data_fim_txt = _formatar_data_dia(fim_calc[0], fim_calc[1], fim_calc[2])
 
     contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
-    j_def = float(cfg.get("jornada_horas") or 4.6)
+    j_def = float(cfg.get("jornada_horas") or _JORNADA_DEFAULT_H)
     if j_def <= 0:
-        j_def = 4.6
+        j_def = _JORNADA_DEFAULT_H
     jornada = pedir_jornada("Jornada efetiva diaria (ex: 6.5 ou 6:30 = 6h30)", round(j_def, 2))
     cfg["jornada_horas"] = jornada
     salvar_config(cfg)
@@ -3498,35 +3503,7 @@ def _executar_multi_equipes(
 # ──────────────────────────────────────────────
 
 
-def _executar_scheduler_fazenda_interativo(cfg, df_scope, faz, catalogo_scope):
-    metodologias_executadas = set()
-    while True:
-        df_faz_base = df_scope[df_scope["fazenda"] == faz].copy()
-        if df_faz_base.empty:
-            aviso("Sem linhas para a fazenda selecionada neste escopo.")
-            return
 
-        contexto_sessao.atualizar_fazenda(faz, df_faz_base)
-        df_faz, meta_escopo = _selecionar_talhoes_fazenda(df_faz_base, faz)
-        resultado = calcular_cronograma_inteligente(
-            cfg,
-            df_faz,
-            faz,
-            escopo_meta=meta_escopo,
-            atividades_catalogo=catalogo_scope,
-        )
-        if isinstance(resultado, dict) and resultado.get("acao") == "retroceder_escopo":
-            aviso("Checkpoint retroativo: reselecione fazenda/escopo.")
-            continue
-
-        if _prompt_proximas_metodologias(
-            df_faz_base,
-            meta_escopo,
-            metodologias_executadas,
-        ):
-            aviso("Abrindo selecao para as proximas metodologias desta fazenda.")
-            continue
-        break
 
 
 

@@ -14,11 +14,9 @@ from .ui import (
     cabecalho,
     subcabecalho,
     aviso,
-    erro,
     ok,
     prompt,
     selecionar,
-    confirmar,
     esperar,
 )
 from .config import (
@@ -51,12 +49,11 @@ from .app import (
     modulo_normalizar_ct,
     _aplicar_filtro_regiao,
     _aplicar_filtro_empresa_e_escopo,
+    _executar_scheduler_fazenda_interativo,
 )
 from .scheduler_core import (
-    calcular_cronograma_inteligente,
     _executar_lote_fazendas,
     _executar_multi_equipes,
-    _executar_scheduler_fazenda_interativo,
 )
 
 

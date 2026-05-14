@@ -22,8 +22,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(DIR))
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 INPUT_DIR = os.path.join(DATA_DIR, "planilhas")
 OUTPUT_DIR = os.path.join(DATA_DIR, DOSSIER_DIRNAME)
-PROFILES_DIR = os.path.join(DATA_DIR, "perfis_equipe")
-PERFIS_DIR = PROFILES_DIR  # Alias (original line 7999 in monolith)
+PERFIS_DIR = os.path.join(DATA_DIR, "perfis_equipe")
 
 PRECO_FINAL_JSON_DEFAULT = "preco_final.json"
 PRECO_FINAL_JSON_DOWNLOADS = os.path.join(

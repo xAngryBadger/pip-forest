@@ -6,7 +6,7 @@ from .tarifas import resolver_chave_tarifa
 from .monitor import _emitir_monitor_rendimentos
 from .ui import (
     G, Y, C, DM, BL, RS,
-    sub, aviso, erro, ok, prompt, pedir_float, pedir_int, confirmar,
+    sub, aviso, ok, prompt, pedir_float, confirmar,
     selecionar, selecionar_paginado, esperar,
 )
 

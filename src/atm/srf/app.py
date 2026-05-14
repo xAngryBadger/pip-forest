@@ -5,8 +5,8 @@ import os
 import pandas as pd
 
 from .config import (
-    salvar_config, INPUT_DIR, OUTPUT_DIR, STG_FILENAME,
-    carregar_config, modo_somente_hh,
+    salvar_config, STG_FILENAME,
+    modo_somente_hh,
 )
 from .text_utils import normalizar_chave, _norm_atv, parse_intervalos_escolha
 from .tarifas import (
@@ -14,12 +14,12 @@ from .tarifas import (
 )
 from .io import (
     selecionar_arquivo, encontrar_coluna,
-    carregar_planilha_microplanejamento, _to_float_br,
+    _to_float_br,
 )
 from .ui import (
     G, Y, C, DM, BL, RS,
-    console, sub, cabecalho, subcabecalho, aviso, erro, ok, prompt,
-    pedir_float, pedir_int,
+    sub, subcabecalho, aviso, erro, ok, prompt,
+    pedir_float,
     confirmar, selecionar, selecionar_paginado, esperar,
 )
 from .context import contexto_sessao, dashboard_header

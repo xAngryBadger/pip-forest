@@ -9,13 +9,12 @@ import pandas as pd
 
 from .config import (
     INPUT_DIR, PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS,
-    _PRECO_FINAL_JSON_CACHE, STG_FILENAME,
-    CT_REAL_FILENAME, salvar_config, carregar_config,
+    _PRECO_FINAL_JSON_CACHE, STG_FILENAME, salvar_config,
 )
 from .constants import CT317_HARDCODE_HH_BASE
 from .ui import (
     G, Y, C, DM, BL, RS,
-    sub, aviso, ok, erro, prompt, pedir_float,
+    sub, aviso, ok, erro, prompt,
     confirmar, selecionar, selecionar_paginado, subcabecalho, esperar,
 )
 from .text_utils import normalizar_chave, remover_acentos
@@ -342,88 +341,6 @@ def _carregar_mapa_preco_final_json(cfg=None):
     _PRECO_FINAL_JSON_CACHE = {"path": caminho, "mtime": mtime, "mapa": mapa}
     return dict(mapa)
 
-def _aplicar_mapa_preco_final_em_tarifas(tarifas, mapa_json):
-    if not isinstance(tarifas, dict) or not mapa_json:
-        return 0
-    alterados = 0
-    idx_norm = {
-        normalizar_chave(k): k
-        for k in tarifas.keys()
-        if isinstance(k, str) and normalizar_chave(k)
-    }
-
-    for nome, base in mapa_json.items():
-        hh = float(base.get("rendimento_hh", 0) or 0)
-        hm = float(base.get("rendimento_hm", 0) or 0)
-        preco = float(base.get("preco_ha", 0) or base.get("preco_unit", 0) or 0)
-        tipo = str(base.get("tipo") or "").strip()
-        if hh > 0:
-            hm = 0.0
-
-        nk = normalizar_chave(nome)
-        key = nome if nome in tarifas else idx_norm.get(nk)
-        if key is None:
-            key = nome
-            tarifas[key] = {}
-            if nk:
-                idx_norm[nk] = key
-
-        row = tarifas.get(key)
-        if not isinstance(row, dict):
-            row = {}
-            tarifas[key] = row
-
-        mudou = False
-
-        if hh > 0:
-            if float(row.get("rendimento_hh", 0) or 0) != hh:
-                row["rendimento_hh"] = hh
-                mudou = True
-            if float(row.get("rendimento_hm", 0) or 0) != 0.0:
-                row["rendimento_hm"] = 0.0
-                mudou = True
-            if tipo and str(row.get("tipo") or "").strip() != tipo:
-                row["tipo"] = tipo
-                mudou = True
-            elif not row.get("tipo"):
-                row["tipo"] = "Manual"
-                mudou = True
-        elif hm > 0 and float(row.get("rendimento_hh", 0) or 0) <= 0:
-            if float(row.get("rendimento_hm", 0) or 0) != hm:
-                row["rendimento_hm"] = hm
-                mudou = True
-            if tipo and str(row.get("tipo") or "").strip() != tipo:
-                row["tipo"] = tipo
-                mudou = True
-            elif not row.get("tipo"):
-                row["tipo"] = "Mecanizada"
-                mudou = True
-
-        if preco > 0 and float(row.get("preco_ha", 0) or 0) != preco:
-            row["preco_ha"] = preco
-            mudou = True
-        if preco > 0 and float(row.get("preco_unit", 0) or 0) != preco:
-            row["preco_unit"] = preco
-            mudou = True
-
-        hh_row = float(row.get("rendimento_hh", 0) or 0)
-        hm_row = float(row.get("rendimento_hm", 0) or 0)
-        if hh_row > 0 and hm_row > 0:
-            row["rendimento_hm"] = 0.0
-            hm_row = 0.0
-            mudou = True
-
-        recurso = "homem" if hh_row > 0 else ("maquina" if hm_row > 0 else "homem")
-        if row.get("recurso") != recurso:
-            row["recurso"] = recurso
-            mudou = True
-        if "eficiencia" not in row:
-            row["eficiencia"] = 1.0
-            mudou = True
-
-        if mudou:
-            alterados += 1
-    return alterados
 
 def _aplicar_mapa_preco_final_em_rows_by_name(rows_by_name, mapa_json, fonte_tag):
     if not isinstance(rows_by_name, dict) or not mapa_json:
@@ -505,14 +422,6 @@ def _aplicar_mapa_preco_final_em_rows_by_name(rows_by_name, mapa_json, fonte_tag
             row["fonte_aba"] = fonte_tag
             alterados += 1
     return alterados
-
-def _depara_heuristico_exame_ct317(kn, tarifas):
-    """
-    Fallback heurístico foi DELIBERADAMENTE DESATIVADO para não impor horas/homem erradas
-    com nomes legados de planilhas antigas. Agora a ferramenta utilizará os exatos nomes
-    da CT317 presente na pasta. Se não encontrar um nome igual, a planilha pedirá mapeamento manual.
-    """
-    return None
 
 def _find_preco_final_sheet(xls):
     for s in xls.sheet_names:

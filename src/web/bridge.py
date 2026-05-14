@@ -109,6 +109,7 @@ class _ChainRedirect:
 
 
 _chain_redirector = _ChainRedirect(None)
+_redirect_lock = threading.Lock()
 
 
 class WebBridge:
@@ -326,15 +327,20 @@ bridge = WebBridge()
 
 
 def install_bridge():
-    cli_ui._web_bridge = bridge
-    cli_ui._WEB_MODE = True
-    _chain_redirector.install()
+    session = get_current_session()
+    bridge = WebBridge()
+    session._bridge = bridge
+    cli_ui._tl._web_bridge = bridge
+    cli_ui._tl._WEB_MODE = True
+    with _redirect_lock:
+        _chain_redirector.install()
 
 
 def uninstall_bridge():
-    cli_ui._web_bridge = None
-    cli_ui._WEB_MODE = False
-    _chain_redirector.uninstall()
+    with _redirect_lock:
+        _chain_redirector.uninstall()
+    cli_ui._tl._web_bridge = None
+    cli_ui._tl._WEB_MODE = cli_ui._WEB_MODE_INIT
 
 
 def _load_micro_df(session, cfg):
@@ -384,7 +390,8 @@ def _run_scheduler_single(session: Session, fazenda: str):
     _chain_redirector._parent_buf = session._output_buf
 
     try:
-        _chain_redirector.install_tee(session._output_buf)
+        with _redirect_lock:
+            _chain_redirector.install_tee(session._output_buf)
         from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
 
         micro_path, df = _load_micro_df(session, cfg)
@@ -435,7 +442,8 @@ def _run_scheduler_single(session: Session, fazenda: str):
         session.mark_finished(str(e))
         traceback.print_exc()
     finally:
-        _chain_redirector.uninstall_tee()
+        with _redirect_lock:
+            _chain_redirector.uninstall_tee()
         uninstall_bridge()
         set_current_session(None)
 

@@ -5,16 +5,15 @@ import os
 import pandas as pd
 
 from .config import (
-    INPUT_DIR, OUTPUT_DIR,
-    PROFILES_DIR, CT_REAL_FILENAME,
+    INPUT_DIR, CT_REAL_FILENAME,
     STG_FILENAME, KNOWN_COLUMNS,
     salvar_config,
 )
 from .text_utils import normalizar_chave, remover_acentos
 from .territorio import fazendas_unicas_micro, _indice_fazendas_ct
 from .ui import (
-    G, Y, R, C, DM, BL, RS,
-    console, sub, subcabecalho, aviso, erro, ok, prompt,
+    G, R, C, DM, BL, RS,
+    sub, subcabecalho, aviso, erro, ok,
     confirmar, selecionar, selecionar_paginado,
 )
 

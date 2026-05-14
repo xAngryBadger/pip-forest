@@ -73,28 +73,6 @@ def _candidatos_chave_atividade(texto):
 
 
 # ──────────────────────────────────────────────
-# DATE / PERIOD FORMATTING
-# ──────────────────────────────────────────────
-
-def _formatar_periodo_meta(mes_ref, ano_ref, prazo_meses):
-    """Retorna (inicio, fim) do periodo meta em texto (MM/AAAA)."""
-    try:
-        mes_ref = int(mes_ref)
-        ano_ref = int(ano_ref)
-        prazo_meses = int(round(float(prazo_meses)))
-    except Exception:
-        return None
-    inicio = f"{mes_ref:02d}/{ano_ref}"
-    if prazo_meses <= 0:
-        return (inicio, inicio)
-    mes_fim = mes_ref + (prazo_meses - 1)
-    ano_fim = ano_ref + (mes_fim - 1) // 12
-    mes_fim = ((mes_fim - 1) % 12) + 1
-    fim = f"{mes_fim:02d}/{ano_fim}"
-    return (inicio, fim)
-
-
-# ──────────────────────────────────────────────
 # MISC HELPERS
 # ──────────────────────────────────────────────
 

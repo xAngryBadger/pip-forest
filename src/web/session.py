@@ -99,12 +99,6 @@ class Session:
                 return self._current_step.copy()
         return None
 
-    def put_display(self, title, body, level="info"):
-        self.step("display", title, None, {"body": body, "level": level})
-
-    def put_table(self, title, headers, rows):
-        self.step("table", title, None, {"headers": headers, "rows": rows})
-
     def mark_finished(self, error=None):
         self.finished = True
         self.alive = False
@@ -170,5 +164,5 @@ def cleanup_old_sessions(max_age_hours=24):
             sid for sid, s in _sessions.items()
             if s.created_at < cutoff and s.finished
         ]
-    for sid in to_remove:
-        remove_session(sid)
+        for sid in to_remove:
+            _sessions.pop(sid, None)

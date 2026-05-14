@@ -127,21 +127,3 @@ STEP_TYPES = {
         "mobile_component": "Error Banner (8.8) + Return button",
     },
 }
-
-
-def validate_step(step: dict) -> list[str]:
-    errors = []
-    step_type = step.get("type")
-    if step_type not in STEP_TYPES:
-        errors.append(f"Unknown step type: {step_type}")
-        return errors
-    schema = STEP_TYPES[step_type]
-    payload_schema = schema.get("payload", {})
-    for key in payload_schema:
-        if key not in step and key != "options":
-            errors.append(f"Missing required field: {key}")
-    return errors
-
-
-def get_step_types() -> dict:
-    return STEP_TYPES.copy()

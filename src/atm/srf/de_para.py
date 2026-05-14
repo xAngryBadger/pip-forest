@@ -3,7 +3,6 @@
 from .config import salvar_config
 from .constants import DEFAULT_DEPARA_EXAME_CT317
 from .text_utils import normalizar_chave, _candidatos_chave_atividade
-from .tarifas import _depara_heuristico_exame_ct317
 
 def auto_mapear_de_para(cfg, atividades_reais):
     """
@@ -60,9 +59,6 @@ def aplicar_depara_padrao_exame(cfg, atividades_reais):
         for kn in _candidatos_chave_atividade(atv):
             if kn in DEFAULT_DEPARA_EXAME_CT317:
                 alvo = DEFAULT_DEPARA_EXAME_CT317[kn]
-                break
-            alvo = _depara_heuristico_exame_ct317(kn, tarifas)
-            if alvo:
                 break
         if alvo and alvo in tarifas and de_para.get(atv) != alvo:
             de_para[atv] = alvo

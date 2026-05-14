@@ -6,7 +6,7 @@ External: colorama (optional), rich (required)
 
 When SRF_WEB_MODE=1 is set, interactive functions (prompt, confirmar,
 pedir_float, pedir_int, pedir_jornada, selecionar, selecionar_paginado)
-delegate to _web_bridge instead of using terminal input(). This allows
+delegate to _get_web_bridge() instead of using terminal input(). This allows
 the web adapter (src/web/bridge.py) to intercept calls and route them
 through a queue-based pause/resume mechanism for the FastAPI web UI.
 """
@@ -15,9 +15,24 @@ import datetime
 import math
 import os
 import sys
+import threading
 
-_WEB_MODE = os.environ.get("SRF_WEB_MODE") == "1"
-_web_bridge = None
+_WEB_MODE_INIT = os.environ.get("SRF_WEB_MODE") == "1"
+_tl = threading.local()
+_tl._web_bridge = None
+_tl._WEB_MODE = _WEB_MODE_INIT
+
+
+def _get_web_bridge():
+    return getattr(_tl, "_web_bridge", None)
+
+
+def _is_web_mode():
+    return getattr(_tl, "_WEB_MODE", _WEB_MODE_INIT)
+
+
+def _is_web_mode():
+    return getattr(_tl, "_WEB_MODE", _WEB_MODE_INIT)
 
 try:
     from rich.console import Console
@@ -112,8 +127,8 @@ def ok(m):
 # ──────────────────────────────────────────────
 
 def prompt(msg, default=None):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.prompt(msg, default)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().prompt(msg, default)
     suf = f" [{default}]" if default is not None else ""
     try:
         v = input(G + " >> " + C + msg + suf + G + ": " + RS).strip()
@@ -124,8 +139,8 @@ def prompt(msg, default=None):
 
 
 def pedir_float(msg, default, allow_zero=False):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.pedir_float(msg, default, allow_zero=allow_zero)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().pedir_float(msg, default, allow_zero=allow_zero)
     while True:
         v = prompt(msg, default)
         try:
@@ -157,8 +172,8 @@ def _parse_jornada(valor):
 
 
 def pedir_jornada(msg, default):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.pedir_jornada(msg, default)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().pedir_jornada(msg, default)
     while True:
         v = prompt(msg, default)
         resultado = _parse_jornada(v)
@@ -168,8 +183,8 @@ def pedir_jornada(msg, default):
 
 
 def pedir_int(msg, default, allow_zero=False):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.pedir_int(msg, default, allow_zero=allow_zero)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().pedir_int(msg, default, allow_zero=allow_zero)
     while True:
         v = prompt(msg, default)
         try:
@@ -182,8 +197,8 @@ def pedir_int(msg, default, allow_zero=False):
 
 
 def selecionar(titulo, itens, zero_label="Voltar"):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.selecionar(titulo, itens, zero_label=zero_label)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().selecionar(titulo, itens, zero_label=zero_label)
     print(G + f"\n -- {titulo} " + "--" * max(0, (W - len(titulo) - 6) // 2) + RS)
     for i, it in enumerate(itens, 1):
         print(G + f" [{i:2}] " + C + str(it) + RS)
@@ -198,8 +213,8 @@ def selecionar(titulo, itens, zero_label="Voltar"):
 
 
 def selecionar_paginado(titulo, itens, page_size=5, zero_label="Voltar"):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.selecionar_paginado(titulo, itens, page_size=page_size, zero_label=zero_label)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().selecionar_paginado(titulo, itens, page_size=page_size, zero_label=zero_label)
     total = len(itens)
     page = 0
     max_page = math.ceil(total / page_size) - 1
@@ -236,8 +251,8 @@ def selecionar_paginado(titulo, itens, page_size=5, zero_label="Voltar"):
 
 
 def confirmar(msg, default=True):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.confirmar(msg, default=default)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().confirmar(msg, default=default)
     s = "S/n" if default else "s/N"
     v = prompt(f"{msg} [{s}]").strip().lower()
     if not v:
@@ -246,8 +261,8 @@ def confirmar(msg, default=True):
 
 
 def esperar(msg="Pressione ENTER para continuar"):
-    if _WEB_MODE and _web_bridge is not None:
-        _web_bridge.esperar(msg)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        _get_web_bridge().esperar(msg)
         return
     try:
         input(DM + f"\n [{msg}] " + RS)
@@ -257,8 +272,8 @@ def esperar(msg="Pressione ENTER para continuar"):
 
 
 def escolha(msg="Opcao", default="0"):
-    if _WEB_MODE and _web_bridge is not None:
-        return _web_bridge.escolha(msg, default)
+    if _is_web_mode() and _get_web_bridge() is not None:
+        return _get_web_bridge().escolha(msg, default)
     try:
         v = input(DM + f">> {msg}: " + RS).strip()
     except (EOFError, KeyboardInterrupt):

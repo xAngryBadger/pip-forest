@@ -18,14 +18,11 @@ from .scheduler import (
 from .turmas import menu_vincular_atividades_turma
 from .datas import (
     _converter_dia_simulado_para_data,
-    _DIAS_SEMANA_CURTO,
-    _DIAS_SEMANA_COMPLETO,
-    _formatar_data_dia,
 )
 from .ui import (
     G, Y, C, DM, BL, RS,
     sub, aviso, ok, prompt, selecionar,
-    linha, pedir_int,
+    pedir_int,
 )
 
 
@@ -64,81 +61,6 @@ def _classificar_fase_nome(atv, seq_cfg, modo, atvs_plantio, atvs_irrig):
             return fase.get("id", f"fase_{i}"), float(i)
     return "demais", 5.5
 
-
-def _gerar_aba_timeline(cronograma, seq_cfg, modo_seq, atividades_reais, fazenda, dia_ref=None, mes_ref=None, ano_ref=None):
-    """Retorna DataFrame para aba TIMELINE_CASCATA com colunas de visualização.
-    
-    Se dia_ref, mes_ref, ano_ref forem fornecidos, adiciona colunas de data real.
-    """
-    atvs_plantio = set(
-        atividades_por_filtro(
-            atividades_reais, seq_cfg.get("filtros_plantio") or ["plantio"]
-        )
-    )
-    atvs_irrig = set(
-        atividades_por_filtro(
-            atividades_reais, seq_cfg.get("filtros_irrigacao") or ["irrig"]
-        )
-    )
-    rows = []
-    for c in cronograma:
-        atv = c.get("Atividade", "")
-        fase_id, fase_val = _classificar_fase_nome(
-            atv, seq_cfg, modo_seq, atvs_plantio, atvs_irrig
-        )
-        modo_exec = c.get("Modo", "Normal")
-        if modo_exec == "Reforco":
-            fase_id_display = "reforco"
-        elif modo_exec == "PoolPosBloqueio":
-            fase_id_display = "pool"
-        else:
-            fase_id_display = fase_id
-        
-        dia_simulado = c.get("Dia", 1)
-        
-        # Calcular data real se parametros fornecidos
-        data_real = None
-        dia_semana = ""
-        if dia_ref and mes_ref and ano_ref:
-            data_tuple = _converter_dia_simulado_para_data(
-                dia_simulado, dia_ref, mes_ref, ano_ref
-            )
-            if data_tuple:
-                data_real = data_tuple[0]  # "20/04/2025"
-                dia_semana = data_tuple[1]  # "Seg"
-        
-        row = {
-            "Dia": dia_simulado,
-            "Semana": int(math.ceil(float(dia_simulado) / 5.0)),
-            "Fazenda": fazenda,
-            "Talhao": c.get("Talhao", ""),
-            "Atividade": atv,
-            "Fase": _fase_nome_pt(fase_id),
-            "Fase_ID": fase_id,
-            "Fase_Ordem": fase_val,
-            "Turma": c.get("Turma", ""),
-            "Operarios": c.get("Operarios", 0),
-            "HH": c.get("HH", 0),
-            "Custo_MO": c.get("Custo_MO", 0),
-            "Modo": modo_exec,
-            "Cor_Hex": _FASE_CORES_HEX.get(fase_id_display, "BDC3C7"),
-        }
-        
-        # Adicionar colunas de data real se calculadas
-        if data_real:
-            row["Data"] = data_real
-            row["Dia_Semana"] = dia_semana
-            
-        rows.append(row)
-    
-    df = pd.DataFrame(rows) if rows else pd.DataFrame()
-    
-    # Reordenar colunas: Data, Dia_Semana primeiro se existirem
-    if not df.empty and "Data" in df.columns:
-        cols = ["Data", "Dia_Semana"] + [c for c in df.columns if c not in ["Data", "Dia_Semana"]]
-        df = df[cols]
-    
-    return df
 
 
 def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None, ano_ref=None):
@@ -372,45 +294,6 @@ def _df_crono_operacional(df_crono, dia_ref=None, mes_ref=None, ano_ref=None):
         df.insert(0, "Data", datas_reais)
     
     return df
-
-
-def _escrever_cronograma_e_cascata(
-    writer, df_crono_op, df_timeline, sheet_name="CRONOGRAMA_E_CASCATA"
-):
-    """
-    Cronograma e timeline na mesma folha (linha em branco entre blocos).
-    Retorna a linha 1-based do cabecalho da timeline (para colorir Fase), ou None.
-    """
-    df_crono_op.to_excel(writer, sheet_name=sheet_name, index=False, startrow=0)
-    if df_timeline is None or getattr(df_timeline, "empty", True):
-        return None
-    start = len(df_crono_op) + 2
-    df_timeline.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start)
-    return start + 1
-
-
-def _aplicar_cores_timeline_excel(wb, sheet_name="TIMELINE_CASCATA", header_row=1):
-    """Colorir coluna Cor_Hex como fill real na coluna da Fase (header_row = linha do cabecalho da timeline, 1-based)."""
-    try:
-        from openpyxl.styles import Font, PatternFill
-    except ImportError:
-        return
-    if sheet_name not in wb.sheetnames:
-        return
-    ws = wb[sheet_name]
-    header = [cell.value for cell in ws[header_row]]
-    if "Cor_Hex" not in header or "Fase" not in header:
-        return
-    idx_cor = header.index("Cor_Hex") + 1
-    idx_fase = header.index("Fase") + 1
-    for row in ws.iter_rows(min_row=header_row + 1, max_row=ws.max_row):
-        hex_val = str(row[idx_cor - 1].value or "BDC3C7")
-        if len(hex_val) == 6:
-            fill = PatternFill(
-                start_color=hex_val, end_color=hex_val, fill_type="solid"
-            )
-            row[idx_fase - 1].fill = fill
-            row[idx_fase - 1].font = Font(color="FFFFFF", bold=True)
 
 
 def _aplicar_cores_ocupacao_excel(wb, sheet_name="OCUPACAO_TURMAS_DIA"):
