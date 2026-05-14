@@ -459,7 +459,8 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
 
 
 @app.get("/term/poll/{session_id}")
-async def term_poll(session_id: str, seq: int = 0):
+async def term_poll(request: Request, session_id: str, seq: int = 0):
+    _require_auth(request)
     ts = term_module.get_session(session_id)
     if not ts:
         raise HTTPException(status_code=404)
@@ -470,6 +471,7 @@ async def term_poll(session_id: str, seq: int = 0):
 
 @app.post("/term/write/{session_id}")
 async def term_write(session_id: str, request: Request):
+    _require_auth(request)
     ts = term_module.get_session(session_id)
     if not ts:
         raise HTTPException(status_code=404)

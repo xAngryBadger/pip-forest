@@ -104,58 +104,78 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
  const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
  const pollUrl = '/term/poll/' + sid;
  const writeUrl = '/term/write/' + sid;
- let ws = null;
- let usePoll = false;
- let pollSeq = 0;
- let pollInterval = null;
- let reconnectDelay = 1000;
- let wsFailCount = 0;
- const WS_MAX_FAIL = 3;
- let knownFiles = [];
+let ws = null;
+let usePoll = false;
+let pollSeq = 0;
+let pollInterval = null;
+let reconnectDelay = 1000;
+let wsFailCount = 0;
+const WS_MAX_FAIL = 2;
+const WS_CONNECT_TIMEOUT = 5000;
+let wsConnectTimer = null;
+let knownFiles = [];
 
- function connect() {
+function _wsFallbackToPoll() {
+  if (usePoll) return;
+  if (ws) {
+    ws.onopen = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
+    try { ws.close(); } catch(e) {}
+    ws = null;
+  }
+  usePoll = true;
+  statusEl.textContent = 'polling...';
+  startPolling();
+}
+
+function connect() {
   if (usePoll) { startPolling(); return; }
   ws = new WebSocket(wsUrl);
   ws.binaryType = 'arraybuffer';
+  wsConnectTimer = setTimeout(_wsFallbackToPoll, WS_CONNECT_TIMEOUT);
 
   ws.onopen = function() {
-   statusEl.textContent = 'conectado';
-   statusEl.className = 'connected';
-   reconnectDelay = 1000;
-   wsFailCount = 0;
-   term.focus();
-   term.write('\x1b[?25h');
+    clearTimeout(wsConnectTimer);
+    wsConnectTimer = null;
+    statusEl.textContent = 'conectado';
+    statusEl.className = 'connected';
+    reconnectDelay = 1000;
+    wsFailCount = 0;
+    term.focus();
+    term.write('\x1b[?25h');
   };
 
   ws.onmessage = function(evt) {
-   if (evt.data instanceof ArrayBuffer) {
-    term.write(new Uint8Array(evt.data));
-   } else if (typeof evt.data === 'string') {
-    term.write(evt.data);
-   }
+    if (evt.data instanceof ArrayBuffer) {
+      term.write(new Uint8Array(evt.data));
+    } else if (typeof evt.data === 'string') {
+      term.write(evt.data);
+    }
   };
 
   ws.onclose = function() {
-   statusEl.textContent = 'desconectado';
-   statusEl.className = 'disconnected';
-   ws = null;
-   wsFailCount++;
-   if (wsFailCount >= WS_MAX_FAIL) {
-    usePoll = true;
-    statusEl.textContent = 'polling...';
-    startPolling();
-    return;
-   }
-   setTimeout(function() {
-    reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-    connect();
-   }, reconnectDelay);
+    clearTimeout(wsConnectTimer);
+    wsConnectTimer = null;
+    statusEl.textContent = 'desconectado';
+    statusEl.className = 'disconnected';
+    ws = null;
+    wsFailCount++;
+    if (wsFailCount >= WS_MAX_FAIL) {
+      _wsFallbackToPoll();
+      return;
+    }
+    setTimeout(function() {
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+      connect();
+    }, reconnectDelay);
   };
 
   ws.onerror = function() {
-   ws.close();
+    ws.close();
   };
- }
+}
 
  function startPolling() {
   if (pollInterval) return;
@@ -167,9 +187,9 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   pollInterval = setInterval(doPoll, 100);
  }
 
- function doPoll() {
-  fetch(pollUrl + '?seq=' + pollSeq)
-   .then(function(r) { return r.json(); })
+  function doPoll() {
+    fetch(pollUrl + '?seq=' + pollSeq, {credentials: 'include'})
+      .then(function(r) { return r.json(); })
    .then(function(d) {
     if (d.chunks && d.chunks.length > 0) {
      pollSeq = d.seq;
@@ -193,30 +213,30 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
  }
 
- term.onData(function(data) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-   const encoder = new TextEncoder();
-   ws.send(encoder.encode(data));
-  } else if (usePoll) {
-   fetch(writeUrl, {method: 'POST', body: data});
-  }
- });
+  term.onData(function(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const encoder = new TextEncoder();
+      ws.send(encoder.encode(data));
+    } else if (usePoll) {
+      fetch(writeUrl, {method: 'POST', body: data, credentials: 'include'});
+    }
+  });
 
- term.onResize(function(size) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-   ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
-  } else if (usePoll) {
-   fetch(writeUrl, {method: 'POST', body: JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols})});
-  }
- });
+  term.onResize(function(size) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
+    } else if (usePoll) {
+      fetch(writeUrl, {method: 'POST', body: JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}), credentials: 'include'});
+    }
+  });
 
   window.addEventListener('resize', function() {
     fitAddon.fit();
   });
 
-  var uploadBtn = document.getElementById('upload-btn');
-  var uploadInput = document.getElementById('upload-input');
-  uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+var uploadBtn = document.getElementById('upload-btn');
+var uploadInput = document.getElementById('upload-input');
+uploadBtn.addEventListener('click', function() { uploadInput.click(); });
 uploadInput.addEventListener('change', function() {
   var files = Array.from(uploadInput.files);
   if (!files.length) return;
@@ -225,7 +245,7 @@ uploadInput.addEventListener('change', function() {
   files.forEach(function(f) {
     var fd = new FormData();
     fd.append('file', f);
-    fetch('/term/upload/' + sid, {method: 'POST', body: fd})
+    fetch('/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
     .then(function(r) { return r.json(); })
     .then(function(d) {
       done++;
@@ -247,32 +267,31 @@ uploadInput.addEventListener('change', function() {
     });
   });
 });
-  });
 
-  function pollFiles() {
-    fetch('/term/api/sessions/' + sid + '/files')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.files && data.files.length > 0) {
-          var changed = JSON.stringify(data.files) !== JSON.stringify(knownFiles);
-          if (changed) {
-            knownFiles = data.files;
-            var links = document.getElementById('file-links');
-            links.innerHTML = data.files.map(function(f) {
-              return '<a href="/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
-            }).join(' ');
-            document.getElementById('file-bar').classList.add('visible');
-            fitAddon.fit();
-          }
-        }
-      })
-      .catch(function() {});
-  }
+function pollFiles() {
+  fetch('/term/api/sessions/' + sid + '/files', {credentials: 'include'})
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.files && data.files.length > 0) {
+      var changed = JSON.stringify(data.files) !== JSON.stringify(knownFiles);
+      if (changed) {
+        knownFiles = data.files;
+        var links = document.getElementById('file-links');
+        links.innerHTML = data.files.map(function(f) {
+          return '<a href="/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
+        }).join(' ');
+        document.getElementById('file-bar').classList.add('visible');
+        fitAddon.fit();
+      }
+    }
+  })
+  .catch(function() {});
+}
 
-  setInterval(pollFiles, 10000);
-  pollFiles();
+setInterval(pollFiles, 10000);
+pollFiles();
 
-  connect();
+connect();
 })();
 </script>
 </body>
