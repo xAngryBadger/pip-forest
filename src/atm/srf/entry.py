@@ -151,55 +151,55 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
             if df_scope is None or df_scope.empty:
                 aviso("Nenhum dado apos filtros.")
                 continue
-                catalogo_scope = sorted(
-                    {
-                        str(x).strip()
-                        for x in df_scope["atividade"].dropna().unique().tolist()
-                        if str(x).strip()
-                    },
-                    key=str,
+            catalogo_scope = sorted(
+                {
+                    str(x).strip()
+                    for x in df_scope["atividade"].dropna().unique().tolist()
+                    if str(x).strip()
+                },
+                key=str,
+            )
+            fazendas = sorted(df_scope["fazenda"].unique().tolist())
+            if len(fazendas) == 1:
+                faz = fazendas[0]
+                ok(f"Fazenda unica no escopo: {faz}")
+                _executar_scheduler_fazenda_interativo(
+                    cfg,
+                    df_scope,
+                    faz,
+                    catalogo_scope,
                 )
-                fazendas = sorted(df_scope["fazenda"].unique().tolist())
-                if len(fazendas) == 1:
-                    faz = fazendas[0]
-                    ok(f"Fazenda unica no escopo: {faz}")
+            else:
+                op_faz = [
+                    "TODAS AS FAZENDAS (equipe unica)",
+                    "MULTI-EQUIPES (carteiras separadas)",
+                ] + fazendas
+                faz = selecionar("SELECIONE A FAZENDA OU MODO", op_faz)
+                if faz == "TODAS AS FAZENDAS (equipe unica)":
+                    contexto_sessao.atualizar_modo("lote")
+                    _executar_lote_fazendas(
+                        cfg,
+                        df_scope,
+                        fazendas,
+                        empresa_filtro=empresa_filtro,
+                        nome_arquivo_micro=nome_arquivo_micro,
+                    )
+                elif faz == "MULTI-EQUIPES (carteiras separadas)":
+                    contexto_sessao.atualizar_modo("multi_equipes")
+                    _executar_multi_equipes(
+                        cfg,
+                        df_scope,
+                        fazendas,
+                        empresa_filtro=empresa_filtro,
+                        nome_arquivo_micro=nome_arquivo_micro,
+                    )
+                elif faz:
                     _executar_scheduler_fazenda_interativo(
                         cfg,
                         df_scope,
                         faz,
                         catalogo_scope,
                     )
-                else:
-                    op_faz = [
-                        "TODAS AS FAZENDAS (equipe unica)",
-                        "MULTI-EQUIPES (carteiras separadas)",
-                    ] + fazendas
-                    faz = selecionar("SELECIONE A FAZENDA OU MODO", op_faz)
-                    if faz == "TODAS AS FAZENDAS (equipe unica)":
-                        contexto_sessao.atualizar_modo("lote")
-                        _executar_lote_fazendas(
-                            cfg,
-                            df_scope,
-                            fazendas,
-                            empresa_filtro=empresa_filtro,
-                            nome_arquivo_micro=nome_arquivo_micro,
-                        )
-                    elif faz == "MULTI-EQUIPES (carteiras separadas)":
-                        contexto_sessao.atualizar_modo("multi_equipes")
-                        _executar_multi_equipes(
-                            cfg,
-                            df_scope,
-                            fazendas,
-                            empresa_filtro=empresa_filtro,
-                            nome_arquivo_micro=nome_arquivo_micro,
-                        )
-                    elif faz:
-                        _executar_scheduler_fazenda_interativo(
-                            cfg,
-                            df_scope,
-                            faz,
-                            catalogo_scope,
-                        )
         elif v == "2":
             modulo_importar_tarifas(cfg)
         elif v == "3":
