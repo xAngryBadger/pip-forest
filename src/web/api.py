@@ -435,7 +435,7 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
                     msg = json.loads(text)
                     if msg.get("type") == "resize":
                         await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
-                    continue
+                        continue
                 except Exception:
                     pass
                 await term_module.write_to_process(ts, data)
@@ -456,6 +456,34 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
         pass
     finally:
         ts.remove_ws(websocket)
+
+
+@app.get("/term/poll/{session_id}")
+async def term_poll(session_id: str, seq: int = 0):
+    ts = term_module.get_session(session_id)
+    if not ts:
+        raise HTTPException(status_code=404)
+    if ts._read_task is None and ts.fd is not None:
+        ts._read_task = asyncio.ensure_future(term_module.read_loop(ts))
+    return ts.poll_output(since_seq=seq)
+
+
+@app.post("/term/write/{session_id}")
+async def term_write(session_id: str, request: Request):
+    ts = term_module.get_session(session_id)
+    if not ts:
+        raise HTTPException(status_code=404)
+    body = await request.body()
+    try:
+        import json
+        msg = json.loads(body)
+        if msg.get("type") == "resize":
+            await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
+            return {"status": "ok"}
+    except Exception:
+        pass
+    await term_module.write_to_process(ts, body)
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

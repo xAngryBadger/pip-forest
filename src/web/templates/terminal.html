@@ -98,61 +98,117 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   term.open(container);
   fitAddon.fit();
 
-  const statusEl = document.getElementById('status');
-  const sid = '{{ session_id }}';
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
-  let ws = null;
-  let reconnectDelay = 1000;
-  let knownFiles = [];
+ const statusEl = document.getElementById('status');
+ const sid = '{{ session_id }}';
+ const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+ const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
+ const pollUrl = '/term/poll/' + sid;
+ const writeUrl = '/term/write/' + sid;
+ let ws = null;
+ let usePoll = false;
+ let pollSeq = 0;
+ let pollInterval = null;
+ let reconnectDelay = 1000;
+ let wsFailCount = 0;
+ const WS_MAX_FAIL = 3;
+ let knownFiles = [];
 
-  function connect() {
-    ws = new WebSocket(wsUrl);
-    ws.binaryType = 'arraybuffer';
+ function connect() {
+  if (usePoll) { startPolling(); return; }
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
 
-    ws.onopen = function() {
-      statusEl.textContent = 'conectado';
-      statusEl.className = 'connected';
-      reconnectDelay = 1000;
-      term.focus();
-      term.write('\x1b[?25h');
-    };
+  ws.onopen = function() {
+   statusEl.textContent = 'conectado';
+   statusEl.className = 'connected';
+   reconnectDelay = 1000;
+   wsFailCount = 0;
+   term.focus();
+   term.write('\x1b[?25h');
+  };
 
-    ws.onmessage = function(evt) {
-      if (evt.data instanceof ArrayBuffer) {
-        term.write(new Uint8Array(evt.data));
-      } else if (typeof evt.data === 'string') {
-        term.write(evt.data);
-      }
-    };
+  ws.onmessage = function(evt) {
+   if (evt.data instanceof ArrayBuffer) {
+    term.write(new Uint8Array(evt.data));
+   } else if (typeof evt.data === 'string') {
+    term.write(evt.data);
+   }
+  };
 
-    ws.onclose = function() {
-      statusEl.textContent = 'desconectado';
-      statusEl.className = 'disconnected';
-      ws = null;
-      setTimeout(function() {
-        reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-        connect();
-      }, reconnectDelay);
-    };
+  ws.onclose = function() {
+   statusEl.textContent = 'desconectado';
+   statusEl.className = 'disconnected';
+   ws = null;
+   wsFailCount++;
+   if (wsFailCount >= WS_MAX_FAIL) {
+    usePoll = true;
+    statusEl.textContent = 'polling...';
+    startPolling();
+    return;
+   }
+   setTimeout(function() {
+    reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+    connect();
+   }, reconnectDelay);
+  };
 
-    ws.onerror = function() {
-      ws.close();
-    };
+  ws.onerror = function() {
+   ws.close();
+  };
+ }
+
+ function startPolling() {
+  if (pollInterval) return;
+  statusEl.textContent = 'conectado (poll)';
+  statusEl.className = 'connected';
+  term.focus();
+  pollSeq = 0;
+  doPoll();
+  pollInterval = setInterval(doPoll, 100);
+ }
+
+ function doPoll() {
+  fetch(pollUrl + '?seq=' + pollSeq)
+   .then(function(r) { return r.json(); })
+   .then(function(d) {
+    if (d.chunks && d.chunks.length > 0) {
+     pollSeq = d.seq;
+     d.chunks.forEach(function(b64) {
+      var bin = atob(b64);
+      var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      term.write(arr);
+     });
+    }
+    if (d.finished && (!d.chunks || d.chunks.length === 0)) {
+     stopPolling();
+     statusEl.textContent = 'finalizado';
+     statusEl.className = 'disconnected';
+    }
+   })
+   .catch(function() {});
+ }
+
+ function stopPolling() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+ }
+
+ term.onData(function(data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+   const encoder = new TextEncoder();
+   ws.send(encoder.encode(data));
+  } else if (usePoll) {
+   fetch(writeUrl, {method: 'POST', body: data});
   }
+ });
 
-  term.onData(function(data) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const encoder = new TextEncoder();
-      ws.send(encoder.encode(data));
-    }
-  });
-
-  term.onResize(function(size) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
-    }
-  });
+ term.onResize(function(size) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+   ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
+  } else if (usePoll) {
+   fetch(writeUrl, {method: 'POST', body: JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols})});
+  }
+ });
 
   window.addEventListener('resize', function() {
     fitAddon.fit();
