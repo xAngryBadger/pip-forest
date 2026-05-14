@@ -323,12 +323,10 @@ class WebBridge:
         return str(result).strip() if result else str(default)
 
 
-bridge = WebBridge()
-
-
 def install_bridge():
     session = get_current_session()
     bridge = WebBridge()
+    session._bridge = bridge
     session._bridge = bridge
     cli_ui._tl._web_bridge = bridge
     cli_ui._tl._WEB_MODE = True
@@ -488,6 +486,8 @@ def _run_scheduler_batch(session: Session):
         session.mark_finished(str(e))
         traceback.print_exc()
     finally:
+        with _redirect_lock:
+            _chain_redirector.uninstall_tee()
         uninstall_bridge()
         set_current_session(None)
 
@@ -533,6 +533,8 @@ def _run_scheduler_multi(session: Session):
         session.mark_finished(str(e))
         traceback.print_exc()
     finally:
+        with _redirect_lock:
+            _chain_redirector.uninstall_tee()
         uninstall_bridge()
         set_current_session(None)
 

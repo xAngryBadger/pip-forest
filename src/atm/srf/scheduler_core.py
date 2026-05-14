@@ -2,7 +2,7 @@
 
 import datetime
 import calendar
-import io
+from io import StringIO as _StringIO
 import math
 import os
 import traceback
@@ -2338,7 +2338,7 @@ def calcular_cronograma_inteligente(
         }
         
         if execucao_compacta:
-            _buf_cmp = io.StringIO()
+            _buf_cmp = _StringIO()
             try:
                 with redirect_stdout(_buf_cmp), redirect_stderr(_buf_cmp):
                     resultado_mecanizado = calcular_cronograma_inteligente(

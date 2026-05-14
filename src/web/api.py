@@ -1,5 +1,6 @@
 import os
 import asyncio
+import json
 import uuid
 from pathlib import Path
 
@@ -26,19 +27,6 @@ _jinja_env = Environment(
     autoescape=select_autoescape(["html"]),
     auto_reload=True,
 )
-
-_orig_load = _jinja_env._load_template
-
-
-def _patched_load(name, globals):
-    try:
-        return _orig_load(name, globals)
-    except TypeError:
-        template = _jinja_env._parse(name, globals)
-        return template
-
-
-_jinja_env._load_template = _patched_load
 
 if _STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
@@ -324,6 +312,7 @@ async def debug_session(request: Request, session_id: str):
 
 @app.get("/api/step-types")
 async def api_step_types(request: Request):
+    _require_auth(request)
     return JSONResponse(STEP_TYPES)
 
 
@@ -430,7 +419,6 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
             if "bytes" in raw:
                 data = raw["bytes"]
                 try:
-                    import json
                     text = data.decode("utf-8", errors="replace")
                     msg = json.loads(text)
                     if msg.get("type") == "resize":
@@ -442,7 +430,6 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
             elif "text" in raw:
                 text = raw["text"]
                 try:
-                    import json
                     msg = json.loads(text)
                     if msg.get("type") == "resize":
                         await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
@@ -477,7 +464,6 @@ async def term_write(session_id: str, request: Request):
         raise HTTPException(status_code=404)
     body = await request.body()
     try:
-        import json
         msg = json.loads(body)
         if msg.get("type") == "resize":
             await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))

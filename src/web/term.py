@@ -154,7 +154,7 @@ def spawn_process(session: TermSession):
     python = sys.executable
     env = os.environ.copy()
     env["SRF_DATA_DIR"] = str(session.data_dir)
-    env["SRF_WEB_MODE"] = ""
+    env["SRF_WEB_MODE"] = "0"
     env.pop("SRF_PASSWORD", None)
     env["TERM"] = "xterm-256color"
     env["COLUMNS"] = "80"
