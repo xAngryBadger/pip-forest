@@ -130,7 +130,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
                 + os.path.basename(nome_arquivo_micro)
                 + RS
             )
-        if _is_demo_micro_path(nome_arquivo_micro):
+        if "demo" in os.path.basename(nome_arquivo_micro).lower():
             print(
                 Y
                 + f"   DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
