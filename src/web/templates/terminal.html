@@ -46,7 +46,7 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
 </head>
 <body>
 <div id="top-bar">
-  <a href="/app">SRF</a>
+  <a id="srf-link" href="#">SRF</a>
   <span class="sep">|</span>
   <span>{{ session_id }}</span>
   <span class="sep">|</span>
@@ -98,12 +98,13 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   term.open(container);
   fitAddon.fit();
 
- const statusEl = document.getElementById('status');
- const sid = '{{ session_id }}';
- const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
- const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
- const pollUrl = '/term/poll/' + sid;
- const writeUrl = '/term/write/' + sid;
+const statusEl = document.getElementById('status');
+const sid = '{{ session_id }}';
+const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const _base = location.pathname.replace(/\/term\/[^/]+$/, '');
+const wsUrl = proto + '//' + location.host + _base + '/ws/term/' + sid;
+const pollUrl = _base + '/term/poll/' + sid;
+const writeUrl = _base + '/term/write/' + sid;
 let ws = null;
 let usePoll = false;
 let pollSeq = 0;
@@ -245,7 +246,7 @@ uploadInput.addEventListener('change', function() {
   files.forEach(function(f) {
     var fd = new FormData();
     fd.append('file', f);
-    fetch('/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
+    fetch(_base + '/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
     .then(function(r) { return r.json(); })
     .then(function(d) {
       done++;
@@ -269,7 +270,7 @@ uploadInput.addEventListener('change', function() {
 });
 
 function pollFiles() {
-  fetch('/term/api/sessions/' + sid + '/files', {credentials: 'include'})
+  fetch(_base + '/term/api/sessions/' + sid + '/files', {credentials: 'include'})
   .then(function(r) { return r.json(); })
   .then(function(data) {
     if (data.files && data.files.length > 0) {
@@ -278,7 +279,7 @@ function pollFiles() {
         knownFiles = data.files;
         var links = document.getElementById('file-links');
         links.innerHTML = data.files.map(function(f) {
-          return '<a href="/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
+          return '<a href="' + _base + '/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
         }).join(' ');
         document.getElementById('file-bar').classList.add('visible');
         fitAddon.fit();
@@ -292,6 +293,8 @@ setInterval(pollFiles, 10000);
 pollFiles();
 
 connect();
+
+document.getElementById('srf-link').href = _base + '/app';
 })();
 </script>
 </body>

@@ -19,6 +19,7 @@ _BASE_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
 _DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
+_BASE_PATH = os.environ.get("SRF_BASE_PATH", "").rstrip("/")
 
 app = FastAPI(title="SRF v6.3 Web", docs_url=None, redoc_url=None)
 
@@ -33,6 +34,7 @@ if _STATIC_DIR.exists():
 
 
 def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
+    context.setdefault("base_path", _BASE_PATH)
     template = _jinja_env.get_template(template_name)
     html = template.render(**context)
     return HTMLResponse(content=html, status_code=status_code)

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{% if base_path %}<base href="{{ base_path }}/">{% endif %}
 <title>{% block title %}SRF v6.3{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,7 +11,7 @@
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('srf-theme') || 'neo-brutalist');</script>
-<script src="/static/app.js"></script>
+<script src="{{ base_path }}/static/app.js"></script>
 <style>
 :root {
   --bg: #0A0A0A;
