@@ -530,7 +530,7 @@ def calcular_cronograma_inteligente(
     else:
         modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
-        modo_ctx = f"seq:{modo_seq}"
+    modo_ctx = f"seq:{modo_seq}"
     modo_existente = contexto_sessao.modo_atual
     if modo_existente:
         if modo_ctx not in str(modo_existente):
@@ -603,6 +603,7 @@ def calcular_cronograma_inteligente(
         prazo_meses = ctx["prazo_meses"]
         mes_ref = ctx["mes_ref"]
         ano_ref = ctx["ano_ref"]
+        dia_ref = ctx.get("dia_ref", 1)
         data_inicio_txt = ctx.get("data_inicio_txt")
         data_fim_txt = ctx.get("data_fim_txt")
         if data_inicio_txt or data_fim_txt:
@@ -926,6 +927,10 @@ def calcular_cronograma_inteligente(
             menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
 
     while True:
+        if _batch:
+            sub()
+            print(DM + " CHECKPOINT RETROATIVO — modo batch, continuando..." + RS)
+            break
         sub()
         print(G + BL + " CHECKPOINT RETROATIVO" + RS)
         op_cp = selecionar(
