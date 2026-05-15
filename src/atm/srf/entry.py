@@ -16,6 +16,7 @@ from .ui import (
     aviso,
     ok,
     prompt,
+    confirmar,
     selecionar,
     esperar,
 )
@@ -151,7 +152,15 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
             if df_scope is None or df_scope.empty:
                 aviso("Nenhum dado apos filtros.")
                 continue
-            catalogo_scope = sorted(
+            catalogo_full = sorted(
+                {
+                    str(x).strip()
+                    for x in df["atividade"].dropna().unique().tolist()
+                    if str(x).strip()
+                },
+                key=str,
+            )
+            catalogo_filtrado = sorted(
                 {
                     str(x).strip()
                     for x in df_scope["atividade"].dropna().unique().tolist()
@@ -159,6 +168,26 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
                 },
                 key=str,
             )
+            if len(catalogo_filtrado) < len(catalogo_full):
+                dif = set(catalogo_full) - set(catalogo_filtrado)
+                print(
+                    Y
+                    + f" ATIVIDADES: {len(catalogo_filtrado)} no escopo filtrado vs {len(catalogo_full)} no micro completo."
+                    + RS
+                )
+                print(
+                    DM
+                    + f"  {len(dif)} atividade(s) ausente(s) no escopo: {', '.join(sorted(dif)[:5])}"
+                    + ("..." if len(dif) > 5 else "")
+                    + RS
+                )
+                escopo_total = confirmar(
+                    f"Usar catalogo COMPLETO ({len(catalogo_full)} atividades) em vez do filtrado ({len(catalogo_filtrado)})",
+                    default=True,
+                )
+                catalogo_scope = catalogo_full if escopo_total else catalogo_filtrado
+            else:
+                catalogo_scope = catalogo_full
             fazendas = sorted(df_scope["fazenda"].unique().tolist())
             if len(fazendas) == 1:
                 faz = fazendas[0]
