@@ -24,6 +24,17 @@ hx-post="{{ base_path }}/upload" hx-target="#upload-status" hx-swap="innerHTML">
 </div>
 
 <div class="card p-4 mb-4">
+<h2 class="text-sm font-bold mb-2" style="color: var(--muted);">Upload CT (Tabela de Precos)</h2>
+<form enctype="multipart/form-data"
+hx-post="{{ base_path }}/upload-ct" hx-target="#ct-upload-status" hx-swap="innerHTML">
+<label for="ct-file-upload" class="block text-sm mb-1">CT .xlsx (ex: ct317real.xlsx)</label>
+<input type="file" id="ct-file-upload" name="file" accept=".xlsx,.xlsm,.xls" class="w-full mb-2" aria-label="Selecionar arquivo CT">
+<button type="submit" class="btn btn-muted w-full min-h-[48px]">Enviar CT</button>
+</form>
+<div id="ct-upload-status"></div>
+</div>
+
+<div class="card p-4 mb-4">
 <h2 class="text-sm font-bold mb-2" style="color: var(--muted);">Sessões Terminal</h2>
 <ul class="text-sm" role="list" id="term-sessions"></ul>
 <p class="text-sm" style="color: var(--muted);" id="no-sessions">Nenhuma sessão ativa</p>

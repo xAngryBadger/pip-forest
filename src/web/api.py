@@ -263,6 +263,43 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
 
 
+@app.post("/upload-ct")
+async def upload_ct_file(request: Request, file: UploadFile = File(...)):
+    _require_auth(request)
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file selected")
+
+    dest_dir = _DATA_DIR / "planilhas"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / file.filename
+
+    content = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(content)
+
+    n_atividades = 0
+    custo_h = 0.0
+    erro_msg = ""
+    try:
+        from src.atm.srf.tarifas import normalizar_ct313, carregar_stg_tarifas
+        from src.atm.srf.config import carregar_config, salvar_config
+        stg_path, n, custo_h = normalizar_ct313(str(dest_path))
+        if stg_path and n > 0:
+            cfg = carregar_config()
+            cfg["tarifas"] = carregar_stg_tarifas(stg_path)
+            cfg["custo_hora_tf"] = round(custo_h, 4)
+            cfg["ct_atual"] = file.filename
+            salvar_config(cfg)
+            n_atividades = n
+    except Exception as ex:
+        erro_msg = str(ex)
+
+    result = {"status": "ok", "filename": file.filename, "size": len(content), "atividades": n_atividades, "custo_hora": round(custo_h, 2)}
+    if erro_msg:
+        result["aviso"] = erro_msg
+    return JSONResponse(result)
+
+
 @app.post("/term/upload/{session_id}")
 async def term_upload_file(request: Request, session_id: str, file: UploadFile = File(...)):
     _require_auth(request)
@@ -278,7 +315,28 @@ async def term_upload_file(request: Request, session_id: str, file: UploadFile =
     with open(session_dir / file.filename, "wb") as f:
         f.write(content)
 
-    return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
+    is_ct = False
+    n_atividades = 0
+    from src.atm.srf.text_utils import normalizar_chave
+    fn_norm = normalizar_chave(file.filename)
+    if "ct" in fn_norm and any(d in fn_norm for d in ["313", "317", "315", "316"]):
+        is_ct = True
+        try:
+            from src.atm.srf.tarifas import normalizar_ct313, carregar_stg_tarifas
+            from src.atm.srf.config import carregar_config, salvar_config
+            stg_path, n, custo_h = normalizar_ct313(str(session_dir / file.filename))
+            if stg_path and n > 0:
+                cfg = carregar_config()
+                cfg["tarifas"] = carregar_stg_tarifas(stg_path)
+                cfg["custo_hora_tf"] = round(custo_h, 4)
+                cfg["ct_atual"] = file.filename
+                salvar_config(cfg)
+                n_atividades = n
+        except Exception:
+            pass
+
+    result = {"status": "ok", "filename": file.filename, "size": len(content), "is_ct": is_ct, "atividades": n_atividades}
+    return JSONResponse(result)
 
 
 @app.post("/abort/{session_id}")

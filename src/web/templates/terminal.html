@@ -24,6 +24,13 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
 }
 #upload-btn:hover { background: #444; }
 #upload-input { display: none; }
+#upload-ct-btn {
+ background: #333; color: #ffd700; border: 1px solid #555; border-radius: 3px;
+ padding: 2px 8px; cursor: pointer; font-family: inherit; font-size: 11px;
+ margin-left: 4px;
+}
+#upload-ct-btn:hover { background: #444; }
+#upload-ct-input { display: none; }
 #status { margin-left: auto; font-size: 11px; }
 #status.connected { color: #00ff66; }
 #status.disconnected { color: #ff3b3b; }
@@ -52,6 +59,8 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   <span class="sep">|</span>
 <button id="upload-btn">+arquivo</button>
 <input type="file" id="upload-input" accept=".xlsx,.xlsm,.xls,.csv" multiple>
+<button id="upload-ct-btn">+CT</button>
+<input type="file" id="upload-ct-input" accept=".xlsx,.xlsm,.xls">
   <span id="status" class="disconnected">conectando...</span>
 </div>
 <div id="terminal-container"></div>
@@ -267,6 +276,34 @@ uploadInput.addEventListener('change', function() {
       }
     });
   });
+});
+
+var uploadCtBtn = document.getElementById('upload-ct-btn');
+var uploadCtInput = document.getElementById('upload-ct-input');
+uploadCtBtn.addEventListener('click', function() { uploadCtInput.click(); });
+uploadCtInput.addEventListener('change', function() {
+ var f = uploadCtInput.files[0];
+ if (!f) return;
+ uploadCtBtn.textContent = 'CT...';
+ var fd = new FormData();
+ fd.append('file', f);
+ fetch(_base + '/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
+ .then(function(r) { return r.json(); })
+ .then(function(d) {
+  uploadCtBtn.textContent = '+CT';
+  uploadCtInput.value = '';
+  if (d.status === 'ok') {
+   if (d.is_ct && d.atividades > 0) {
+    term.write('\r\n\x1b[93m + CT: ' + d.filename + ' (' + d.atividades + ' tarifas)\x1b[0m\r\n');
+   } else {
+    term.write('\r\n\x1b[92m + ' + d.filename + ' carregado\x1b[0m\r\n');
+   }
+  }
+ })
+ .catch(function() {
+  uploadCtBtn.textContent = '+CT';
+  uploadCtInput.value = '';
+ });
 });
 
 function pollFiles() {

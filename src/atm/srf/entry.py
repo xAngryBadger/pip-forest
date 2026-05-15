@@ -352,6 +352,12 @@ def main():
                 )
         except Exception as ex:
             aviso(f"Falha no auto-carregamento CT: {ex}")
+    else:
+        tarifas = cfg.get("tarifas", {})
+        if not tarifas or len(tarifas) < 3:
+            print(Y + " ATENCAO: Nenhum arquivo CT encontrado em data/planilhas/." + RS)
+            print(Y + " Tarifas ausentes — HH/ha sera 0 para todas as atividades." + RS)
+            print(Y + " Use a opcao [2] Importar CT ou faca upload via web (+CT)." + RS)
 
     if micro_padrao:
         df = carregar_planilha_microplanejamento(
