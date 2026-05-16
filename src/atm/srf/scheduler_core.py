@@ -554,7 +554,7 @@ def calcular_cronograma_inteligente(
                 atividades_por_filtro(atividades_reais, filtros_bloqueio)
             )
         usar_reforco_automatico = ctx.get("usar_reforco_automatico", True)
-        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)
+        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", True)
     else:
         filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
         candidatas_bloqueio = atividades_por_filtro(atividades_reais, filtros_bloqueio)
@@ -614,15 +614,20 @@ def calcular_cronograma_inteligente(
         comparativo_cfg = ctx.get("comparativo_cfg")
         turmas = []
         for t in ctx["turmas"]:
+            atv_raw = t.get("atividades")
+            if isinstance(atv_raw, str) and atv_raw.strip().lower() in ("todas", "all"):
+                atv_norm = "todas"
+            else:
+                atv_norm = [
+                    _norm_atv(a)
+                    for a in (atv_raw or [])
+                    if _norm_atv(a)
+                ]
             turmas.append(
                 {
                     "nome": t["nome"],
                     "operarios": t["operarios"],
-                    "atividades": [
-                        _norm_atv(a)
-                        for a in (t.get("atividades") or [])
-                        if _norm_atv(a)
-                    ],
+                    "atividades": atv_norm,
                 }
             )
     else:
@@ -693,44 +698,48 @@ def calcular_cronograma_inteligente(
         # ──────────────────────────────────────────
         #  ETAPA 1: CRIAR TURMAS
         # ──────────────────────────────────────────
-        sub()
-        print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
-        print(
-            DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
-        )
-        print(
-            DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
-        )
-
-        turmas = []
-        restantes = executores
-
-        while restantes > 0:
-            print(G + f"  Operarios disponiveis: {restantes}" + RS)
-            nome_turma = prompt(
-                "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
+        if not _batch:
+            sub()
+            print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
+            print(
+                DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
             )
-            def_pad = min(restantes, max(1, restantes // 2 or restantes))
-            qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
-            if qtd > restantes:
-                aviso(f"Maximo disponivel: {restantes}. Ajustando.")
-                qtd = restantes
-            turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
-            restantes -= qtd
-            if restantes > 0:
-                if not confirmar(
-                    f"Criar outra turma? ({restantes} restantes)", default=True
-                ):
-                    turmas.append(
-                        {"nome": "Geral", "operarios": restantes, "atividades": []}
-                    )
-                    restantes = 0
+            print(
+                DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
+            )
 
-        sub()
-        print(G + BL + "  TURMAS CRIADAS:" + RS)
-        for t in turmas:
-            print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
-        sub()
+            turmas = []
+            restantes = executores
+
+            while restantes > 0:
+                print(G + f"  Operarios disponiveis: {restantes}" + RS)
+                nome_turma = prompt(
+                    "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
+                )
+                def_pad = min(restantes, max(1, restantes // 2 or restantes))
+                qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
+                if qtd > restantes:
+                    aviso(f"Maximo disponivel: {restantes}. Ajustando.")
+                    qtd = restantes
+                turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
+                restantes -= qtd
+                if restantes > 0:
+                    if not confirmar(
+                        f"Criar outra turma? ({restantes} restantes)", default=True
+                    ):
+                        turmas.append(
+                            {"nome": "Geral", "operarios": restantes, "atividades": []}
+                        )
+                        restantes = 0
+
+            sub()
+            print(G + BL + "  TURMAS CRIADAS:" + RS)
+            for t in turmas:
+                print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
+            sub()
+
+        else:
+            pass  # batch: turmas from ctx
 
         # ──────────────────────────────────────────
         #  ETAPA 2: VINCULAR ATIVIDADES AS TURMAS
@@ -779,16 +788,20 @@ def calcular_cronograma_inteligente(
                 atividades_catalogo=catalogo_global,
             )
         else:
-            existing = {
-                _norm_atv(a) for a in (turma.get("atividades") or []) if _norm_atv(a)
-            }
-            remapeadas = set(existing)
-            for atv in list(existing):
-                alvo = atividade_remap.get(atv)
-                if alvo:
-                    remapeadas.add(alvo)
-            matched = remapeadas & atividades_reais_set
-            turma["atividades"] = sorted(matched, key=str)
+            atv_raw_turma = turma.get("atividades")
+            if isinstance(atv_raw_turma, str) and atv_raw_turma.strip().lower() in ("todas", "all"):
+                turma["atividades"] = sorted(atividades_reais_set, key=str)
+            else:
+                existing = {
+                    _norm_atv(a) for a in (atv_raw_turma or []) if _norm_atv(a)
+                }
+                remapeadas = set(existing)
+                for atv in list(existing):
+                    alvo = atividade_remap.get(atv)
+                    if alvo:
+                        remapeadas.add(alvo)
+                matched = remapeadas & atividades_reais_set
+                turma["atividades"] = sorted(matched, key=str)
 
     def _cobertura_atual_turmas():
         s = set()
@@ -1312,6 +1325,8 @@ def calcular_cronograma_inteligente(
     cronograma = []
     dia = 0
     MAX_DIAS = 10000
+    _dead_days = 0
+    MAX_DEAD_DAYS = 30
 
     def _registrar_fim_plantio_talhao(th, dia_atual):
         if dia_termino_plantio.get(th) is not None:
@@ -1325,6 +1340,7 @@ def calcular_cronograma_inteligente(
             break
 
         dia += 1
+        _demanda_snap = sum(demanda_global.values())
         if dia % 100 == 0 or dia == 1:
             restante = sum(1 for v in demanda_global.values() if v > _HH_EPSILON)
             print(DM + f"  dia {dia}/{MAX_DIAS} ({restante} demandas restantes)" + RS, end="\r")
@@ -1575,6 +1591,16 @@ def calcular_cronograma_inteligente(
                                     "Modo": "Reforco",
                                 }
                             )
+
+        # ── Dead-day detection ──
+        _demanda_after = sum(demanda_global.values())
+        if abs(_demanda_after - _demanda_snap) < _HH_EPSILON:
+            _dead_days += 1
+        else:
+            _dead_days = 0
+        if _dead_days >= MAX_DEAD_DAYS:
+            aviso(f"{MAX_DEAD_DAYS} dias consecutivos sem progresso — possivel deadlock. Interrompendo.")
+            break
 
     # Baseline mecanizado: HM-only do orcamento entra automaticamente no cronograma base.
     hm_only_list = sorted(hm_only_atividades, key=str)
