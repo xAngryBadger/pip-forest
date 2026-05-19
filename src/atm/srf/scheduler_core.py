@@ -554,7 +554,7 @@ def calcular_cronograma_inteligente(
                 atividades_por_filtro(atividades_reais, filtros_bloqueio)
             )
         usar_reforco_automatico = ctx.get("usar_reforco_automatico", True)
-        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", True)
+        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)  # Reverted: True caused scheduler to stop after day 1
     else:
         filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
         candidatas_bloqueio = atividades_por_filtro(atividades_reais, filtros_bloqueio)
