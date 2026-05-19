@@ -1326,7 +1326,7 @@ def calcular_cronograma_inteligente(
     dia = 0
     MAX_DIAS = 10000
     _dead_days = 0
-    MAX_DEAD_DAYS = 30
+    MAX_DEAD_DAYS = 100  # Increased from 30 to prevent premature termination during slow scheduling phases
 
     def _registrar_fim_plantio_talhao(th, dia_atual):
         if dia_termino_plantio.get(th) is not None:
