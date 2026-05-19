@@ -16,7 +16,6 @@ from .ui import (
     aviso,
     ok,
     prompt,
-    confirmar,
     selecionar,
     esperar,
 )
@@ -131,7 +130,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
                 + os.path.basename(nome_arquivo_micro)
                 + RS
             )
-        if "demo" in os.path.basename(nome_arquivo_micro).lower():
+        if _is_demo_micro_path(nome_arquivo_micro):
             print(
                 Y
                 + f"   DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
@@ -152,83 +151,55 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
             if df_scope is None or df_scope.empty:
                 aviso("Nenhum dado apos filtros.")
                 continue
-            catalogo_full = sorted(
-                {
-                    str(x).strip()
-                    for x in df["atividade"].dropna().unique().tolist()
-                    if str(x).strip()
-                },
-                key=str,
-            )
-            catalogo_filtrado = sorted(
-                {
-                    str(x).strip()
-                    for x in df_scope["atividade"].dropna().unique().tolist()
-                    if str(x).strip()
-                },
-                key=str,
-            )
-            if len(catalogo_filtrado) < len(catalogo_full):
-                dif = set(catalogo_full) - set(catalogo_filtrado)
-                print(
-                    Y
-                    + f" ATIVIDADES: {len(catalogo_filtrado)} no escopo filtrado vs {len(catalogo_full)} no micro completo."
-                    + RS
+                catalogo_scope = sorted(
+                    {
+                        str(x).strip()
+                        for x in df_scope["atividade"].dropna().unique().tolist()
+                        if str(x).strip()
+                    },
+                    key=str,
                 )
-                print(
-                    DM
-                    + f"  {len(dif)} atividade(s) ausente(s) no escopo: {', '.join(sorted(dif)[:5])}"
-                    + ("..." if len(dif) > 5 else "")
-                    + RS
-                )
-                escopo_total = confirmar(
-                    f"Usar catalogo COMPLETO ({len(catalogo_full)} atividades) em vez do filtrado ({len(catalogo_filtrado)})",
-                    default=True,
-                )
-                catalogo_scope = catalogo_full if escopo_total else catalogo_filtrado
-            else:
-                catalogo_scope = catalogo_full
-            fazendas = sorted(df_scope["fazenda"].unique().tolist())
-            if len(fazendas) == 1:
-                faz = fazendas[0]
-                ok(f"Fazenda unica no escopo: {faz}")
-                _executar_scheduler_fazenda_interativo(
-                    cfg,
-                    df_scope,
-                    faz,
-                    catalogo_scope,
-                )
-            else:
-                op_faz = [
-                    "TODAS AS FAZENDAS (equipe unica)",
-                    "MULTI-EQUIPES (carteiras separadas)",
-                ] + fazendas
-                faz = selecionar("SELECIONE A FAZENDA OU MODO", op_faz)
-                if faz == "TODAS AS FAZENDAS (equipe unica)":
-                    contexto_sessao.atualizar_modo("lote")
-                    _executar_lote_fazendas(
-                        cfg,
-                        df_scope,
-                        fazendas,
-                        empresa_filtro=empresa_filtro,
-                        nome_arquivo_micro=nome_arquivo_micro,
-                    )
-                elif faz == "MULTI-EQUIPES (carteiras separadas)":
-                    contexto_sessao.atualizar_modo("multi_equipes")
-                    _executar_multi_equipes(
-                        cfg,
-                        df_scope,
-                        fazendas,
-                        empresa_filtro=empresa_filtro,
-                        nome_arquivo_micro=nome_arquivo_micro,
-                    )
-                elif faz:
+                fazendas = sorted(df_scope["fazenda"].unique().tolist())
+                if len(fazendas) == 1:
+                    faz = fazendas[0]
+                    ok(f"Fazenda unica no escopo: {faz}")
                     _executar_scheduler_fazenda_interativo(
                         cfg,
                         df_scope,
                         faz,
                         catalogo_scope,
                     )
+                else:
+                    op_faz = [
+                        "TODAS AS FAZENDAS (equipe unica)",
+                        "MULTI-EQUIPES (carteiras separadas)",
+                    ] + fazendas
+                    faz = selecionar("SELECIONE A FAZENDA OU MODO", op_faz)
+                    if faz == "TODAS AS FAZENDAS (equipe unica)":
+                        contexto_sessao.atualizar_modo("lote")
+                        _executar_lote_fazendas(
+                            cfg,
+                            df_scope,
+                            fazendas,
+                            empresa_filtro=empresa_filtro,
+                            nome_arquivo_micro=nome_arquivo_micro,
+                        )
+                    elif faz == "MULTI-EQUIPES (carteiras separadas)":
+                        contexto_sessao.atualizar_modo("multi_equipes")
+                        _executar_multi_equipes(
+                            cfg,
+                            df_scope,
+                            fazendas,
+                            empresa_filtro=empresa_filtro,
+                            nome_arquivo_micro=nome_arquivo_micro,
+                        )
+                    elif faz:
+                        _executar_scheduler_fazenda_interativo(
+                            cfg,
+                            df_scope,
+                            faz,
+                            catalogo_scope,
+                        )
         elif v == "2":
             modulo_importar_tarifas(cfg)
         elif v == "3":
@@ -352,12 +323,6 @@ def main():
                 )
         except Exception as ex:
             aviso(f"Falha no auto-carregamento CT: {ex}")
-    else:
-        tarifas = cfg.get("tarifas", {})
-        if not tarifas or len(tarifas) < 3:
-            print(Y + " ATENCAO: Nenhum arquivo CT encontrado em data/planilhas/." + RS)
-            print(Y + " Tarifas ausentes — HH/ha sera 0 para todas as atividades." + RS)
-            print(Y + " Use a opcao [2] Importar CT ou faca upload via web (+CT)." + RS)
 
     if micro_padrao:
         df = carregar_planilha_microplanejamento(

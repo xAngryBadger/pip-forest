@@ -24,13 +24,6 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
 }
 #upload-btn:hover { background: #444; }
 #upload-input { display: none; }
-#upload-ct-btn {
- background: #333; color: #ffd700; border: 1px solid #555; border-radius: 3px;
- padding: 2px 8px; cursor: pointer; font-family: inherit; font-size: 11px;
- margin-left: 4px;
-}
-#upload-ct-btn:hover { background: #444; }
-#upload-ct-input { display: none; }
 #status { margin-left: auto; font-size: 11px; }
 #status.connected { color: #00ff66; }
 #status.disconnected { color: #ff3b3b; }
@@ -53,14 +46,12 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
 </head>
 <body>
 <div id="top-bar">
-  <a id="srf-link" href="#">SRF</a>
+  <a href="/app">SRF</a>
   <span class="sep">|</span>
   <span>{{ session_id }}</span>
   <span class="sep">|</span>
 <button id="upload-btn">+arquivo</button>
 <input type="file" id="upload-input" accept=".xlsx,.xlsm,.xls,.csv" multiple>
-<button id="upload-ct-btn">+CT</button>
-<input type="file" id="upload-ct-input" accept=".xlsx,.xlsm,.xls">
   <span id="status" class="disconnected">conectando...</span>
 </div>
 <div id="terminal-container"></div>
@@ -107,136 +98,59 @@ html, body { height: 100%; background: #1a1a1a; overflow: hidden; }
   term.open(container);
   fitAddon.fit();
 
-const statusEl = document.getElementById('status');
-const sid = '{{ session_id }}';
-const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const _base = location.pathname.replace(/\/term\/[^/]+$/, '');
-const wsUrl = proto + '//' + location.host + _base + '/ws/term/' + sid;
-const pollUrl = _base + '/term/poll/' + sid;
-const writeUrl = _base + '/term/write/' + sid;
-let ws = null;
-let usePoll = false;
-let pollSeq = 0;
-let pollInterval = null;
-let reconnectDelay = 1000;
-let wsFailCount = 0;
-const WS_MAX_FAIL = 2;
-const WS_CONNECT_TIMEOUT = 5000;
-let wsConnectTimer = null;
-let knownFiles = [];
+  const statusEl = document.getElementById('status');
+  const sid = '{{ session_id }}';
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = proto + '//' + location.host + '/ws/term/' + sid;
+  let ws = null;
+  let reconnectDelay = 1000;
+  let knownFiles = [];
 
-function _wsFallbackToPoll() {
-  if (usePoll) return;
-  if (ws) {
-    ws.onopen = null;
-    ws.onclose = null;
-    ws.onerror = null;
-    ws.onmessage = null;
-    try { ws.close(); } catch(e) {}
-    ws = null;
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = function() {
+      statusEl.textContent = 'conectado';
+      statusEl.className = 'connected';
+      reconnectDelay = 1000;
+      term.focus();
+      term.write('\x1b[?25h');
+    };
+
+    ws.onmessage = function(evt) {
+      if (evt.data instanceof ArrayBuffer) {
+        term.write(new Uint8Array(evt.data));
+      } else if (typeof evt.data === 'string') {
+        term.write(evt.data);
+      }
+    };
+
+    ws.onclose = function() {
+      statusEl.textContent = 'desconectado';
+      statusEl.className = 'disconnected';
+      ws = null;
+      setTimeout(function() {
+        reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+        connect();
+      }, reconnectDelay);
+    };
+
+    ws.onerror = function() {
+      ws.close();
+    };
   }
-  usePoll = true;
-  statusEl.textContent = 'polling...';
-  startPolling();
-}
-
-function connect() {
-  if (usePoll) { startPolling(); return; }
-  ws = new WebSocket(wsUrl);
-  ws.binaryType = 'arraybuffer';
-  wsConnectTimer = setTimeout(_wsFallbackToPoll, WS_CONNECT_TIMEOUT);
-
-  ws.onopen = function() {
-    clearTimeout(wsConnectTimer);
-    wsConnectTimer = null;
-    statusEl.textContent = 'conectado';
-    statusEl.className = 'connected';
-    reconnectDelay = 1000;
-    wsFailCount = 0;
-    term.focus();
-    term.write('\x1b[?25h');
-  };
-
-  ws.onmessage = function(evt) {
-    if (evt.data instanceof ArrayBuffer) {
-      term.write(new Uint8Array(evt.data));
-    } else if (typeof evt.data === 'string') {
-      term.write(evt.data);
-    }
-  };
-
-  ws.onclose = function() {
-    clearTimeout(wsConnectTimer);
-    wsConnectTimer = null;
-    statusEl.textContent = 'desconectado';
-    statusEl.className = 'disconnected';
-    ws = null;
-    wsFailCount++;
-    if (wsFailCount >= WS_MAX_FAIL) {
-      _wsFallbackToPoll();
-      return;
-    }
-    setTimeout(function() {
-      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-      connect();
-    }, reconnectDelay);
-  };
-
-  ws.onerror = function() {
-    ws.close();
-  };
-}
-
- function startPolling() {
-  if (pollInterval) return;
-  statusEl.textContent = 'conectado (poll)';
-  statusEl.className = 'connected';
-  term.focus();
-  pollSeq = 0;
-  doPoll();
-  pollInterval = setInterval(doPoll, 100);
- }
-
-  function doPoll() {
-    fetch(pollUrl + '?seq=' + pollSeq, {credentials: 'include'})
-      .then(function(r) { return r.json(); })
-   .then(function(d) {
-    if (d.chunks && d.chunks.length > 0) {
-     pollSeq = d.seq;
-     d.chunks.forEach(function(b64) {
-      var bin = atob(b64);
-      var arr = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-      term.write(arr);
-     });
-    }
-    if (d.finished && (!d.chunks || d.chunks.length === 0)) {
-     stopPolling();
-     statusEl.textContent = 'finalizado';
-     statusEl.className = 'disconnected';
-    }
-   })
-   .catch(function() {});
- }
-
- function stopPolling() {
-  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
- }
 
   term.onData(function(data) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       const encoder = new TextEncoder();
       ws.send(encoder.encode(data));
-    } else if (usePoll) {
-      fetch(writeUrl, {method: 'POST', body: data, credentials: 'include'});
     }
   });
 
   term.onResize(function(size) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}));
-    } else if (usePoll) {
-      fetch(writeUrl, {method: 'POST', body: JSON.stringify({type: 'resize', rows: size.rows, cols: size.cols}), credentials: 'include'});
     }
   });
 
@@ -244,9 +158,9 @@ function connect() {
     fitAddon.fit();
   });
 
-var uploadBtn = document.getElementById('upload-btn');
-var uploadInput = document.getElementById('upload-input');
-uploadBtn.addEventListener('click', function() { uploadInput.click(); });
+  var uploadBtn = document.getElementById('upload-btn');
+  var uploadInput = document.getElementById('upload-input');
+  uploadBtn.addEventListener('click', function() { uploadInput.click(); });
 uploadInput.addEventListener('change', function() {
   var files = Array.from(uploadInput.files);
   if (!files.length) return;
@@ -255,7 +169,7 @@ uploadInput.addEventListener('change', function() {
   files.forEach(function(f) {
     var fd = new FormData();
     fd.append('file', f);
-    fetch(_base + '/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
+    fetch('/term/upload/' + sid, {method: 'POST', body: fd})
     .then(function(r) { return r.json(); })
     .then(function(d) {
       done++;
@@ -277,61 +191,32 @@ uploadInput.addEventListener('change', function() {
     });
   });
 });
+  });
 
-var uploadCtBtn = document.getElementById('upload-ct-btn');
-var uploadCtInput = document.getElementById('upload-ct-input');
-uploadCtBtn.addEventListener('click', function() { uploadCtInput.click(); });
-uploadCtInput.addEventListener('change', function() {
- var f = uploadCtInput.files[0];
- if (!f) return;
- uploadCtBtn.textContent = 'CT...';
- var fd = new FormData();
- fd.append('file', f);
- fetch(_base + '/term/upload/' + sid, {method: 'POST', body: fd, credentials: 'include'})
- .then(function(r) { return r.json(); })
- .then(function(d) {
-  uploadCtBtn.textContent = '+CT';
-  uploadCtInput.value = '';
-  if (d.status === 'ok') {
-   if (d.is_ct && d.atividades > 0) {
-    term.write('\r\n\x1b[93m + CT: ' + d.filename + ' (' + d.atividades + ' tarifas)\x1b[0m\r\n');
-   } else {
-    term.write('\r\n\x1b[92m + ' + d.filename + ' carregado\x1b[0m\r\n');
-   }
+  function pollFiles() {
+    fetch('/term/api/sessions/' + sid + '/files')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.files && data.files.length > 0) {
+          var changed = JSON.stringify(data.files) !== JSON.stringify(knownFiles);
+          if (changed) {
+            knownFiles = data.files;
+            var links = document.getElementById('file-links');
+            links.innerHTML = data.files.map(function(f) {
+              return '<a href="/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
+            }).join(' ');
+            document.getElementById('file-bar').classList.add('visible');
+            fitAddon.fit();
+          }
+        }
+      })
+      .catch(function() {});
   }
- })
- .catch(function() {
-  uploadCtBtn.textContent = '+CT';
-  uploadCtInput.value = '';
- });
-});
 
-function pollFiles() {
-  fetch(_base + '/term/api/sessions/' + sid + '/files', {credentials: 'include'})
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.files && data.files.length > 0) {
-      var changed = JSON.stringify(data.files) !== JSON.stringify(knownFiles);
-      if (changed) {
-        knownFiles = data.files;
-        var links = document.getElementById('file-links');
-        links.innerHTML = data.files.map(function(f) {
-          return '<a href="' + _base + '/term/download/' + sid + '/' + encodeURIComponent(f) + '" target="_blank">' + f + '</a>';
-        }).join(' ');
-        document.getElementById('file-bar').classList.add('visible');
-        fitAddon.fit();
-      }
-    }
-  })
-  .catch(function() {});
-}
+  setInterval(pollFiles, 10000);
+  pollFiles();
 
-setInterval(pollFiles, 10000);
-pollFiles();
-
-connect();
-
-document.getElementById('srf-link').href = _base + '/app';
+  connect();
 })();
 </script>
 </body>

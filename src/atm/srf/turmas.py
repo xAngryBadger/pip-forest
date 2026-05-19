@@ -621,11 +621,7 @@ def turmas_que_executam(atv, turmas, reatribuicao, paralelo, primaria):
     """Lista de nomes de turma que trabalham nesta atividade no simulador."""
     if atv in reatribuicao:
         return [reatribuicao[atv]]
-    c = [
-        t["nome"] for t in turmas
-        if isinstance(t.get("atividades"), str) and t["atividades"].strip().lower() in ("todas", "all")
-        or (not isinstance(t.get("atividades"), str) and atv in t.get("atividades", []))
-    ]
+    c = [t["nome"] for t in turmas if atv in t["atividades"]]
     if not c:
         return []
     if len(c) == 1:

@@ -17,7 +17,7 @@
 {% if is_percurso %}
   <div class="mb-2">
     <p class="font-bold text-lg mb-3" data-asci-pt>{{ step.prompt }}</p>
-        <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
           <input type="hidden" name="step_type" value="confirmar">
           <input type="hidden" name="default" value="{{ 'sim' if step.default else 'nao' }}">
           <div class="flex flex-wrap gap-2 mt-4" role="radiogroup" aria-label="Confirmação">
@@ -32,7 +32,7 @@
 {% else %}
   <div class="mb-3">
     <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-        <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
           <input type="hidden" name="step_type" value="confirmar">
           <input type="hidden" name="default" value="{{ 'sim' if step.default else 'nao' }}">
           <div class="flex gap-2" role="radiogroup" aria-label="Confirmação">
@@ -48,7 +48,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3" data-stepper data-step="0.1" data-allow-zero="{{ step.options.allow_zero | default('false') | lower }}">
     <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
       <input type="hidden" name="step_type" value="pedir_float">
       <input type="hidden" name="default" value="{{ step.default }}">
       <div class="flex items-center gap-2">
@@ -64,7 +64,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3" data-stepper data-step="1" data-allow-zero="{{ step.options.allow_zero | default('false') | lower }}">
     <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
       <input type="hidden" name="step_type" value="pedir_int">
       <input type="hidden" name="default" value="{{ step.default }}">
       <div class="flex items-center gap-2">
@@ -80,7 +80,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3" data-jornada>
     <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
       <input type="hidden" name="step_type" value="pedir_jornada">
       <div class="flex items-center gap-2 mb-2">
         <span class="chip chip-active" data-jornada-dec style="cursor:pointer;">Decimal</span>
@@ -98,7 +98,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3">
 <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-<form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
 <input type="hidden" name="step_type" value="selecionar">
 <ul class="mb-2" role="listbox" aria-label="Opções">
 {% for item in step.options["items"] %}
@@ -119,7 +119,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3" data-paginate data-items="{{ step.options['items'] | tojson | forceescape }}" data-page-size="{{ step.options.page_size | default(5) }}">
 <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-<form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
 <input type="hidden" name="step_type" value="selecionar_paginado">
 <ul class="mb-2" data-paginate-list role="listbox" aria-label="Opções"></ul>
 <div class="flex items-center gap-2 mb-2">
@@ -137,7 +137,7 @@
 {{ render_body(step.options) }}
 <div class="mb-3">
     <p class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</p>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
       <input type="hidden" name="step_type" value="prompt">
       <div class="flex items-center gap-2">
         <input type="text" name="value" value="{{ step.default or '' }}" class="flex-1" autofocus>
@@ -152,7 +152,7 @@
 <div class="banner-{{ step.options.level or 'info' }} mb-3">
 <h3 class="font-bold" data-asci-pt>{{ step.prompt }}</h3>
 </div>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" hx-disabled-elt="find button">
       <input type="hidden" name="step_type" value="display">
       <button type="submit" name="value" value="continuar" class="btn btn-primary">Continuar</button>
     </form>
@@ -181,7 +181,7 @@
         </tbody>
       </table>
     </div>
-    <form hx-post="{{ base_path }}/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" class="mt-3" hx-disabled-elt="find button">
+    <form hx-post="/step/{{ session_id }}" hx-target="#step-zone" hx-swap="outerHTML" class="mt-3" hx-disabled-elt="find button">
       <input type="hidden" name="step_type" value="table">
       <button type="submit" name="value" value="continuar" class="btn btn-primary">Continuar</button>
     </form>
@@ -196,11 +196,11 @@
     <h4 class="font-bold mb-2 text-sm">Arquivos Gerados</h4>
     <ul class="mb-3">
     {% for f in step.options.files %}
-      <li><a href="{{ base_path }}/download/{{ session_id }}/{{ f }}" style="color: var(--info);">{{ f }}</a></li>
+      <li><a href="/download/{{ session_id }}/{{ f }}" style="color: var(--info);">{{ f }}</a></li>
     {% endfor %}
     </ul>
     {% endif %}
-    <a href="{{ base_path }}/app" class="btn btn-muted">Voltar ao Menu</a>
+    <a href="/app" class="btn btn-muted">Voltar ao Menu</a>
   </div>
 
 {% elif step.type == "error" %}
@@ -212,7 +212,7 @@
       <pre class="text-xs mt-2 whitespace-pre-wrap" style="color: var(--error);" data-selectable>{{ step.options.error }}</pre>
       {% endif %}
     </div>
-    <a href="{{ base_path }}/app" class="btn btn-muted">Voltar ao Menu</a>
+    <a href="/app" class="btn btn-muted">Voltar ao Menu</a>
   </div>
 
 {% else %}
@@ -236,14 +236,14 @@
     <h2 class="font-bold">Concluído</h2>
   </div>
 {% endif %}
-<a href="{{ base_path }}/app" class="btn btn-muted">Voltar ao Menu</a>
+<a href="/app" class="btn btn-muted">Voltar ao Menu</a>
 </div>
 
 {% else %}
 <div id="step-zone" class="card p-6 text-center" style="color: var(--muted);">
 <div class="srf-spinner mx-auto mb-3"></div>
 <p>Processando...</p>
-<div hx-get="{{ base_path }}/step/{{ session_id }}/pending"
+<div hx-get="/step/{{ session_id }}/pending"
      hx-trigger="every 1s"
      hx-target="#step-zone"
      hx-swap="outerHTML">

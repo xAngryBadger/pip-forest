@@ -11,9 +11,7 @@ import threading
 import datetime
 import shutil
 import uuid
-import base64
 from pathlib import Path
-from collections import deque
 
 _sessions: dict[str, "TermSession"] = {}
 _sessions_lock = threading.Lock()
@@ -22,8 +20,6 @@ _BASE_DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
 
 
 class TermSession:
-    _POLL_BUF_MAX = 262144
-
     def __init__(self, session_id: str, token: str):
         self.session_id = session_id
         self.token = token
@@ -38,9 +34,6 @@ class TermSession:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._ws_clients: list = []
         self._read_task: asyncio.Task | None = None
-        self._poll_buf: deque = deque()
-        self._poll_seq: int = 0
-        self._poll_lock = threading.Lock()
 
     def add_ws(self, ws):
         self._ws_clients.append(ws)
@@ -50,7 +43,6 @@ class TermSession:
             self._ws_clients.remove(ws)
 
     async def broadcast(self, data: bytes):
-        self._append_poll(data)
         dead = []
         for ws in self._ws_clients:
             try:
@@ -59,29 +51,6 @@ class TermSession:
                 dead.append(ws)
         for ws in dead:
             self.remove_ws(ws)
-
-    def _append_poll(self, data: bytes):
-        with self._poll_lock:
-            self._poll_buf.append(data)
-            self._poll_seq += 1
-            total = sum(len(d) for d in self._poll_buf)
-            while total > self._POLL_BUF_MAX and len(self._poll_buf) > 1:
-                total -= len(self._poll_buf.popleft())
-
-    def poll_output(self, since_seq: int = 0) -> dict:
-        with self._poll_lock:
-            chunks = []
-            seq = 0
-            items = list(self._poll_buf)
-            for chunk in items:
-                seq += 1
-                if seq > since_seq:
-                    chunks.append(base64.b64encode(chunk).decode())
-            return {
-                "seq": self._poll_seq,
-                "chunks": chunks,
-                "finished": self.finished,
-            }
 
     def set_pty_size(self, rows: int, cols: int):
         if self.fd is not None:
@@ -154,7 +123,7 @@ def spawn_process(session: TermSession):
     python = sys.executable
     env = os.environ.copy()
     env["SRF_DATA_DIR"] = str(session.data_dir)
-    env["SRF_WEB_MODE"] = "0"
+    env["SRF_WEB_MODE"] = ""
     env.pop("SRF_PASSWORD", None)
     env["TERM"] = "xterm-256color"
     env["COLUMNS"] = "80"

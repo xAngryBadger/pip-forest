@@ -2,7 +2,7 @@
 
 import datetime
 import calendar
-from io import StringIO as _StringIO
+import io
 import math
 import os
 import traceback
@@ -530,7 +530,7 @@ def calcular_cronograma_inteligente(
     else:
         modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
-    modo_ctx = f"seq:{modo_seq}"
+        modo_ctx = f"seq:{modo_seq}"
     modo_existente = contexto_sessao.modo_atual
     if modo_existente:
         if modo_ctx not in str(modo_existente):
@@ -554,7 +554,7 @@ def calcular_cronograma_inteligente(
                 atividades_por_filtro(atividades_reais, filtros_bloqueio)
             )
         usar_reforco_automatico = ctx.get("usar_reforco_automatico", True)
-        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)  # Reverted: True caused scheduler to stop after day 1
+        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)
     else:
         filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
         candidatas_bloqueio = atividades_por_filtro(atividades_reais, filtros_bloqueio)
@@ -603,7 +603,6 @@ def calcular_cronograma_inteligente(
         prazo_meses = ctx["prazo_meses"]
         mes_ref = ctx["mes_ref"]
         ano_ref = ctx["ano_ref"]
-        dia_ref = ctx.get("dia_ref", 1)
         data_inicio_txt = ctx.get("data_inicio_txt")
         data_fim_txt = ctx.get("data_fim_txt")
         if data_inicio_txt or data_fim_txt:
@@ -614,20 +613,15 @@ def calcular_cronograma_inteligente(
         comparativo_cfg = ctx.get("comparativo_cfg")
         turmas = []
         for t in ctx["turmas"]:
-            atv_raw = t.get("atividades")
-            if isinstance(atv_raw, str) and atv_raw.strip().lower() in ("todas", "all"):
-                atv_norm = "todas"
-            else:
-                atv_norm = [
-                    _norm_atv(a)
-                    for a in (atv_raw or [])
-                    if _norm_atv(a)
-                ]
             turmas.append(
                 {
                     "nome": t["nome"],
                     "operarios": t["operarios"],
-                    "atividades": atv_norm,
+                    "atividades": [
+                        _norm_atv(a)
+                        for a in (t.get("atividades") or [])
+                        if _norm_atv(a)
+                    ],
                 }
             )
     else:
@@ -698,48 +692,44 @@ def calcular_cronograma_inteligente(
         # ──────────────────────────────────────────
         #  ETAPA 1: CRIAR TURMAS
         # ──────────────────────────────────────────
-        if not _batch:
-            sub()
-            print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
-            print(
-                DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
+        sub()
+        print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
+        print(
+            DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
+        )
+        print(
+            DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
+        )
+
+        turmas = []
+        restantes = executores
+
+        while restantes > 0:
+            print(G + f"  Operarios disponiveis: {restantes}" + RS)
+            nome_turma = prompt(
+                "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
             )
-            print(
-                DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
-            )
+            def_pad = min(restantes, max(1, restantes // 2 or restantes))
+            qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
+            if qtd > restantes:
+                aviso(f"Maximo disponivel: {restantes}. Ajustando.")
+                qtd = restantes
+            turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
+            restantes -= qtd
+            if restantes > 0:
+                if not confirmar(
+                    f"Criar outra turma? ({restantes} restantes)", default=True
+                ):
+                    turmas.append(
+                        {"nome": "Geral", "operarios": restantes, "atividades": []}
+                    )
+                    restantes = 0
 
-            turmas = []
-            restantes = executores
-
-            while restantes > 0:
-                print(G + f"  Operarios disponiveis: {restantes}" + RS)
-                nome_turma = prompt(
-                    "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
-                )
-                def_pad = min(restantes, max(1, restantes // 2 or restantes))
-                qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
-                if qtd > restantes:
-                    aviso(f"Maximo disponivel: {restantes}. Ajustando.")
-                    qtd = restantes
-                turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
-                restantes -= qtd
-                if restantes > 0:
-                    if not confirmar(
-                        f"Criar outra turma? ({restantes} restantes)", default=True
-                    ):
-                        turmas.append(
-                            {"nome": "Geral", "operarios": restantes, "atividades": []}
-                        )
-                        restantes = 0
-
-            sub()
-            print(G + BL + "  TURMAS CRIADAS:" + RS)
-            for t in turmas:
-                print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
-            sub()
-
-        else:
-            pass  # batch: turmas from ctx
+        sub()
+        print(G + BL + "  TURMAS CRIADAS:" + RS)
+        for t in turmas:
+            print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
+        sub()
 
         # ──────────────────────────────────────────
         #  ETAPA 2: VINCULAR ATIVIDADES AS TURMAS
@@ -788,20 +778,16 @@ def calcular_cronograma_inteligente(
                 atividades_catalogo=catalogo_global,
             )
         else:
-            atv_raw_turma = turma.get("atividades")
-            if isinstance(atv_raw_turma, str) and atv_raw_turma.strip().lower() in ("todas", "all"):
-                turma["atividades"] = sorted(atividades_reais_set, key=str)
-            else:
-                existing = {
-                    _norm_atv(a) for a in (atv_raw_turma or []) if _norm_atv(a)
-                }
-                remapeadas = set(existing)
-                for atv in list(existing):
-                    alvo = atividade_remap.get(atv)
-                    if alvo:
-                        remapeadas.add(alvo)
-                matched = remapeadas & atividades_reais_set
-                turma["atividades"] = sorted(matched, key=str)
+            existing = {
+                _norm_atv(a) for a in (turma.get("atividades") or []) if _norm_atv(a)
+            }
+            remapeadas = set(existing)
+            for atv in list(existing):
+                alvo = atividade_remap.get(atv)
+                if alvo:
+                    remapeadas.add(alvo)
+            matched = remapeadas & atividades_reais_set
+            turma["atividades"] = sorted(matched, key=str)
 
     def _cobertura_atual_turmas():
         s = set()
@@ -940,10 +926,6 @@ def calcular_cronograma_inteligente(
             menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
 
     while True:
-        if _batch:
-            sub()
-            print(DM + " CHECKPOINT RETROATIVO — modo batch, continuando..." + RS)
-            break
         sub()
         print(G + BL + " CHECKPOINT RETROATIVO" + RS)
         op_cp = selecionar(
@@ -1325,8 +1307,6 @@ def calcular_cronograma_inteligente(
     cronograma = []
     dia = 0
     MAX_DIAS = 10000
-    _dead_days = 0
-    MAX_DEAD_DAYS = 100  # Increased from 30 to prevent premature termination during slow scheduling phases
 
     def _registrar_fim_plantio_talhao(th, dia_atual):
         if dia_termino_plantio.get(th) is not None:
@@ -1340,7 +1320,6 @@ def calcular_cronograma_inteligente(
             break
 
         dia += 1
-        _demanda_snap = sum(demanda_global.values())
         if dia % 100 == 0 or dia == 1:
             restante = sum(1 for v in demanda_global.values() if v > _HH_EPSILON)
             print(DM + f"  dia {dia}/{MAX_DIAS} ({restante} demandas restantes)" + RS, end="\r")
@@ -1353,7 +1332,7 @@ def calcular_cronograma_inteligente(
                 cap_pool = float(executores) * float(jornada)
                 while cap_pool > _HH_EPSILON:
                     fez = False
-                    min_fase_dia = _min_fase_cascata_por_talhao(
+                    min_fase_dia_dict = _min_fase_cascata_por_talhao(
                         demanda_global,
                         seq_cfg,
                         modo_seq,
@@ -1365,6 +1344,7 @@ def calcular_cronograma_inteligente(
                         dia,
                         dia_termino_plantio,
                         tem_plantio_por_talhao,
+                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                     )
                     for talhao in talhoes_ordenados:
                         tlist = list(demandas.get(talhao, []))
@@ -1444,7 +1424,7 @@ def calcular_cronograma_inteligente(
                 # Process items in queue order
                 idx = 0
                 while cap_dia > _HH_EPSILON and idx < len(fila):
-                    min_fase_dia = _min_fase_cascata_por_talhao(
+                    min_fase_dia_dict = _min_fase_cascata_por_talhao(
                         demanda_global,
                         seq_cfg,
                         modo_seq,
@@ -1456,6 +1436,7 @@ def calcular_cronograma_inteligente(
                         dia,
                         dia_termino_plantio,
                         tem_plantio_por_talhao,
+                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                     )
                     item = fila[idx]
                     key = (item["talhao"], item["atividade"])
@@ -1536,7 +1517,7 @@ def calcular_cronograma_inteligente(
                                 )
                             )
                         for t in tarefas_t:
-                            min_fase_dia = _min_fase_cascata_por_talhao(
+                            min_fase_dia_dict = _min_fase_cascata_por_talhao(
                                 demanda_global,
                                 seq_cfg,
                                 modo_seq,
@@ -1548,6 +1529,7 @@ def calcular_cronograma_inteligente(
                                 dia,
                                 dia_termino_plantio,
                                 tem_plantio_por_talhao,
+                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                             )
                             atv = t["atividade"]
                             key_ref = (talhao, atv)
@@ -1591,16 +1573,6 @@ def calcular_cronograma_inteligente(
                                     "Modo": "Reforco",
                                 }
                             )
-
-        # ── Dead-day detection ──
-        _demanda_after = sum(demanda_global.values())
-        if abs(_demanda_after - _demanda_snap) < _HH_EPSILON:
-            _dead_days += 1
-        else:
-            _dead_days = 0
-        if _dead_days >= MAX_DEAD_DAYS:
-            aviso(f"{MAX_DEAD_DAYS} dias consecutivos sem progresso — possivel deadlock. Interrompendo.")
-            break
 
     # Baseline mecanizado: HM-only do orcamento entra automaticamente no cronograma base.
     hm_only_list = sorted(hm_only_atividades, key=str)
@@ -2369,7 +2341,7 @@ def calcular_cronograma_inteligente(
         }
         
         if execucao_compacta:
-            _buf_cmp = _StringIO()
+            _buf_cmp = io.StringIO()
             try:
                 with redirect_stdout(_buf_cmp), redirect_stderr(_buf_cmp):
                     resultado_mecanizado = calcular_cronograma_inteligente(

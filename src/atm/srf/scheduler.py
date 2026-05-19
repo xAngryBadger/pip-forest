@@ -500,18 +500,9 @@ def menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh):
         cur = resolver_rendimento_hh(
             cfg, tarifas, t_nome, strict=strict, session_hh=session_hh, atv_micro=atv
         )
-        cur_strict = cur
         if cur is None:
-            cur_fb = resolver_rendimento_hh(
-                cfg, tarifas, t_nome, strict=False, session_hh=session_hh, atv_micro=atv
-            )
-            cur = cur_fb if cur_fb is not None else 0.0
-        label = f"{cur}"
-        if cur_strict is None and cur > 0:
-            label = f"{cur} (fallback)"
-        if cur <= 0 and "mecaniz" not in tipo and hm <= 0:
-            print(Y + f"  ATENCAO: HH/ha=0 para atividade manual — verificar tarifa/CT" + RS)
-        v = prompt(f" [{str(atv)[:46]}] CT:{str(t_nome)[:36]} HH/ha [{label}]", "")
+            cur = 0.0
+        v = prompt(f"  [{str(atv)[:46]}]  CT:{str(t_nome)[:36]}  HH/ha [{cur}]", "")
         vs = str(v).strip()
         if not vs:
             continue

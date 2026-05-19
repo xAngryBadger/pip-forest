@@ -1,6 +1,5 @@
 import os
 import asyncio
-import json
 import uuid
 from pathlib import Path
 
@@ -19,7 +18,6 @@ _BASE_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
 _DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
-_BASE_PATH = os.environ.get("SRF_BASE_PATH", "").rstrip("/")
 
 app = FastAPI(title="SRF v6.3 Web", docs_url=None, redoc_url=None)
 
@@ -29,12 +27,24 @@ _jinja_env = Environment(
     auto_reload=True,
 )
 
+_orig_load = _jinja_env._load_template
+
+
+def _patched_load(name, globals):
+    try:
+        return _orig_load(name, globals)
+    except TypeError:
+        template = _jinja_env._parse(name, globals)
+        return template
+
+
+_jinja_env._load_template = _patched_load
+
 if _STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
-    context.setdefault("base_path", _BASE_PATH)
     template = _jinja_env.get_template(template_name)
     html = template.render(**context)
     return HTMLResponse(content=html, status_code=status_code)
@@ -263,43 +273,6 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
 
 
-@app.post("/upload-ct")
-async def upload_ct_file(request: Request, file: UploadFile = File(...)):
-    _require_auth(request)
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file selected")
-
-    dest_dir = _DATA_DIR / "planilhas"
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / file.filename
-
-    content = await file.read()
-    with open(dest_path, "wb") as f:
-        f.write(content)
-
-    n_atividades = 0
-    custo_h = 0.0
-    erro_msg = ""
-    try:
-        from src.atm.srf.tarifas import normalizar_ct313, carregar_stg_tarifas
-        from src.atm.srf.config import carregar_config, salvar_config
-        stg_path, n, custo_h = normalizar_ct313(str(dest_path))
-        if stg_path and n > 0:
-            cfg = carregar_config()
-            cfg["tarifas"] = carregar_stg_tarifas(stg_path)
-            cfg["custo_hora_tf"] = round(custo_h, 4)
-            cfg["ct_atual"] = file.filename
-            salvar_config(cfg)
-            n_atividades = n
-    except Exception as ex:
-        erro_msg = str(ex)
-
-    result = {"status": "ok", "filename": file.filename, "size": len(content), "atividades": n_atividades, "custo_hora": round(custo_h, 2)}
-    if erro_msg:
-        result["aviso"] = erro_msg
-    return JSONResponse(result)
-
-
 @app.post("/term/upload/{session_id}")
 async def term_upload_file(request: Request, session_id: str, file: UploadFile = File(...)):
     _require_auth(request)
@@ -315,28 +288,7 @@ async def term_upload_file(request: Request, session_id: str, file: UploadFile =
     with open(session_dir / file.filename, "wb") as f:
         f.write(content)
 
-    is_ct = False
-    n_atividades = 0
-    from src.atm.srf.text_utils import normalizar_chave
-    fn_norm = normalizar_chave(file.filename)
-    if "ct" in fn_norm and any(d in fn_norm for d in ["313", "317", "315", "316"]):
-        is_ct = True
-        try:
-            from src.atm.srf.tarifas import normalizar_ct313, carregar_stg_tarifas
-            from src.atm.srf.config import carregar_config, salvar_config
-            stg_path, n, custo_h = normalizar_ct313(str(session_dir / file.filename))
-            if stg_path and n > 0:
-                cfg = carregar_config()
-                cfg["tarifas"] = carregar_stg_tarifas(stg_path)
-                cfg["custo_hora_tf"] = round(custo_h, 4)
-                cfg["ct_atual"] = file.filename
-                salvar_config(cfg)
-                n_atividades = n
-        except Exception:
-            pass
-
-    result = {"status": "ok", "filename": file.filename, "size": len(content), "is_ct": is_ct, "atividades": n_atividades}
-    return JSONResponse(result)
+    return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
 
 
 @app.post("/abort/{session_id}")
@@ -372,7 +324,6 @@ async def debug_session(request: Request, session_id: str):
 
 @app.get("/api/step-types")
 async def api_step_types(request: Request):
-    _require_auth(request)
     return JSONResponse(STEP_TYPES)
 
 
@@ -479,17 +430,19 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
             if "bytes" in raw:
                 data = raw["bytes"]
                 try:
+                    import json
                     text = data.decode("utf-8", errors="replace")
                     msg = json.loads(text)
                     if msg.get("type") == "resize":
                         await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
-                        continue
+                    continue
                 except Exception:
                     pass
                 await term_module.write_to_process(ts, data)
             elif "text" in raw:
                 text = raw["text"]
                 try:
+                    import json
                     msg = json.loads(text)
                     if msg.get("type") == "resize":
                         await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
@@ -503,35 +456,6 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
         pass
     finally:
         ts.remove_ws(websocket)
-
-
-@app.get("/term/poll/{session_id}")
-async def term_poll(request: Request, session_id: str, seq: int = 0):
-    _require_auth(request)
-    ts = term_module.get_session(session_id)
-    if not ts:
-        raise HTTPException(status_code=404)
-    if ts._read_task is None and ts.fd is not None:
-        ts._read_task = asyncio.ensure_future(term_module.read_loop(ts))
-    return ts.poll_output(since_seq=seq)
-
-
-@app.post("/term/write/{session_id}")
-async def term_write(session_id: str, request: Request):
-    _require_auth(request)
-    ts = term_module.get_session(session_id)
-    if not ts:
-        raise HTTPException(status_code=404)
-    body = await request.body()
-    try:
-        msg = json.loads(body)
-        if msg.get("type") == "resize":
-            await term_module.resize_pty(ts, msg.get("rows", 24), msg.get("cols", 80))
-            return {"status": "ok"}
-    except Exception:
-        pass
-    await term_module.write_to_process(ts, body)
-    return {"status": "ok"}
 
 
 if __name__ == "__main__":

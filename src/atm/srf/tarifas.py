@@ -10,7 +10,6 @@ import pandas as pd
 from .config import (
     INPUT_DIR, PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS,
     _PRECO_FINAL_JSON_CACHE, STG_FILENAME, salvar_config,
-    modo_somente_hh,
 )
 from .constants import CT317_HARDCODE_HH_BASE
 from .ui import (
@@ -130,6 +129,8 @@ def _mediana_campo(tarifas, campo):
 
 
 def resolver_preco_ha(cfg, tarifas, t_nome, strict=False):
+    from .config import modo_somente_hh
+
     if modo_somente_hh(cfg):
         return 0.0
     if t_nome in (tarifas or {}):
@@ -155,6 +156,8 @@ def resolver_preco_ha(cfg, tarifas, t_nome, strict=False):
 
 
 def resolver_custo_hora(cfg, tarifas, t_nome, strict=False):
+    from .config import modo_somente_hh
+
     if modo_somente_hh(cfg):
         return 0.0
     if t_nome in (tarifas or {}):
