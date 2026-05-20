@@ -1,47 +1,35 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pyw
+*.py[cod]
+*.egg-info/
 build/
 dist/
-*.egg-info/
 
-# Runtime state
-estado_sessao_*.json
+# Runtime
 *.log
-debug-*.log
 *.tmp
 *.cache
+estado_sessao_*.json
+config.json
 
 # Generated outputs
-dossiês/*.xlsx
-dossiês/
+data/dossies/*.xlsx
 *.xlsx~
 cronograma_*.xlsx
 *-backup*.xlsx
 *-copia*.xlsx
 
-# Cloud builds (scripts only, no builds)
+# Cloud builds
 cloud/builds/**
 cloud/sessions/**
 cloud/__pycache__/
-cloud/app/__pycache__/
-cloud/sessions/**
 
-# Sub-projects with own repos
+# Sub-projects
 MinePal/
 ATM7/
 
 # Heap dumps
 *.heapsnapshot
-
-# Runtime config (per-session)
-src/atm/config.json
-
-# Environment
-.env
 
 # IDE
 .vscode/
@@ -54,7 +42,5 @@ src/atm/config.json
 .DS_Store
 Thumbs.db
 
-# Keep directories but ignore contents
-cloud/builds/.gitkeep
-*/__pycache__/
-data/sessions/
+# Experiments (IA generated trash)
+experiments/

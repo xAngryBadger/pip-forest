@@ -57,6 +57,13 @@ from .scheduler_core import (
 )
 
 
+def _is_demo_micro_path(nome_arquivo_micro):
+    """Verifica se e micro demo (caminho padrao)."""
+    if not nome_arquivo_micro:
+        return False
+    nome = str(nome_arquivo_micro).lower()
+    return "demo" in nome or "exemplo" in nome
+
 def menu_principal(cfg, df, nome_arquivo_micro=""):
     opcoes = [
         ("1", "Smart Scheduler (Operacional HH/HM)"),
