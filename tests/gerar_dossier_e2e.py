@@ -4,8 +4,6 @@
 Executa o scheduler com dados reais e gera XLSX.
 """
 
-import subprocess
-import sys
 from pathlib import Path
 
 print("=" * 80)

@@ -1,4 +1,4 @@
-# CLI_PLANILHAS - ATM / SRF
+# CLI_PLANILHAS - ATM / Orca
 
 Sistema de Restauracao Florestal - Planejamento operacional de restauracao florestal em larga escala.
 
@@ -18,20 +18,20 @@ cli_planilhas/
 ├── logs/                # Logs de execucao
 ├── scripts/             # Scripts shell e utilitarios
 ├── src/                 # Codigo fonte principal
-│   ├── atm/             # Motor ATM v6.3 (producao) — modulo SRF
-│   │   ├── atm_v6_3.py # Shell de compatibilidade (importa de srf/)
-│   │   └── srf/         # Pacote modular SRF v6.3
+│   ├── atm/             # Motor ATM v6.3 (producao) — modulo Orca
+│   │   ├── atm_v6_3.py # Shell de compatibilidade (importa de orca/)
+│   │   └── orca/         # Pacote modular Orca v6.3
 │   ├── cloud/           # Cloud pilot (FastAPI + Azure)
 │   ├── gui/             # GUI legacy (Tkinter)
-│   ├── monitors/        # Monitores SRF (srf_monitor.py)
+│   ├── monitors/        # Monitores Orca (orca_monitor.py)
 │   └── utils/           # Utilitarios (Excel, API, scheduler, etc.)
 ├── tests/               # Testes unitarios e de integracao
 └── run.py               # Entry point principal
 ```
 
-## SRF v6.3 — Arquitetura Modular
+## Orca v6.3 — Arquitetura Modular
 
-O monolito original (`atm_v6_3.py`, ~10.000 linhas) foi decomposto no pacote `src/atm/srf/`:
+O monolito original (`atm_v6_3.py`, ~10.000 linhas) foi decomposto no pacote `src/atm/orca/`:
 
 | Modulo | Linhas | Responsabilidade |
 |--------|--------|-----------------|
@@ -47,7 +47,7 @@ O monolito original (`atm_v6_3.py`, ~10.000 linhas) foi decomposto no pacote `sr
 | `constants.py` | 232 | Dicionarios de dados estaticos |
 | `context.py` | 216 | Contexto de sessao + dashboard header |
 | `text_utils.py` | 256 | Normalizacao de chaves, filtros, parsing de intervalos |
-| `monitor.py` | 288 | Bridge para monitor externo (srf_monitor_state) |
+| `monitor.py` | 288 | Bridge para monitor externo (orca_monitor_state) |
 | `ui.py` | 222 | Cores, prompts, arte ASCII, VERSION |
 | `cronograma.py` | 306 | Construtores de cronograma (humano, mecanizado) |
 | `comparativo_mec.py` | 232 | Substituicao mecanizado, cenarios multi-fator |
@@ -55,14 +55,14 @@ O monolito original (`atm_v6_3.py`, ~10.000 linhas) foi decomposto no pacote `sr
 | `de_para.py` | 73 | Auto-mapeamento e de-para padrao |
 | `datas.py` | 80 | Utilidades de data |
 | `__init__.py` | 213 | Re-exports de conveniencia |
-| **`atm_v6_3.py`** | **457** | **Shell: importa de srf/ e chama `main()`** |
+| **`atm_v6_3.py`** | **457** | **Shell: importa de orca/ e chama `main()`** |
 
 Dependencia circular: `scheduler_core.py` → `app.py` (nunca o contrario).
 
 ## Uso Rapido
 
 ```bash
-# Executar SRF v6.3 (producao)
+# Executar Orca v6.3 (producao)
 python -m src.atm.atm_v6_3
 
 # Ou via entry point
@@ -72,10 +72,10 @@ python run.py
 cd src/cloud/app && uvicorn main:app --host 0.0.0.0 --port 8000
 
 # Monitor de auditoria
-python src/monitors/srf_monitor.py --feed relatorios
+python src/monitors/orca_monitor.py --feed relatorios
 
 # Testes unitarios
-python -m unittest tests.test_srf_helpers tests.test_srf_strict
+python -m unittest tests.test_orca_helpers tests.test_orca_strict
 ```
 
 ## Requirements

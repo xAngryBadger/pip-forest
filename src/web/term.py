@@ -1,22 +1,22 @@
 import asyncio
+import datetime
 import fcntl
 import os
 import pty
 import select
+import shutil
 import signal
 import struct
 import sys
 import termios
 import threading
-import datetime
-import shutil
 import uuid
 from pathlib import Path
 
 _sessions: dict[str, "TermSession"] = {}
 _sessions_lock = threading.Lock()
 
-_BASE_DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
+_BASE_DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 
 
 class TermSession:
@@ -122,15 +122,15 @@ def spawn_process(session: TermSession):
     project_root = str(Path(__file__).resolve().parent.parent.parent)
     python = sys.executable
     env = os.environ.copy()
-    env["SRF_DATA_DIR"] = str(session.data_dir)
-    env["SRF_WEB_MODE"] = ""
-    env.pop("SRF_PASSWORD", None)
+    env["ORCA_DATA_DIR"] = str(session.data_dir)
+    env["ORCA_WEB_MODE"] = ""
+    env.pop("ORCA_PASSWORD", None)
     env["TERM"] = "xterm-256color"
     env["COLUMNS"] = "80"
     env["LINES"] = "24"
     output_dir = session.data_dir / "dossiês"
     output_dir.mkdir(parents=True, exist_ok=True)
-    env["SRF_OUTPUT_DIR"] = str(output_dir)
+    env["ORCA_OUTPUT_DIR"] = str(output_dir)
 
     master_fd, slave_fd = pty.openpty()
 

@@ -4183,7 +4183,7 @@ def calcular_cronograma_inteligente(cfg, df_faz, fazenda, esperar_enter=True, ct
                     pd.DataFrame(cenarios_rows).to_excel(writer_fin, sheet_name="COMPARATIVO_CENARIOS", index=False)
                 wb_fin = writer_fin.book
                 try:
-                    from srf_excel_format import aplicar_formatacao_financeiro
+                    from orca_excel_format import aplicar_formatacao_financeiro
                     aplicar_formatacao_financeiro(
                         wb_fin, lucro_operacional, margem, dias_simulado, fazenda, receita_total, custo_mo_total
                     )
@@ -4207,7 +4207,7 @@ def calcular_cronograma_inteligente(cfg, df_faz, fazenda, esperar_enter=True, ct
                 wb_op = writer_op.book
                 _aplicar_cores_ocupacao_excel(wb_op, "OCUPACAO_TURMAS_DIA")
                 try:
-                    from srf_excel_format import aplicar_formatacao_operacional
+                    from orca_excel_format import aplicar_formatacao_operacional
                     aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma)
                 except Exception:
                     pass
@@ -4259,7 +4259,7 @@ def calcular_cronograma_inteligente(cfg, df_faz, fazenda, esperar_enter=True, ct
                     pd.DataFrame(resumo_mec_rows).to_excel(writer_mf, sheet_name="RESUMO_FINANCEIRO", index=False)
                     wb_mf = writer_mf.book
                     try:
-                        from srf_excel_format import aplicar_formatacao_financeiro
+                        from orca_excel_format import aplicar_formatacao_financeiro
                         aplicar_formatacao_financeiro(
                             wb_mf, lucro_operacional, margem, d_comb, fazenda, receita_total, custo_mo_total
                         )
@@ -4272,7 +4272,7 @@ def calcular_cronograma_inteligente(cfg, df_faz, fazenda, esperar_enter=True, ct
                         df_cascata_mec.to_excel(writer_mo, sheet_name="CASCATA_EXPLICADA", index=False)
                     wb_mo = writer_mo.book
                     try:
-                        from srf_excel_format import aplicar_formatacao_operacional
+                        from orca_excel_format import aplicar_formatacao_operacional
                         aplicar_formatacao_operacional(wb_mo, d_comb, cronograma_com_mec)
                     except Exception:
                         pass

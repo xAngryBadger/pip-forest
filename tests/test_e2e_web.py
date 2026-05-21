@@ -1,16 +1,13 @@
-import threading
+import os
 import time
 import unittest
-import os
-import sys
 
-os.environ.setdefault("SRF_WEB_MODE", "1")
-os.environ.setdefault("SRF_PASSWORD", "test")
-os.environ.setdefault("SRF_DATA_DIR", "data")
+os.environ.setdefault("ORCA_WEB_MODE", "1")
+os.environ.setdefault("ORCA_PASSWORD", "test")
+os.environ.setdefault("ORCA_DATA_DIR", "data")
 
-from src.web.session import Session, get_session, remove_session, register_session, _sessions, _sessions_lock
-from src.web.bridge import start_session, abort_session, install_bridge, uninstall_bridge
-from src.atm.srf import ui as cli_ui
+from src.web.bridge import start_session
+from src.web.session import _sessions, _sessions_lock, remove_session
 
 
 def _auto_answer(session, answers=None, defaults=True, max_steps=500):

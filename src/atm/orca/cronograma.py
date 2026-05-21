@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from .text_utils import normalizar_chave, _slug_ficheiro_seguro
+from .text_utils import _slug_ficheiro_seguro
 
 
 def construir_cronograma_mecanizado(demandas, fazenda, jornada, recursos_mec):

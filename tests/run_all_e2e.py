@@ -10,21 +10,21 @@ Saída:
     - Tempo de execução
 """
 
-import unittest
 import sys
 import time
+import unittest
 from pathlib import Path
 
 # Adicionar path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tests.test_e2e_permanente import (
-    TesteValidacaoDados,
-    TesteCascataGlobal,
-    TesteTimeUnico,
-    TesteDoisTimes,
     TesteBloqueioGlobal,
-    TesteMultiplasFazendas
+    TesteCascataGlobal,
+    TesteDoisTimes,
+    TesteMultiplasFazendas,
+    TesteTimeUnico,
+    TesteValidacaoDados,
 )
 
 
@@ -42,41 +42,41 @@ def run_tests():
     print("=" * 80)
     print(f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
     print()
-    
+
     # Configurar loader
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
-    
+
     # Adicionar testes na ordem
     print("Carregando testes...")
     suite.addTests(loader.loadTestsFromTestCase(TesteValidacaoDados))
     print("  ✓ Validação de dados")
-    
+
     suite.addTests(loader.loadTestsFromTestCase(TesteCascataGlobal))
     print("  ✓ Cascata GLOBAL")
-    
+
     suite.addTests(loader.loadTestsFromTestCase(TesteTimeUnico))
     print("  ✓ Time único")
-    
+
     suite.addTests(loader.loadTestsFromTestCase(TesteDoisTimes))
     print("  ✓ Dois times")
-    
+
     suite.addTests(loader.loadTestsFromTestCase(TesteBloqueioGlobal))
     print("  ✓ Bloqueio global")
-    
+
     suite.addTests(loader.loadTestsFromTestCase(TesteMultiplasFazendas))
     print("  ✓ Múltiplas fazendas")
-    
+
     print()
     print("Executando testes...")
     print("-" * 80)
-    
+
     # Executar
     start_time = time.time()
     runner = unittest.TextTestRunner(verbosity=2, stream=sys.stdout)
     result = runner.run(suite)
     elapsed_time = time.time() - start_time
-    
+
     # Relatório
     print()
     print("=" * 80)
@@ -88,7 +88,7 @@ def run_tests():
     print(f"Erros: {len(result.errors)}")
     print(f"Tempo: {format_time(elapsed_time)}")
     print()
-    
+
     # Detalhes de falhas
     if result.failures:
         print("FALHAS:")
@@ -96,7 +96,7 @@ def run_tests():
             print(f"  ✗ {test}")
             print(f"    {traceback[:200]}...")
         print()
-    
+
     # Detalhes de erros
     if result.errors:
         print("ERROS:")
@@ -104,7 +104,7 @@ def run_tests():
             print(f"  ✗ {test}")
             print(f"    {traceback[:200]}...")
         print()
-    
+
     # Status final
     print("=" * 80)
     if result.wasSuccessful():
@@ -112,7 +112,7 @@ def run_tests():
     else:
         print("❌ ALGUNS TESTES FALHARAM")
     print("=" * 80)
-    
+
     # Exit code
     return 0 if result.wasSuccessful() else 1
 

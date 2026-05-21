@@ -5,26 +5,43 @@ import os
 import pandas as pd
 
 from .config import (
-    salvar_config, STG_FILENAME,
+    STG_FILENAME,
     modo_somente_hh,
-)
-from .text_utils import normalizar_chave, _norm_atv, parse_intervalos_escolha
-from .tarifas import (
-    normalizar_ct313, carregar_stg_tarifas, resolver_rendimento_hh,
-)
-from .io import (
-    selecionar_arquivo, encontrar_coluna,
-    _to_float_br,
-)
-from .ui import (
-    G, Y, C, DM, BL, RS,
-    sub, subcabecalho, aviso, erro, ok, prompt,
-    pedir_float,
-    confirmar, selecionar, selecionar_paginado, esperar,
+    salvar_config,
 )
 from .context import contexto_sessao, dashboard_header
+from .io import (
+    _to_float_br,
+    encontrar_coluna,
+    selecionar_arquivo,
+)
 from .monitor import _emitir_monitor_atual
+from .tarifas import (
+    carregar_stg_tarifas,
+    normalizar_ct313,
+    resolver_rendimento_hh,
+)
+from .text_utils import _norm_atv, normalizar_chave, parse_intervalos_escolha
 from .turmas import _catalogo_atividades_completo, _mostrar_catalogo_atividades
+from .ui import (
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    confirmar,
+    erro,
+    esperar,
+    ok,
+    pedir_float,
+    prompt,
+    selecionar,
+    selecionar_paginado,
+    sub,
+    subcabecalho,
+)
 
 
 def modulo_normalizar_ct(cfg):
@@ -111,7 +128,7 @@ def modulo_importar_tarifas(cfg):
         col_atv = encontrar_coluna(cols_ct, "atividade")
         sub()
         print(G + BL + "  MAPEAMENTO:" + RS)
-        print(G + f"  Atividade: " + C + f"{col_atv or '???'}" + RS)
+        print(G + "  Atividade: " + C + f"{col_atv or '???'}" + RS)
         sub()
 
         if not col_atv or not confirmar("Usar este mapeamento?", default=True):

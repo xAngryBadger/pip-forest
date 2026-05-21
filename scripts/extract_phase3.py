@@ -67,8 +67,8 @@ for _, s, e in comparativo_funcs:
 new_lines = [line for i, line in enumerate(lines, 1) if i not in lines_to_remove]
 
 # Add imports in the Phase 2 import block area
-# Find the "from srf.de_para" or "from .srf.de_para" lines
-insert_text = """from srf.comparativo_mec import (
+# Find the "from orca.de_para" or "from .srf.de_para" lines
+insert_text = """from orca.comparativo_mec import (
     _atividades_com_mecanizado_disponivel,
     _substituir_por_mecanizado,
     _formatar_substituicao_comparativo,
@@ -88,11 +88,11 @@ final_lines = []
 for i, line in enumerate(new_lines):
     final_lines.append(line)
     if not insert_done:
-        if 'from srf.constants import' in line or 'from .srf.constants import' in line:
+        if 'from orca.constants import' in line or 'from .srf.constants import' in line:
             # Insert after the constants import block closes
             # Look ahead for the closing paren
             pass
-        if 'from srf.config import STG_FILENAME' in line:
+        if 'from orca.config import STG_FILENAME' in line:
             final_lines.append(insert_text)
             insert_done = True
 

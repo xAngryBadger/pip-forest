@@ -1,59 +1,64 @@
 """Application entry point — main menu, startup, and session cleanup."""
 
-import os
 import atexit
+import os
 
-from .ui import (
-    G,
-    Y,
-    C,
-    DM,
-    BL,
-    RS,
-    sub,
-    cabecalho,
-    subcabecalho,
-    aviso,
-    ok,
-    prompt,
-    selecionar,
-    esperar,
+from .app import (
+    _aplicar_filtro_empresa_e_escopo,
+    _aplicar_filtro_regiao,
+    _executar_scheduler_fazenda_interativo,
+    modulo_importar_tarifas,
+    modulo_normalizar_ct,
 )
 from .config import (
+    DIR,
     INPUT_DIR,
     STG_FILENAME,
-    modo_somente_hh,
     _is_beta_mode,
     _is_legacy_mode,
-    DIR,
     carregar_config,
+    modo_somente_hh,
     salvar_config,
 )
 from .context import contexto_sessao, dashboard_header
-from .monitor import init_monitor, _abrir_monitor_janela
-from .tarifas import normalizar_ct313, carregar_stg_tarifas, modulo_importar_precos_contrato, modulo_importar_custos_globais_brutos
+from .de_para import aplicar_depara_padrao_exame
+from .io import (
+    _find_default_ct_path,
+    _find_default_micro_path,
+    carregar_planilha_microplanejamento,
+    garantir_fazendas_micro_no_ct,
+    selecionar_arquivo,
+)
+from .monitor import _abrir_monitor_janela, init_monitor
+from .scheduler_core import (
+    _executar_lote_fazendas,
+    _executar_multi_equipes,
+)
+from .tarifas import (
+    carregar_stg_tarifas,
+    modulo_importar_custos_globais_brutos,
+    modulo_importar_precos_contrato,
+    normalizar_ct313,
+)
 from .territorio import (
     aviso_fazendas_micro_sem_cadastro_ct,
     modulo_validar_fazendas_ct,
 )
-from .io import (
-    selecionar_arquivo,
-    carregar_planilha_microplanejamento,
-    _find_default_micro_path,
-    _find_default_ct_path,
-    garantir_fazendas_micro_no_ct,
-)
-from .de_para import aplicar_depara_padrao_exame
-from .app import (
-    modulo_importar_tarifas,
-    modulo_normalizar_ct,
-    _aplicar_filtro_regiao,
-    _aplicar_filtro_empresa_e_escopo,
-    _executar_scheduler_fazenda_interativo,
-)
-from .scheduler_core import (
-    _executar_lote_fazendas,
-    _executar_multi_equipes,
+from .ui import (
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    cabecalho,
+    esperar,
+    ok,
+    prompt,
+    selecionar,
+    sub,
+    subcabecalho,
 )
 
 
@@ -89,25 +94,25 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         nt = len(cfg.get("tarifas", {}))
         print(
             G
-            + f"  Base: "
+            + "  Base: "
             + C
             + f"{nf} fazendas  |  {nu} talhoes  |  {na} atividades"
             + RS
         )
         print(
             G
-            + f"  Tarifas: "
+            + "  Tarifas: "
             + C
             + f"{nt} carregadas"
             + G
-            + f"  |  STG: "
+            + "  |  STG: "
             + C
             + f"{'Sim' if stg_existe else 'Nao'}"
             + RS
         )
         print(
             G
-            + f" Orcamento estrito: "
+            + " Orcamento estrito: "
             + C
             + ("Sim" if cfg.get("orcamento_estrito", True) else "Nao")
             + RS
@@ -115,7 +120,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         hh_mode = modo_somente_hh(cfg)
         print(
             G
-            + f" Modo custo: "
+            + " Modo custo: "
             + C
             + ("Somente HH" if hh_mode else "HH + R$")
             + RS
@@ -124,7 +129,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
             eq_list = sorted(df["equipe"].dropna().unique().tolist(), key=str)
             print(
                 G
-                + f"  Empresas (EQUIPE): "
+                + "  Empresas (EQUIPE): "
                 + C
                 + f"{len(eq_list)} ({', '.join(str(e)[:20] for e in eq_list[:5])}{'...' if len(eq_list) > 5 else ''})"
                 + RS
@@ -132,7 +137,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         if nome_arquivo_micro:
             print(
                 G
-                + f"  Microplanejamento: "
+                + "  Microplanejamento: "
                 + C
                 + os.path.basename(nome_arquivo_micro)
                 + RS
@@ -140,7 +145,7 @@ def menu_principal(cfg, df, nome_arquivo_micro=""):
         if _is_demo_micro_path(nome_arquivo_micro):
             print(
                 Y
-                + f"   DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
+                + "   DEMO: opcao [1] = maior fazenda do micro (municipio Ulianopolis), tarifas = CT 313."
                 + RS
             )
         sub()

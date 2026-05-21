@@ -1,14 +1,27 @@
 """Team (turma) management — resource editing, activity linking, conflict resolution, candidate detection."""
 
 from .constants import CT317_HARDCODE_HH_BASE
-from .text_utils import normalizar_chave, atividades_por_filtro, _norm_atv, filtrar_atividades_por_texto
-from .tarifas import resolver_chave_tarifa
 from .monitor import _emitir_monitor_rendimentos
+from .tarifas import resolver_chave_tarifa
+from .text_utils import _norm_atv, atividades_por_filtro, filtrar_atividades_por_texto, normalizar_chave
 from .ui import (
-    G, Y, C, DM, BL, RS,
-    sub, aviso, ok, prompt, pedir_float, confirmar,
-    selecionar, selecionar_paginado, esperar,
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    confirmar,
+    esperar,
+    ok,
+    pedir_float,
+    prompt,
+    selecionar,
+    selecionar_paginado,
+    sub,
 )
+
 
 def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
     """Permite revisar e alterar atividades/produtividade/custo de recursos mecanizados."""
@@ -120,18 +133,18 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                     for atv_nome, dados in CT317_HARDCODE_HH_BASE.items():
                         if dados.get("rendimento_hm", 0) > 0 or dados.get("tipo", "").lower() in ("mecanizada", "semimecanizada"):
                             atividades_mec.append(atv_nome)
-                    
+
                     # Também incluir do catálogo que tenham 'mec', 'mecaniz', 'semimec' no nome
                     for atv in pool_catalogo:
                         atv_norm = normalizar_chave(str(atv))
                         if any(k in atv_norm for k in ["mec", "mecaniz", "semimec", "trator", "robo", "drone"]):
                             if atv not in atividades_mec:
                                 atividades_mec.append(atv)
-                    
+
                     atividades_mec.sort(key=str)
-                    
+
                     print(G + BL + "\n LISTA FILTRADA — ATIVIDADES MECANIZADAS" + RS)
-                    print(DM + f" (atividades com HM > 0, 'mec' no nome, ou tipo Mecanizada/SemiMecanizada)" + RS)
+                    print(DM + " (atividades com HM > 0, 'mec' no nome, ou tipo Mecanizada/SemiMecanizada)" + RS)
                     if atividades_mec:
                         for i, a in enumerate(atividades_mec, 1):
                             # Buscar valor HM se disponível
@@ -147,7 +160,7 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                         print(G + f"Total filtrado: {len(atividades_mec)} atividade(s)" + RS)
                     else:
                         print(Y + " (nenhuma atividade mecanizada encontrada)" + RS)
-                    
+
                     # Mostrar também as já vinculadas
                     cur_mec = [a for a in cur if a in atividades_mec]
                     if cur_mec:
@@ -155,7 +168,7 @@ def _menu_editar_recurso_mecanizado(recursos, pool_catalogo):
                         print(G + " Já vinculadas a este recurso:" + RS)
                         for a in cur_mec:
                             print(f" {C}✓{RS} {a}")
-                    
+
                     esperar()
                     continue
 

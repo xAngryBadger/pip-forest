@@ -5,17 +5,31 @@ import os
 import pandas as pd
 
 from .config import (
-    INPUT_DIR, CT_REAL_FILENAME,
-    STG_FILENAME, KNOWN_COLUMNS,
+    CT_REAL_FILENAME,
+    INPUT_DIR,
+    KNOWN_COLUMNS,
+    STG_FILENAME,
     salvar_config,
 )
+from .territorio import _indice_fazendas_ct, fazendas_unicas_micro
 from .text_utils import normalizar_chave, remover_acentos
-from .territorio import fazendas_unicas_micro, _indice_fazendas_ct
 from .ui import (
-    G, R, C, DM, BL, RS,
-    sub, subcabecalho, aviso, erro, ok,
-    confirmar, selecionar, selecionar_paginado,
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    R,
+    aviso,
+    confirmar,
+    erro,
+    ok,
+    selecionar,
+    selecionar_paginado,
+    sub,
+    subcabecalho,
 )
+
 
 def encontrar_coluna(cols, campo):
     """Try KNOWN_COLUMNS exact matches first, then fuzzy fallback."""
@@ -291,16 +305,16 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
         if equipe_col:
             sel_cols.append(equipe_col)
             sel_names.append("equipe")
-            print(G + f" Coluna EQUIPE detectada: " + C + f"{equipe_col}" + RS)
+            print(G + " Coluna EQUIPE detectada: " + C + f"{equipe_col}" + RS)
 
         if mun_col:
             sel_cols.append(mun_col)
             sel_names.append("municipio")
-            print(G + f" Coluna MUNICIPIO detectada: " + C + f"{mun_col}" + RS)
+            print(G + " Coluna MUNICIPIO detectada: " + C + f"{mun_col}" + RS)
         if est_col:
             sel_cols.append(est_col)
             sel_names.append("estado")
-            print(G + f" Coluna ESTADO detectada: " + C + f"{est_col}" + RS)
+            print(G + " Coluna ESTADO detectada: " + C + f"{est_col}" + RS)
 
         metodologia_col = None
         pref_metodologia = str(cfg.get("coluna_metodologia_micro", "") or "").strip()
@@ -377,7 +391,7 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
             cfg["coluna_metodologia_micro"] = metodologia_col
             salvar_config(cfg)
             print(
-                G + f"  Coluna METODOLOGIA detectada: " + C + f"{metodologia_col}" + RS
+                G + "  Coluna METODOLOGIA detectada: " + C + f"{metodologia_col}" + RS
             )
 
         df_filtro = df[sel_cols].copy()

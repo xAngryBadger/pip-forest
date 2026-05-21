@@ -3,6 +3,7 @@
 import calendar
 from datetime import date, timedelta
 
+
 def _formatar_data_dia(dia, mes, ano):
     """Formata data DD/MM/AAAA; assume valores inteiros validos."""
     return f"{int(dia):02d}/{int(mes):02d}/{int(ano)}"

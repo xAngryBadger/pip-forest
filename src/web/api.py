@@ -1,23 +1,22 @@
-import os
 import asyncio
+import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-from src.web.auth import check_password, mark_authenticated, is_authenticated, revoke_authentication
-from src.web.session import get_session, list_sessions
-from src.web.bridge import start_session, abort_session
-from src.web.step_schema import STEP_TYPES
 from src.web import term as term_module
+from src.web.auth import check_password, is_authenticated, mark_authenticated, revoke_authentication
+from src.web.bridge import abort_session, start_session
+from src.web.session import get_session, list_sessions
+from src.web.step_schema import STEP_TYPES
 
 _BASE_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
-_DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
+_DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 
 app = FastAPI(title="SRF v6.3 Web", docs_url=None, redoc_url=None)
 
@@ -249,7 +248,7 @@ async def download_file(request: Request, session_id: str, filename: str):
         raise HTTPException(status_code=404)
     if filename not in session.result_files:
         raise HTTPException(status_code=404, detail="File not in session results")
-    from src.atm.srf.config import OUTPUT_DIR
+    from src.atm.orca.config import OUTPUT_DIR
     file_path = Path(OUTPUT_DIR) / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
@@ -332,8 +331,9 @@ async def api_farms(request: Request):
     _require_auth(request)
     import contextlib
     from io import StringIO
-    from src.atm.srf.io import carregar_planilha_microplanejamento, _find_default_micro_path
-    from src.atm.srf.config import carregar_config
+
+    from src.atm.orca.config import carregar_config
+    from src.atm.orca.io import _find_default_micro_path, carregar_planilha_microplanejamento
     cfg = carregar_config()
     micro_path = _find_default_micro_path(cfg)
     farms = []
@@ -460,5 +460,5 @@ async def websocket_terminal(websocket: WebSocket, session_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("SRF_PORT", "8000"))
+    port = int(os.environ.get("ORCA_PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)

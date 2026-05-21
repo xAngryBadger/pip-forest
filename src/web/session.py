@@ -1,16 +1,16 @@
-import queue
-import threading
-import uuid
-import shutil
 import datetime
 import os
+import queue
+import shutil
+import threading
+import uuid
 from pathlib import Path
 
 from src.atm.srf import config as cfg_module
 
-_BASE_DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
+_BASE_DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 _SESSIONS_DIR = _BASE_DATA_DIR / "sessions"
-_STEP_TIMEOUT = int(os.environ.get("SRF_STEP_TIMEOUT", "3600"))
+_STEP_TIMEOUT = int(os.environ.get("ORCA_STEP_TIMEOUT", "3600"))
 
 _sessions: dict[str, "Session"] = {}
 _sessions_lock = threading.Lock()

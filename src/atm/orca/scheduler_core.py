@@ -1,13 +1,13 @@
 """Core scheduler logic — the main scheduling algorithm, batch and multi-team executors."""
 
-import datetime
 import calendar
+import datetime
 import io
 import math
 import os
 import traceback
 from collections import defaultdict
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 
 import pandas as pd
 
@@ -15,86 +15,117 @@ _HH_EPSILON = 0.01
 DIAS_UTEIS_POR_MES = 22.0
 _JORNADA_DEFAULT_H = 4.6
 
-from .text_utils import (
-    normalizar_chave, _norm_atv, _slug_ficheiro_seguro,
-    atividades_por_filtro, parse_intervalos_escolha,
-)
-from .ui import (
-    G, Y, R, C, DM, BL, RS,
-    console, linha, sub, subcabecalho,
-    aviso, erro, ok, prompt,
-    pedir_float, pedir_int, pedir_jornada,
-    selecionar, selecionar_paginado, confirmar,
-    esperar, escolha,
-    Table,
-)
-from .config import (
-    OUTPUT_DIR,
-    _merge_sequencia_defaults,
-    _distribuir_fazendas_por_territorio,
-    _detectar_cidade_por_fazenda,
-    _agrupar_fazendas_por_empresa,
-    _sugerir_config_empresa,
-    salvar_config,
-    modo_somente_hh,
-)
-from .constants import CT317_HARDCODE_HH_BASE
-from .context import contexto_sessao, dashboard_header
-from .monitor import _emitir_monitor_state, _emitir_monitor_relatorio, _emitir_monitor_atual, _monitor_build_rendimentos
-from .tarifas import (
-    resolver_rendimento_hh, resolver_rendimento_hm,
-    resolver_chave_tarifa, aviso_politica_tarifas_planas,
-    resolver_custo_hora,
-)
-from .de_para import auto_mapear_de_para, aplicar_depara_padrao_exame
-from .cronograma import (
-    construir_cronograma_mecanizado,
-    construir_cronograma_mecanizado_auto_hm_tarifa,
-    construir_cronograma_humano_sem_mecanizadas,
-)
-from .scheduler import (
-    classificar_fase_cascata_valor,
-    _demanda_plantio_talhao, _min_fase_cascata_por_talhao,
-    pode_agendar_atividade_cascata, diagnosticar_sequencia_atividades,
-    auditar_cadeia_dados, _somente_bloqueado_restante,
-    _mostrar_painel_hh_hm_pre_scheduler, menu_ajustes_hh_apenas_sessao,
-    validar_e_completar_orcamento, dias_uteis_no_periodo,
-    _selecionar_sequencia_padrao_sn, _distribuir_atividades_faltantes_turmas,
-    _demanda_global_touch,
-)
-from .turmas import (
-    _cadastrar_recursos_mecanizados_sn, _catalogo_atividades_completo,
-    menu_vincular_atividades_turma, resolver_conflitos_e_reatribuir,
-    turmas_que_executam,
-    sequencia_manutencao_seco_placeholder,
-    sequencia_manutencao_umido_placeholder,
+from .app import (
+    _menu_ajustar_escopo_atividades,
+    _proximo_caminho_livre,
+    avaliar_terreno,
 )
 from .comparativo_mec import (
     _atividades_com_mecanizado_disponivel,
-    _substituir_por_mecanizado,
-    _formatar_substituicao_comparativo,
-    _clonar_cfg_comparativo_mecanizado,
     _cadastrar_recurso_mecanizado_externo,
+    _clonar_cfg_comparativo_mecanizado,
+    _formatar_substituicao_comparativo,
+    _substituir_por_mecanizado,
     coletar_config_comparativo_multifator,
     simular_cenarios_multifator,
 )
-from .datas import _formatar_data_dia, _calcular_data_fim_por_meses
+from .config import (
+    OUTPUT_DIR,
+    _agrupar_fazendas_por_empresa,
+    _detectar_cidade_por_fazenda,
+    _distribuir_fazendas_por_territorio,
+    _merge_sequencia_defaults,
+    _sugerir_config_empresa,
+    modo_somente_hh,
+    salvar_config,
+)
+from .constants import CT317_HARDCODE_HH_BASE
+from .context import contexto_sessao, dashboard_header
+from .cronograma import (
+    construir_cronograma_humano_sem_mecanizadas,
+    construir_cronograma_mecanizado,
+    construir_cronograma_mecanizado_auto_hm_tarifa,
+)
+from .datas import _calcular_data_fim_por_meses, _formatar_data_dia
+from .de_para import aplicar_depara_padrao_exame, auto_mapear_de_para
 from .excel_export import (
+    _aplicar_cores_ocupacao_excel,
+    _carregar_perfil_equipe_menu,
+    _checkpoint_editar_template,
+    _df_crono_operacional,
+    _exportar_excel_consolidado_lote,
     _gerar_aba_cascata_explicada,
     _gerar_aba_ocupacao_turmas,
-    _df_crono_operacional,
-    _aplicar_cores_ocupacao_excel,
-    _salvar_perfil_equipe, _listar_perfis_equipe,
-    _carregar_perfil_equipe_menu, _checkpoint_editar_template,
-    _recomendar_equipes_padrao, _imprimir_recomendacao_ep,
-    _exportar_excel_consolidado_lote,
+    _imprimir_recomendacao_ep,
+    _listar_perfis_equipe,
+    _recomendar_equipes_padrao,
+    _salvar_perfil_equipe,
 )
-from .app import (
-    avaliar_terreno,
-    _menu_ajustar_escopo_atividades,
-    _proximo_caminho_livre,
-    _selecionar_talhoes_fazenda,
-    _prompt_proximas_metodologias,
+from .monitor import _emitir_monitor_atual, _emitir_monitor_relatorio, _emitir_monitor_state, _monitor_build_rendimentos
+from .scheduler import (
+    _demanda_global_touch,
+    _demanda_plantio_talhao,
+    _distribuir_atividades_faltantes_turmas,
+    _min_fase_cascata_por_talhao,
+    _mostrar_painel_hh_hm_pre_scheduler,
+    _selecionar_sequencia_padrao_sn,
+    _somente_bloqueado_restante,
+    auditar_cadeia_dados,
+    classificar_fase_cascata_valor,
+    diagnosticar_sequencia_atividades,
+    dias_uteis_no_periodo,
+    menu_ajustes_hh_apenas_sessao,
+    pode_agendar_atividade_cascata,
+    validar_e_completar_orcamento,
+)
+from .tarifas import (
+    aviso_politica_tarifas_planas,
+    resolver_chave_tarifa,
+    resolver_custo_hora,
+    resolver_rendimento_hh,
+    resolver_rendimento_hm,
+)
+from .text_utils import (
+    _norm_atv,
+    _slug_ficheiro_seguro,
+    atividades_por_filtro,
+    normalizar_chave,
+    parse_intervalos_escolha,
+)
+from .turmas import (
+    _cadastrar_recursos_mecanizados_sn,
+    _catalogo_atividades_completo,
+    menu_vincular_atividades_turma,
+    resolver_conflitos_e_reatribuir,
+    sequencia_manutencao_seco_placeholder,
+    sequencia_manutencao_umido_placeholder,
+    turmas_que_executam,
+)
+from .ui import (
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    R,
+    Table,
+    Y,
+    aviso,
+    confirmar,
+    console,
+    erro,
+    escolha,
+    esperar,
+    linha,
+    ok,
+    pedir_float,
+    pedir_int,
+    pedir_jornada,
+    prompt,
+    selecionar,
+    selecionar_paginado,
+    sub,
+    subcabecalho,
 )
 
 
@@ -216,7 +247,7 @@ def calcular_cronograma_inteligente(
     print(G + BL + "  ATIVIDADES ENCONTRADAS NESTA FAZENDA:" + RS)
     for i, a in enumerate(atividades_reais, 1):
         print(G + f"  {i:2}. " + C + a + RS)
-    print(G + f"\n  Talhoes: " + C + f"{len(talhoes_ordenados)}" + RS)
+    print(G + "\n  Talhoes: " + C + f"{len(talhoes_ordenados)}" + RS)
     if escopo_talhoes:
         n_show = min(8, len(escopo_talhoes))
         base = ", ".join(str(x)[:24] for x in escopo_talhoes[:n_show])
@@ -230,7 +261,7 @@ def calcular_cronograma_inteligente(
     # ═══════════════════════════════════════════════════════════════════════════
     modo_comparativo = False
     substituicoes_comparativo = {}
-    
+
     seq_cfg = cfg.get("sequencia") or {}
 
     if not _batch:
@@ -251,7 +282,7 @@ def calcular_cronograma_inteligente(
                     + " Nenhuma sugestao automatica encontrada; use modo manual [2] ou recurso externo [3]."
                     + RS
                 )
-            
+
             if confirmar("Deseja executar comparativo MANUAL vs MECANIZADO?", default=False):
                 modo_comparativo = True
                 # Loop para permitir voltar entre modos
@@ -264,13 +295,13 @@ def calcular_cronograma_inteligente(
                     print(DM + "    (opcão 2 permite escolher QUALQUER atividade mecanizada)" + RS)
                     sub()
                     modo_escolha = escolha("Opção [1/2/3/0]", "1")
-                    
+
                     if modo_escolha == "0":
                         modo_comparativo = False
                         substituicoes_comparativo = {}
                         aviso("Modo comparativo cancelado. Continuando com modo normal.")
                         break
-                    
+
                     if modo_escolha == "1":
                         # MODO AUTOMÁTICO
                         if not pares_mecanizaveis:
@@ -279,7 +310,7 @@ def calcular_cronograma_inteligente(
                         sub()
                         print(G + " Atividades detectadas automaticamente:" + RS)
                         print()
-                        
+
                         # Mostrar lista numerada
                         for i, (manual, mec) in enumerate(pares_mecanizaveis, 1):
                             print(f" {Y}{i:2}{RS}. {manual}")
@@ -309,12 +340,12 @@ def calcular_cronograma_inteligente(
                         else:
                             # ENTER = todas
                             indices_trocar = list(range(len(pares_mecanizaveis)))
-                        
+
                         # Construir dicionário de substituições
                         for idx in indices_trocar:
                             manual, mec = pares_mecanizaveis[idx]
                             substituicoes_comparativo[manual] = mec
-                        
+
                         if substituicoes_comparativo:
                             ok(f"Selecionadas {len(substituicoes_comparativo)} substituição(ões) para comparativo.")
                             break  # Sai do loop - seleção concluída
@@ -2151,7 +2182,7 @@ def calcular_cronograma_inteligente(
                 wb_op = writer_op.book
                 _aplicar_cores_ocupacao_excel(wb_op, "OCUPACAO_TURMAS_DIA")
                 try:
-                    from srf_excel_format import aplicar_formatacao_operacional
+                    from orca_excel_format import aplicar_formatacao_operacional
 
                     aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma_base)
                 except Exception as _fmt_err:
@@ -2226,7 +2257,7 @@ def calcular_cronograma_inteligente(
                         )
                     wb_mo = writer_mo.book
                     try:
-                        from srf_excel_format import aplicar_formatacao_operacional
+                        from orca_excel_format import aplicar_formatacao_operacional
 
                         aplicar_formatacao_operacional(wb_mo, d_comb, cronograma_com_mec)
                     except Exception as _fmt_err:
@@ -2286,7 +2317,7 @@ def calcular_cronograma_inteligente(
             )
 
     linha()
-    
+
     # ═══════════════════════════════════════════════════════════════════════════
     # MODO COMPARATIVO: Executar segunda simulação com atividades mecanizadas
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2305,19 +2336,19 @@ def calcular_cronograma_inteligente(
                 + " Cenário mecanizado em modo compacto: detalhes intermediários suprimidos."
                 + RS
             )
-        
+
         # Criar cópia do dataframe com atividades substituídas
         df_mec = _substituir_por_mecanizado(df_faz, substituicoes_comparativo)
         cfg_mec = _clonar_cfg_comparativo_mecanizado(cfg, substituicoes_comparativo)
-        
+
         # Contar quantas atividades foram trocadas
         n_substituicoes = 0
         for manual, mec in substituicoes_comparativo.items():
             if (df_faz["atividade"] == manual).any():
                 n_substituicoes += (df_faz["atividade"] == manual).sum()
-        
+
         ok(f"{n_substituicoes} registro(s) serão executados com versão mecanizada.")
-        
+
         # Executar segundo cenário (mecanizado) em modo batch para não interagir
         ctx_mec = {
             "modo_seq": modo_seq,
@@ -2339,7 +2370,7 @@ def calcular_cronograma_inteligente(
             "primaria_template": primaria,
             "session_hh": session_hh,
         }
-        
+
         if execucao_compacta:
             _buf_cmp = io.StringIO()
             try:
@@ -2370,7 +2401,7 @@ def calcular_cronograma_inteligente(
                 modo_comparativo=False,  # Evitar recursão infinita
                 substituicoes_comparativo=None,
             )
-        
+
         # Verificar se houve retrocesso
         if isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao") == "retroceder_escopo":
             aviso("Cenário mecanizado cancelado.")
@@ -2397,7 +2428,7 @@ def calcular_cronograma_inteligente(
             else:
                 resultado_mecanizado_valido = True
                 ok("Cenário mecanizado concluído!")
-    
+
     # ═══════════════════════════════════════════════════════════════════════════
     # EXIBIR COMPARATIVO (se modo comparativo ativo)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2407,7 +2438,7 @@ def calcular_cronograma_inteligente(
         print(G + BL + "       COMPARATIVO: MANUAL vs MECANIZADO" + RS)
         print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
         print()
-        
+
         # Preparar dados
         d_manual = float(dias_simulado)
         d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
@@ -2415,7 +2446,7 @@ def calcular_cronograma_inteligente(
         hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
         hm_manual = float(total_hm)
         hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
-        
+
         # Calcular economia
         economia_dias = int(d_manual - d_mec)
         economia_hh = hh_manual - hh_mec
@@ -2433,7 +2464,7 @@ def calcular_cronograma_inteligente(
             },
             key=str,
         )
-        
+
         # Tabela de comparação
         print(f"  {C}Métrica{RS}                    {C}Manual{RS}          {C}Mecanizado{RS}      {C}Diferença{RS}")
         print(f"  {DM}{'─' * 70}{RS}")
@@ -2452,7 +2483,7 @@ def calcular_cronograma_inteligente(
             for manual, mec in substituicoes_comparativo.items():
                 print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
             print()
-        
+
         # Destaques
         print(G + BL + "  DESTAQUES:" + RS)
         if economia_dias > 0:
@@ -2469,7 +2500,7 @@ def calcular_cronograma_inteligente(
         print()
         print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
         sub()
-    
+
     if esperar_enter:
         esperar("ENTER para voltar ao menu")
     d_mc = (
@@ -2509,7 +2540,7 @@ def calcular_cronograma_inteligente(
         f"HH total: {float(total_hh):.1f}",
     ]
     _emitir_monitor_relatorio(f"Resumo {fazenda}", "\n".join(resumo_monitor))
-    
+
     resultado_final = {
         "fazenda": fazenda,
         "dias_simulado": int(dias_simulado),
@@ -2524,7 +2555,7 @@ def calcular_cronograma_inteligente(
             {"nome": t["nome"], "operarios": t["operarios"]} for t in turmas
         ],
     }
-    
+
     # Incluir resultados comparativos se disponíveis
     if resultado_mecanizado_valido:
         resultado_final["comparativo_mecanizado"] = {
@@ -2540,7 +2571,7 @@ def calcular_cronograma_inteligente(
                 for manual, mec in (substituicoes_comparativo or {}).items()
             ],
         }
-    
+
     return resultado_final
 
 

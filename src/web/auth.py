@@ -1,7 +1,7 @@
 import os
 import threading
 
-_APP_PASSWORD = os.environ.get("SRF_PASSWORD", "gazella2024")
+_APP_PASSWORD = os.environ.get("ORCA_PASSWORD", "orca2024")
 
 _authenticated_sessions: set[str] = set()
 _auth_lock = threading.Lock()

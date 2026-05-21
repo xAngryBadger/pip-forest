@@ -7,14 +7,28 @@ from collections import defaultdict
 
 from rich.table import Table
 
-from .config import salvar_config, _SEQUENCIAS_DISPONIVEIS
-from .text_utils import normalizar_chave, atividades_por_filtro, _norm_atv
-from .tarifas import resolver_rendimento_hh, resolver_chave_tarifa
+from .config import _SEQUENCIAS_DISPONIVEIS, salvar_config
+from .tarifas import resolver_chave_tarifa, resolver_rendimento_hh
+from .text_utils import _norm_atv, atividades_por_filtro, normalizar_chave
 from .ui import (
-    G, Y, C, DM, BL, RS,
-    console, sub, subcabecalho, aviso, erro, ok, prompt, pedir_float, confirmar,
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    confirmar,
+    console,
+    erro,
+    ok,
+    pedir_float,
+    prompt,
     selecionar_paginado,
+    sub,
+    subcabecalho,
 )
+
 
 def _match_filtros_fase(nome_atv, filtros, exclusoes=None):
     """True se nome contem algum filtro (normalizar_chave) e nenhuma exclusao."""
@@ -545,7 +559,7 @@ def validar_e_completar_orcamento(cfg, atividades_reais, session_hh=None):
         t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
         if t_nome not in tarifas:
             sub()
-            print(Y + f"  [ESTRITO] Sem tarifa CT para atividade do micro:" + RS)
+            print(Y + "  [ESTRITO] Sem tarifa CT para atividade do micro:" + RS)
             print(Y + f"    {str(atv)[:70]}" + RS)
             print(DM + f"    Chave atual: {t_nome}" + RS)
             if confirmar(

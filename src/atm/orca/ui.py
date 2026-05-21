@@ -4,7 +4,7 @@ SRF terminal UI helpers — colors, menus, headers, prompts.
 Depends on: srf.text_utils (only for parse_intervalos_escolha)
 External: colorama (optional), rich (required)
 
-When SRF_WEB_MODE=1 is set, interactive functions (prompt, confirmar,
+When ORCA_WEB_MODE=1 is set, interactive functions (prompt, confirmar,
 pedir_float, pedir_int, pedir_jornada, selecionar, selecionar_paginado)
 delegate to _get_web_bridge() instead of using terminal input(). This allows
 the web adapter (src/web/bridge.py) to intercept calls and route them
@@ -17,7 +17,7 @@ import os
 import sys
 import threading
 
-_WEB_MODE_INIT = os.environ.get("SRF_WEB_MODE") == "1"
+_WEB_MODE_INIT = os.environ.get("ORCA_WEB_MODE") == "1"
 _tl = threading.local()
 _tl._web_bridge = None
 _tl._WEB_MODE = _WEB_MODE_INIT
@@ -59,20 +59,36 @@ W = 66
 console = Console()
 
 ASCII_ART = r"""
-   ,@@@@@@@,
-,,,.   ,@@@@@@/@@,  .oo8888o.
-,&%%&%&&%,@@@@@/@@@@@@,8888\88/8o
-,%&\%&&%&&%,@@@\@@@/@@@88\88888/88'
-%&&%&%&/%&&%@@\@@/ /@@@88888\88888'
-%&&%/ %&%%&&@@\ V /@@' `88\8 `/88'
- `&%\ ` /%&'    |.|        \ '|8'
-    |o|        | |        | |
-    |.|        | |        | |
-     \\/ ._\//_/__/  ,\_//__\\/.  \_//__/_
+                                   ▄▄████████████████▄▄
+                                 ▄████▀▀▀▀▀▀▀▀▀▀▀▀▀████▄
+                               ▄██▀░░░░░░░░░░░░░░░░░░░░▀██▄
+                              ██▀░░░░░░░░░░░░░░░░░░░░░░░░▀██
+                             ██░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                            ██▀░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                           ██▀░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██▀░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ▀█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                          ▀█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                           █░░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                           █░░░░░░░░░░░░░░░░░░░░░░░░░░██
+                           ▀█░░░░░░░░░░░░░░░░░░░░░░░░░██
+                            █░░░░░░░░░░░░░░░░░░░░░░░░██
+                            ▀█░░░░░░░░░░░░░░░░░░░░░░██
+                             █▄░░░░░░░░░░░░░░░░░░░▄█
+                              ██▄▄░░░░░░░░░░░░░░▄██
+                               ▀▀████▄▄▄▄▄▄▄▄▄▄████▀▀
 """
 
-VERSION = "6.3"
-APP_NAME = "SRF - Sistema de Restauracao Florestal"
+VERSION = "7.0"
+APP_NAME = "Orca — Sistema de Restauracao Florestal"
 
 # ──────────────────────────────────────────────
 # DISPLAY HELPERS
@@ -90,7 +106,7 @@ def cabecalho(sub_titulo=""):
     os.system("cls" if os.name == "nt" else "clear")
     print(G + ASCII_ART + RS)
     linha()
-    print(G + BL + f" [ SRF ] {APP_NAME} v{VERSION}".center(W) + RS)
+    print(G + BL + f" [ ORCA ] {APP_NAME} v{VERSION}".center(W) + RS)
     if sub_titulo:
         print(DM + G + sub_titulo.center(W) + RS)
     print(DM + G + datetime.datetime.now().strftime(" %d/%m/%Y %H:%M").center(W) + RS)
@@ -100,7 +116,7 @@ def cabecalho(sub_titulo=""):
 def subcabecalho(sub_titulo=""):
     """Versao incremental que nao limpa a tela, mantem conteudo anterior."""
     print("\n" + "-" * W)
-    print(G + BL + f" [ SRF ] {APP_NAME} v{VERSION}".center(W) + RS)
+    print(G + BL + f" [ ORCA ] {APP_NAME} v{VERSION}".center(W) + RS)
     if sub_titulo:
         print(DM + G + sub_titulo.center(W) + RS)
     print(DM + G + datetime.datetime.now().strftime(" %d/%m/%Y %H:%M").center(W) + RS)
@@ -199,7 +215,7 @@ def selecionar(titulo, itens, zero_label="Voltar"):
     print(G + f"\n -- {titulo} " + "--" * max(0, (W - len(titulo) - 6) // 2) + RS)
     for i, it in enumerate(itens, 1):
         print(G + f" [{i:2}] " + C + str(it) + RS)
-    print(G + f" [ 0] " + DM + zero_label + RS)
+    print(G + " [ 0] " + DM + zero_label + RS)
     while True:
         v = prompt("Escolha").strip()
         if v == "0":

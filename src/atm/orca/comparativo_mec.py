@@ -4,7 +4,7 @@ import copy
 import math
 
 from .constants import COMPARATIVO_MANUAL_MEC
-from .ui import sub, C, BL, DM, RS, aviso, ok, prompt, pedir_float
+from .ui import BL, DM, RS, C, aviso, ok, pedir_float, prompt, sub
 
 
 def _atividades_com_mecanizado_disponivel(atividades_reais):

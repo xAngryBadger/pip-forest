@@ -15,7 +15,7 @@ import os
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from srf_monitor_state import default_state_path, ler_estado
+from orca_monitor_state import default_state_path, ler_estado
 
 _HTML = """<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><title>SRF — estado local</title>
@@ -45,7 +45,7 @@ class Handler(BaseHTTPRequestHandler):
         qs = urllib.parse.urlparse(self.path).query
         q = urllib.parse.parse_qs(qs)
         raw = (q.get("pid") or [None])[0]
-        envp = os.environ.get("SRF_MONITOR_PID", "").strip()
+        envp = os.environ.get("ORCA_MONITOR_PID", "").strip()
         if raw and str(raw).isdigit():
             return int(raw)
         if envp.isdigit():
@@ -83,7 +83,7 @@ def main():
     ap.add_argument("--pid", type=int, default=None, help="PID sessao principal (tambem aceito na query /api/state?pid=)")
     args = ap.parse_args()
     if args.pid is not None:
-        os.environ["SRF_MONITOR_PID"] = str(args.pid)
+        os.environ["ORCA_MONITOR_PID"] = str(args.pid)
 
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"SRF local http://127.0.0.1:{args.port}/  (api: /api/state)")

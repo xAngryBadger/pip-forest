@@ -74,7 +74,6 @@ def _is_legacy_mode():
 
 
 def _is_beta_mode():
-    import sys as _sys
 
     # Fluxo beta promovido a padrao; legado fica opt-in por flag/env.
     if _is_legacy_mode():
@@ -260,7 +259,7 @@ def _sugerir_config_empresa(fazendas_por_empresa: dict, cfg: dict) -> dict:
 
 
 def _load_json_safe(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

@@ -194,7 +194,7 @@
         var current = html.getAttribute("data-theme") || "";
         var next = current === "neo-brutalist" ? "" : "neo-brutalist";
         html.setAttribute("data-theme", next);
-        localStorage.setItem("srf-theme", next);
+        localStorage.setItem("orca-theme", next);
         updateThemeIcon();
       });
     }
@@ -238,7 +238,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    var saved = localStorage.getItem("srf-theme") || "";
+    var saved = localStorage.getItem("orca-theme") || "";
     if (saved) document.documentElement.setAttribute("data-theme", saved);
     initThemeToggle();
     initDashboard();
@@ -248,5 +248,5 @@
   document.addEventListener("htmx:afterSwap", onHtmxAfterSwap);
   document.addEventListener("htmx:oobAfterSwap", onHtmxAfterSwap);
 
-  window.SRF = { asciToPt: asciToPt, initAll: initAll };
+  window.ORCA = { asciToPt: asciToPt, initAll: initAll };
 })();

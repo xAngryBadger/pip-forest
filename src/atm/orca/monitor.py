@@ -13,16 +13,16 @@ import sys
 # OPTIONAL MONITOR STATE IMPORT
 # ──────────────────────────────────────────────
 try:
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         append_relatorio as _monitor_append_relatorio,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         build_rendimentos_from_demandas as _monitor_build_rendimentos,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         default_state_path as _monitor_default_state_path,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         merge_emit as _monitor_merge_emit,
     )
 except Exception:
@@ -146,7 +146,7 @@ def _emitir_monitor_rendimentos(
         if _MONITOR_STATE_PATH and os.path.exists(_MONITOR_STATE_PATH):
             try:
                 import json as _json
-                with open(_MONITOR_STATE_PATH, "r", encoding="utf-8") as f:
+                with open(_MONITOR_STATE_PATH, encoding="utf-8") as f:
                     dados_existentes = _json.load(f)
                 rendimentos_existentes = dados_existentes.get("rendimentos_sessao", []).copy()
             except Exception:
@@ -230,6 +230,7 @@ def _abrir_monitor_janela(feed="meta", pid=None):
     Usa subprocess para iniciar um terminal novo.
     """
     import subprocess
+
     from . import ui as _ui  # lazy import to avoid circular
 
     try:

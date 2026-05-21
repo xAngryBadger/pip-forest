@@ -1,25 +1,25 @@
-import threading
-import traceback
+import contextlib
 import os
 import re
 import sys
-import contextlib
+import threading
+import traceback
 from io import StringIO
 from pathlib import Path
 
 from src.atm.srf import ui as cli_ui
 from src.web.session import (
     Session,
+    _cfgp_lock,
     get_current_session,
-    set_current_session,
     register_session,
     remove_session,
-    _cfgp_lock,
+    set_current_session,
 )
 
 
 def _load_session_config(session: Session):
-    import src.atm.srf.config as _cfg
+    import src.atm.orca.config as _cfg
     with _cfgp_lock:
         _old = _cfg.CFGP
         _cfg.CFGP = str(session.data_dir / "config.json")
@@ -344,7 +344,7 @@ def uninstall_bridge():
 
 
 def _load_micro_df(session, cfg):
-    from src.atm.srf.io import carregar_planilha_microplanejamento
+    from src.atm.orca.io import carregar_planilha_microplanejamento
     planilhas_dir = session.data_dir / "planilhas"
     candidates = []
     for key in ("micro_atual", "arquivo"):
@@ -377,8 +377,8 @@ def _load_micro_df(session, cfg):
 
 
 def _run_scheduler_single(session: Session, fazenda: str):
-    from src.atm.srf.app import _executar_scheduler_fazenda_interativo
-    from src.atm.srf.context import contexto_sessao
+    from src.atm.orca.app import _executar_scheduler_fazenda_interativo
+    from src.atm.orca.context import contexto_sessao
 
     set_current_session(session)
     install_bridge()
@@ -392,7 +392,7 @@ def _run_scheduler_single(session: Session, fazenda: str):
     try:
         with _redirect_lock:
             _chain_redirector.install_tee(session._output_buf)
-        from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
+        from src.atm.orca.app import _aplicar_filtro_empresa_e_escopo, _aplicar_filtro_regiao
 
         micro_path, df = _load_micro_df(session, cfg)
         if df is None:
@@ -448,8 +448,8 @@ def _run_scheduler_single(session: Session, fazenda: str):
         set_current_session(None)
 
 def _run_scheduler_batch(session: Session):
-    from src.atm.srf.scheduler_core import _executar_lote_fazendas
-    from src.atm.srf.context import contexto_sessao
+    from src.atm.orca.context import contexto_sessao
+    from src.atm.orca.scheduler_core import _executar_lote_fazendas
 
     set_current_session(session)
     install_bridge()
@@ -462,7 +462,7 @@ def _run_scheduler_batch(session: Session):
 
     try:
         with _chain_redirector._original_redirect_stdout(session._output_buf), _chain_redirector._original_redirect_stderr(session._output_buf):
-            from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
+            from src.atm.orca.app import _aplicar_filtro_empresa_e_escopo, _aplicar_filtro_regiao
 
             micro_path, df = _load_micro_df(session, cfg)
             if df is None:
@@ -493,8 +493,8 @@ def _run_scheduler_batch(session: Session):
 
 
 def _run_scheduler_multi(session: Session):
-    from src.atm.srf.scheduler_core import _executar_multi_equipes
-    from src.atm.srf.context import contexto_sessao
+    from src.atm.orca.context import contexto_sessao
+    from src.atm.orca.scheduler_core import _executar_multi_equipes
 
     set_current_session(session)
     install_bridge()
@@ -507,7 +507,7 @@ def _run_scheduler_multi(session: Session):
 
     try:
         with _chain_redirector._original_redirect_stdout(session._output_buf), _chain_redirector._original_redirect_stderr(session._output_buf):
-            from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
+            from src.atm.orca.app import _aplicar_filtro_empresa_e_escopo, _aplicar_filtro_regiao
 
             micro_path, df = _load_micro_df(session, cfg)
             if df is None:
@@ -538,7 +538,7 @@ def _run_scheduler_multi(session: Session):
 
 
 def _collect_result_files(session, fazenda=None):
-    from src.atm.srf.config import OUTPUT_DIR
+    from src.atm.orca.config import OUTPUT_DIR
     dossier_dir = Path(OUTPUT_DIR)
     if not dossier_dir.exists():
         return

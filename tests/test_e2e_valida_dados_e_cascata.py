@@ -12,14 +12,14 @@ Nao executa scheduler completo (requer interacao), mas valida
 que TUDO está pronto para execucao.
 """
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
-from src.atm.srf.scheduler import _min_fase_cascata_por_talhao
+from src.atm.orca.scheduler import _min_fase_cascata_por_talhao
 
 
 class TesteE2EValidaDadosECascata(unittest.TestCase):
@@ -46,7 +46,7 @@ class TesteE2EValidaDadosECascata(unittest.TestCase):
 
         # 3. v15 (referencia) - OPCIONAL
         v15_path = Path("data/dossiês/Dossier_FORMOSA__FAZENDA_TODOS_OPERACIONAL_v15.xlsx")
-        print(f"\n3. Referencia v15 (opcional)...")
+        print("\n3. Referencia v15 (opcional)...")
         cls.v15_dias = None
         cls.v15_ativ = None
         if v15_path.exists():
@@ -55,7 +55,7 @@ class TesteE2EValidaDadosECascata(unittest.TestCase):
             cls.v15_ativ = int(v15_resumo[v15_resumo['Metrica']=='Agendadas (humano)']['Valor'].values[0])
             print(f" ✓ v15: {cls.v15_dias} dias, {cls.v15_ativ} atividades")
         else:
-            print(f" - v15 nao encontrado (referencia: 145 dias, 15 atividades)")
+            print(" - v15 nao encontrado (referencia: 145 dias, 15 atividades)")
 
         # 4. Primeira fazenda
         cls.fazenda = cls.micro['NOME FAZENDA'].unique()[0]
@@ -123,7 +123,7 @@ class TesteE2EValidaDadosECascata(unittest.TestCase):
     def test_07_referencia_v15(self):
         """v15 referencia (opcional)."""
         if self.v15_dias is None:
-            print(f" - v15 nao disponivel para comparacao")
+            print(" - v15 nao disponivel para comparacao")
             return
         self.assertEqual(self.v15_dias, 145, f"v15 dias diferente: {self.v15_dias}")
         self.assertEqual(self.v15_ativ, 15, f"v15 atividades diferente: {self.v15_ativ}")

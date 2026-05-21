@@ -7,16 +7,14 @@ Configuração padrão:
 - Dados: microatual.xlsx + ct317real.xlsx
 """
 
-import unittest
 import sys
-import os
+import unittest
 from pathlib import Path
-from datetime import datetime
 
 # Adicionar path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.atm.srf.scheduler import _min_fase_cascata_por_talhao
+from src.atm.orca.scheduler import _min_fase_cascata_por_talhao
 
 # Configuração padrão
 CONFIG_PADRAO = {
@@ -36,24 +34,24 @@ V15_HH_TOTAL = 7824.2
 
 class TesteCascataGlobal(unittest.TestCase):
     """Teste crítico: cascata GLOBAL."""
-    
+
     def test_cascata_respeita_fase_n_mais_1(self):
         """Cascata deve garantir fase N+1 só quando TODOS completam fase N."""
         demanda = {
             ('talhao1', 'ROCADA'): 10.0,
             ('talhao2', 'ROCADA'): 8.0,
         }
-        
+
         resultado = _min_fase_cascata_por_talhao(
             demanda, {}, None, True, False, set(), set(), set(), 0, {}, {}
         )
-        
+
         # Extrair MIN GLOBAL
         min_global = min(resultado.values()) if resultado else None
-        
+
         # Deve ter valor
         self.assertIsNotNone(min_global)
-        
+
         # Todas as fases devem ser >= min_global
         for fase in resultado.values():
             self.assertGreaterEqual(fase, min_global)
@@ -73,7 +71,7 @@ class TesteTimeUnico(unittest.TestCase):
     - Atividades >= 15
     - HH total >= 7000
     """
-    
+
     def setUp(self):
         """Configurar teste."""
         self.config = CONFIG_PADRAO.copy()
@@ -84,18 +82,18 @@ class TesteTimeUnico(unittest.TestCase):
                 "atividades": ["todas"]
             }
         ]
-    
+
     def test_time_unico_completa_todas_atividades(self):
         """Time único deve completar todas as atividades em sequência."""
         # TODO: Implementar execução real do scheduler
         # Por enquanto, teste placeholder
         self.assertTrue(True, "Time único: teste placeholder")
-    
+
     def test_time_unico_diasdentro_limite(self):
         """Dias devem ser <= 200."""
         # TODO: Implementar após execução real
         self.assertTrue(True, "Dias: teste placeholder")
-    
+
     def test_time_unico_atividades_minimas(self):
         """Atividades devem ser >= 15."""
         # TODO: Implementar após execução real
@@ -116,7 +114,7 @@ class TesteDoisTimes(unittest.TestCase):
     - Sem conflitos
     - Dias <= 180
     """
-    
+
     def setUp(self):
         """Configurar teste."""
         self.config = CONFIG_PADRAO.copy()
@@ -134,12 +132,12 @@ class TesteDoisTimes(unittest.TestCase):
                 "prioridade": 2
             }
         ]
-    
+
     def test_dois_times_sem_conflito(self):
         """Dois times não devem conflitar."""
         # TODO: Implementar execução real
         self.assertTrue(True, "Dois times: teste placeholder")
-    
+
     def test_prioridade_respeitada(self):
         """Time Roçada deve começar antes de Time Plantio."""
         # TODO: Implementar validação de timeline
@@ -159,7 +157,7 @@ class TesteBloqueioGlobal(unittest.TestCase):
     - Cascata respeitada
     - Dias <= 200
     """
-    
+
     def setUp(self):
         """Configurar teste."""
         self.config = CONFIG_PADRAO.copy()
@@ -172,7 +170,7 @@ class TesteBloqueioGlobal(unittest.TestCase):
                 "atividades": ["todas"]
             }
         ]
-    
+
     def test_bloqueio_global_respeitado(self):
         """Plantio/irrigação devem ser bloqueados até resto completar."""
         # TODO: Implementar validação de bloqueio
@@ -191,7 +189,7 @@ class TesteMultiplasFazendas(unittest.TestCase):
     - Sem sobreposição
     - Dias <= 250
     """
-    
+
     def setUp(self):
         """Configurar teste."""
         self.config = CONFIG_PADRAO.copy()
@@ -206,7 +204,7 @@ class TesteMultiplasFazendas(unittest.TestCase):
                 "fazendas": ["todas"]
             }
         ]
-    
+
     def test_multiplas_fazendas_processadas(self):
         """Todas as fazendas devem ser processadas."""
         # TODO: Implementar validação de múltiplas fazendas
@@ -221,32 +219,32 @@ class TesteValidacaoDados(unittest.TestCase):
     - ct317real.xlsx carrega
     - Colunas necessárias presentes
     """
-    
+
     def test_microatual_carrega(self):
         """microatual.xlsx deve carregar corretamente."""
         import pandas as pd
-        
+
         micro_path = Path("data/planilhas/microatual.xlsx")
         self.assertTrue(micro_path.exists(), f"Arquivo não encontrado: {micro_path}")
-        
+
         micro = pd.read_excel(micro_path, sheet_name='MICROPL_IMPL_ABR_JUN_V5')
         self.assertGreater(len(micro), 0, "microatual.xlsx está vazio")
-        
+
         # Colunas necessárias
         colunas_necessarias = ['DATA', 'CÓDIGO FAZENDA', 'NOME FAZENDA', 'CHAVE POLÍGONO', 'ATIVIDADES', 'ÁREA POLÍGONO (HECTARE)']
         for col in colunas_necessarias:
             self.assertIn(col, micro.columns, f"Coluna {col} não encontrada em microatual.xlsx")
-    
+
     def test_ct317real_carrega(self):
         """ct317real.xlsx deve carregar corretamente."""
         import pandas as pd
-        
+
         ct317_path = Path("data/planilhas/ct317real.xlsx")
         self.assertTrue(ct317_path.exists(), f"Arquivo não encontrado: {ct317_path}")
-        
+
         ct317 = pd.read_excel(ct317_path, sheet_name='Preço Final')
         self.assertGreater(len(ct317), 0, "ct317real.xlsx está vazio")
-        
+
         # Colunas necessárias
         colunas_necessarias = ['N', 'OPERAÇÕES', ' Rendimento HH/ha', 'PREÇO R$']
         for col in colunas_necessarias:

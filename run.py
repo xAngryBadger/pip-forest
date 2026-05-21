@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SRF - Sistema de Restauração Florestal
+Orca — Sistema de Restauração Florestal
 Main entry point for CLI usage
 
 Usage:

@@ -2,7 +2,7 @@
 Formatacao executiva do Dossier Excel (openpyxl).
 Cabecalhos navy, zebra no cronograma, aba DASHBOARD, GANTT simples semanal.
 """
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Alignment, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 HEADER_FILL = PatternFill(start_color="1F2F47", end_color="1F2F47", fill_type="solid")

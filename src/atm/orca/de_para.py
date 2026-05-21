@@ -2,7 +2,8 @@
 
 from .config import salvar_config
 from .constants import DEFAULT_DEPARA_EXAME_CT317
-from .text_utils import normalizar_chave, _candidatos_chave_atividade
+from .text_utils import _candidatos_chave_atividade, normalizar_chave
+
 
 def auto_mapear_de_para(cfg, atividades_reais):
     """

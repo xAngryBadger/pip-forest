@@ -8,17 +8,35 @@ from statistics import median
 import pandas as pd
 
 from .config import (
-    INPUT_DIR, PRECO_FINAL_JSON_DEFAULT, PRECO_FINAL_JSON_DOWNLOADS,
-    _PRECO_FINAL_JSON_CACHE, STG_FILENAME, salvar_config,
+    _PRECO_FINAL_JSON_CACHE,
+    INPUT_DIR,
+    PRECO_FINAL_JSON_DEFAULT,
+    PRECO_FINAL_JSON_DOWNLOADS,
+    STG_FILENAME,
+    salvar_config,
 )
 from .constants import CT317_HARDCODE_HH_BASE
-from .ui import (
-    G, Y, C, DM, BL, RS,
-    sub, aviso, ok, erro, prompt,
-    confirmar, selecionar, selecionar_paginado, subcabecalho, esperar,
-)
-from .text_utils import normalizar_chave, remover_acentos
 from .context import dashboard_header
+from .text_utils import normalizar_chave, remover_acentos
+from .ui import (
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    confirmar,
+    erro,
+    esperar,
+    ok,
+    prompt,
+    selecionar,
+    selecionar_paginado,
+    sub,
+    subcabecalho,
+)
+
 
 def mediana_rendimento_hh(tarifas):
     """Mediana dos rendimento_hh > 0 em config.tarifas, ou None."""
@@ -255,7 +273,7 @@ def _carregar_mapa_preco_final_json(cfg=None):
         return dict(cache.get("mapa") or {})
 
     try:
-        with open(caminho, "r", encoding="utf-8-sig") as f:
+        with open(caminho, encoding="utf-8-sig") as f:
             raw = json.load(f)
     except Exception:
         return {}
@@ -801,7 +819,7 @@ def modulo_importar_custos_globais_brutos(cfg):
 
 
 def modulo_importar_precos_contrato(cfg):
-    from .io import selecionar_arquivo, _find_default_ct_path
+    from .io import _find_default_ct_path, selecionar_arquivo
 
     dashboard_header()
     subcabecalho("IMPORTAR PLANILHA DE PRECO (CONTRATO)")

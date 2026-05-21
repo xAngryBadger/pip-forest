@@ -230,13 +230,13 @@ import_block = """
 # ──────────────────────────────────────────────
 # MODULAR IMPORTS (Phase 2 — territorio + tarifas + de_para)
 # ──────────────────────────────────────────────
-from srf.territorio import (
+from orca.territorio import (
     _indice_fazendas_ct,
     micro_fazendas_ausentes_na_lista_ct,
     aviso_fazendas_micro_sem_cadastro_ct,
     modulo_validar_fazendas_ct,
 )
-from srf.tarifas import (
+from orca.tarifas import (
     mediana_rendimento_hh,
     resolver_rendimento_hh,
     resolver_rendimento_hm,
@@ -256,7 +256,7 @@ from srf.tarifas import (
     modulo_mapeamentos_de_para,
     aviso_politica_tarifas_planas,
 )
-from srf.de_para import (
+from orca.de_para import (
     auto_mapear_de_para,
     aplicar_depara_padrao_exame,
 )

@@ -1,10 +1,10 @@
 """Territorio — validacao de fazendas CT vs microplanejamento."""
 
 from .config import salvar_config
-from .ui import sub, aviso, ok, prompt, confirmar, selecionar_paginado, G, C, Y, DM, RS, esperar
-from .text_utils import normalizar_chave
-from .ui import subcabecalho
 from .context import dashboard_header
+from .text_utils import normalizar_chave
+from .ui import DM, RS, C, G, Y, aviso, confirmar, esperar, ok, prompt, selecionar_paginado, sub, subcabecalho
+
 
 def _indice_fazendas_ct(cfg):
     """Chave normalizada -> nome canonico (ultimo da lista)."""

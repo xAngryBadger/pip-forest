@@ -10,7 +10,7 @@ Schema (documentacao — um unico ficheiro por PID, overwrite atomico):
 - rendimentos_sessao: lista de {atividade, hh_ha, origem, chave_tarifa}
 - buffer_relatorios: lista max N de {ts, titulo, texto} (cronograma resumo, dossier, cascata)
 
-SRF_MONITOR=0 desliga gravacao e append ao buffer.
+ORCA_MONITOR=0 desliga gravacao e append ao buffer.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Diretorio do projeto (atm_v5 e monitores correm a partir da pasta do repo)
 DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,22 +27,22 @@ _MAX_BUFFER = 48
 
 
 def monitor_io_enabled() -> bool:
-    v = os.environ.get("SRF_MONITOR", "1").strip().lower()
+    v = os.environ.get("ORCA_MONITOR", "1").strip().lower()
     return v not in ("0", "false", "no", "off")
 
 
 def monitor_quiet_duplicate_status() -> bool:
     """Se True, o fluxo principal pode omitir blocos duplicados ja espelhados nos monitores."""
-    v = os.environ.get("SRF_MONITOR_QUIET", "").strip().lower()
+    v = os.environ.get("ORCA_MONITOR_QUIET", "").strip().lower()
     return v in ("1", "true", "yes", "on")
 
 
-def default_state_path(pid: Optional[int] = None) -> str:
+def default_state_path(pid: int | None = None) -> str:
     pid = int(pid or os.getpid())
     return os.path.join(DIR, f"estado_sessao_{pid}.json")
 
 
-def ler_estado(path: str) -> Dict[str, Any]:
+def ler_estado(path: str) -> dict[str, Any]:
     if not path or not os.path.isfile(path):
         return {}
     try:
@@ -52,7 +52,7 @@ def ler_estado(path: str) -> Dict[str, Any]:
         return {}
 
 
-def gravar_atomico(path: str, data: Dict[str, Any]) -> None:
+def gravar_atomico(path: str, data: dict[str, Any]) -> None:
     normalized = _normalize_for_json(data)
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -70,7 +70,7 @@ def _normalize_for_json(obj):
     return obj
 
 
-def _deep_merge(base: Dict[str, Any], patch: Dict[str, Any]) -> None:
+def _deep_merge(base: dict[str, Any], patch: dict[str, Any]) -> None:
     for k, v in patch.items():
         if (
             k in base
@@ -85,9 +85,9 @@ def _deep_merge(base: Dict[str, Any], patch: Dict[str, Any]) -> None:
 
 def merge_emit(
     path: str,
-    partial: Dict[str, Any],
+    partial: dict[str, Any],
     *,
-    pid: Optional[int] = None,
+    pid: int | None = None,
 ) -> None:
     """Merge parcial no estado existente e grava com timestamp."""
     if not monitor_io_enabled():
@@ -106,14 +106,14 @@ def append_relatorio(
     titulo: str,
     texto: str,
     *,
-    pid: Optional[int] = None,
+    pid: int | None = None,
 ) -> None:
     if not monitor_io_enabled():
         return
     if pid is not None:
         path = default_state_path(pid)
     cur = ler_estado(path)
-    buf: List[Dict[str, Any]] = list(cur.get("buffer_relatorios") or [])
+    buf: list[dict[str, Any]] = list(cur.get("buffer_relatorios") or [])
     buf.append(
         {
             "ts": time.time(),
@@ -127,9 +127,9 @@ def append_relatorio(
     gravar_atomico(path, cur)
 
 
-def build_rendimentos_from_demandas(demandas: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def build_rendimentos_from_demandas(demandas: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Extrai lista agregada por atividade a partir do dict talhao -> tarefas."""
-    agg: Dict[str, Dict[str, Any]] = {}
+    agg: dict[str, dict[str, Any]] = {}
     for _talhao, tarefas in (demandas or {}).items():
         for t in tarefas or []:
             atv = str(t.get("atividade", ""))
@@ -150,7 +150,7 @@ def build_rendimentos_from_demandas(demandas: Dict[str, List[Dict[str, Any]]]) -
                 }
             agg[atv]["hh_total"] += hh
             agg[atv]["area_ha"] += area
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for row in sorted(agg.values(), key=lambda x: str(x["atividade"])):
         a = float(row["area_ha"] or 0)
         hh_t = float(row["hh_total"] or 0)

@@ -24,16 +24,16 @@ from statistics import median
 import pandas as pd
 
 try:
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         append_relatorio as _monitor_append_relatorio,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         build_rendimentos_from_demandas as _monitor_build_rendimentos,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         default_state_path as _monitor_default_state_path,
     )
-    from srf_monitor_state import (
+    from orca_monitor_state import (
         merge_emit as _monitor_merge_emit,
     )
 except Exception:
@@ -7284,7 +7284,7 @@ def calcular_cronograma_inteligente(
                         )
                     wb_fin = writer_fin.book
                     try:
-                        from srf_excel_format import aplicar_formatacao_financeiro
+                        from orca_excel_format import aplicar_formatacao_financeiro
 
                         aplicar_formatacao_financeiro(
                             wb_fin,
@@ -7336,7 +7336,7 @@ def calcular_cronograma_inteligente(
                 wb_op = writer_op.book
                 _aplicar_cores_ocupacao_excel(wb_op, "OCUPACAO_TURMAS_DIA")
                 try:
-                    from srf_excel_format import aplicar_formatacao_operacional
+                    from orca_excel_format import aplicar_formatacao_operacional
 
                     aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma_base)
                 except Exception:
@@ -7439,7 +7439,7 @@ def calcular_cronograma_inteligente(
                         )
                         wb_mf = writer_mf.book
                         try:
-                            from srf_excel_format import aplicar_formatacao_financeiro
+                            from orca_excel_format import aplicar_formatacao_financeiro
 
                             aplicar_formatacao_financeiro(
                                 wb_mf,
@@ -7466,7 +7466,7 @@ def calcular_cronograma_inteligente(
                         )
                     wb_mo = writer_mo.book
                     try:
-                        from srf_excel_format import aplicar_formatacao_operacional
+                        from orca_excel_format import aplicar_formatacao_operacional
 
                         aplicar_formatacao_operacional(
                             wb_mo, d_comb, cronograma_com_mec

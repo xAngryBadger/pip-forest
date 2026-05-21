@@ -4,7 +4,7 @@ import shutil
 import tempfile
 import unittest
 
-import src.atm.srf.ui as _ui
+import src.atm.orca.ui as _ui
 
 _ui.confirmar = lambda msg, default=True, **kw: default
 _ui.pedir_float = lambda msg, default=0.0, **kw: float(default)
@@ -17,9 +17,9 @@ _ui.esperar = lambda msg, **kw: None
 _ui.pedir_jornada = lambda msg, default=8.0, **kw: float(default)
 
 import pandas as pd
-from src.atm.srf.config import carregar_config, OUTPUT_DIR
-from src.atm.srf.io import carregar_planilha_microplanejamento
-from src.atm.srf.scheduler_core import calcular_cronograma_inteligente
+from src.atm.orca.config import OUTPUT_DIR, carregar_config
+from src.atm.orca.io import carregar_planilha_microplanejamento
+from src.atm.orca.scheduler_core import calcular_cronograma_inteligente
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _PLANILHAS_DIR = os.path.join(_DATA_DIR, "planilhas")
@@ -72,11 +72,11 @@ class TestE2EBatchXlsx(unittest.TestCase):
 
     def setUp(self):
         self._tmpdir = tempfile.mkdtemp(prefix="srf_e2e_")
-        import src.atm.srf.scheduler_core as _sc
+        import src.atm.orca.scheduler_core as _sc
         _sc.OUTPUT_DIR = self._tmpdir
 
     def tearDown(self):
-        import src.atm.srf.scheduler_core as _sc
+        import src.atm.orca.scheduler_core as _sc
         _sc.OUTPUT_DIR = self._output_backup
         shutil.rmtree(self._tmpdir, ignore_errors=True)
 
@@ -188,11 +188,11 @@ class TestE2EBatchMultipleTeams(unittest.TestCase):
 
     def setUp(self):
         self._tmpdir = tempfile.mkdtemp(prefix="srf_e2e_multi_")
-        import src.atm.srf.scheduler_core as _sc
+        import src.atm.orca.scheduler_core as _sc
         _sc.OUTPUT_DIR = self._tmpdir
 
     def tearDown(self):
-        import src.atm.srf.scheduler_core as _sc
+        import src.atm.orca.scheduler_core as _sc
         _sc.OUTPUT_DIR = self._output_backup
         shutil.rmtree(self._tmpdir, ignore_errors=True)
 

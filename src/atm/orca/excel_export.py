@@ -8,21 +8,29 @@ from collections import defaultdict
 import pandas as pd
 
 from .config import OUTPUT_DIR, PERFIS_DIR, _normalize_for_json
-from .constants import _FASE_CORES_HEX
-from .text_utils import atividades_por_filtro, _slug_ficheiro_seguro
-from .scheduler import (
-    eh_limpeza_quimica_pos_plantio,
-    _match_filtros_fase,
-    _fases_ordem_config,
-)
-from .turmas import menu_vincular_atividades_turma
 from .datas import (
     _converter_dia_simulado_para_data,
 )
+from .scheduler import (
+    _fases_ordem_config,
+    _match_filtros_fase,
+    eh_limpeza_quimica_pos_plantio,
+)
+from .text_utils import _slug_ficheiro_seguro
+from .turmas import menu_vincular_atividades_turma
 from .ui import (
-    G, Y, C, DM, BL, RS,
-    sub, aviso, ok, prompt, selecionar,
+    BL,
+    DM,
+    RS,
+    C,
+    G,
+    Y,
+    aviso,
+    ok,
     pedir_int,
+    prompt,
+    selecionar,
+    sub,
 )
 
 
@@ -116,7 +124,7 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
         ops_dia = max(float(x) for x in grp["Operarios"].tolist()) if len(grp) else 0.0
         cap_dia = max(0.0, float(ops_dia) * float(jornada))
         usado_dia = 0.0
-        
+
         # Calcular data real se parametros fornecidos
         data_real = None
         dia_semana = ""
@@ -127,7 +135,7 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
             if data_tuple:
                 data_real = data_tuple[0]
                 dia_semana = data_tuple[1]
-        
+
         for _, r in grp.iterrows():
             hh_inicio = max(0.0, cap_dia - usado_dia)
             hh_cons = float(r["HH"])
@@ -138,7 +146,7 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
             pend = max(0.0, float(demanda_total[k]) - float(consumido_atividade[k]))
             op = float(r["Operarios"] or 0.0)
             hh_equiv_op = (hh_cons / op) if op > 0.01 else 0.0
-            
+
             row = {
                 "Tipo_Linha": "ATIVIDADE",
                 "Dia": int(dia),
@@ -159,14 +167,14 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
                 "Fechou_Dia": "S" if hh_saldo <= 0.01 else "N",
                 "Calculo_Dia": f"{cap_dia:.2f} - {usado_dia - hh_cons:.2f} - {hh_cons:.2f} = {hh_saldo:.2f}",
             }
-            
+
             # Adicionar data real se calculada
             if data_real:
                 row["Data"] = data_real
                 row["Dia_Semana"] = dia_semana
-                
+
             out.append(row)
-            
+
         # Resumo do dia
         resumo_row = {
             "Tipo_Linha": "RESUMO_DIA",
@@ -190,21 +198,21 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
             "Fechou_Dia": "S" if max(0.0, cap_dia - usado_dia) <= 0.01 else "N",
             "Calculo_Dia": f"{cap_dia:.2f} - {usado_dia:.2f} = {max(0.0, cap_dia - usado_dia):.2f}",
         }
-        
+
         # Adicionar data real no resumo
         if data_real:
             resumo_row["Data"] = data_real
             resumo_row["Dia_Semana"] = dia_semana
-            
+
         out.append(resumo_row)
-        
+
     df = pd.DataFrame(out)
-    
+
     # Reordenar colunas: Data, Dia_Semana primeiro se existirem
     if not df.empty and "Data" in df.columns:
         cols = ["Data", "Dia_Semana"] + [c for c in df.columns if c not in ["Data", "Dia_Semana"]]
         df = df[cols]
-        
+
     return df
 
 
@@ -231,9 +239,9 @@ def _gerar_aba_ocupacao_turmas(cronograma, turmas, jornada, dias_simulado, dia_r
             if data_tuple:
                 data_real = data_tuple[0]
                 dia_semana = data_tuple[1]
-        
+
         row = {"Dia": dia, "Semana": int(math.ceil(dia / 5.0))}
-        
+
         # Adicionar data real se calculada
         if data_real:
             row["Data"] = data_real
@@ -272,7 +280,7 @@ def _df_crono_operacional(df_crono, dia_ref=None, mes_ref=None, ano_ref=None):
     """
     drop = [c for c in ("Custo_MO",) if c in df_crono.columns]
     df = df_crono.drop(columns=drop, errors="ignore")
-    
+
     # Adicionar colunas de data real se parametros fornecidos
     if dia_ref and mes_ref and ano_ref and "Dia" in df.columns:
         datas_reais = []
@@ -288,11 +296,11 @@ def _df_crono_operacional(df_crono, dia_ref=None, mes_ref=None, ano_ref=None):
             else:
                 datas_reais.append(f"Dia_{dia_simulado}")
                 dias_semana.append("")
-        
+
         # Inserir colunas no inicio
         df.insert(0, "Dia_Semana", dias_semana)
         df.insert(0, "Data", datas_reais)
-    
+
     return df
 
 
@@ -362,7 +370,7 @@ def _listar_perfis_equipe():
     for fn in sorted(os.listdir(PERFIS_DIR)):
         if fn.endswith(".json"):
             try:
-                with open(os.path.join(PERFIS_DIR, fn), "r", encoding="utf-8") as f:
+                with open(os.path.join(PERFIS_DIR, fn), encoding="utf-8") as f:
                     d = json.load(f)
                 out.append(d)
             except Exception:

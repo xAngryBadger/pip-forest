@@ -6,22 +6,23 @@ import sys
 import time
 from pathlib import Path
 
+
 def test_e2e_gera_dossier():
     """Executar scheduler e gerar XLSX."""
     print("=" * 80)
     print("E2E REAL: GERANDO DOSSIER COM DADOS REAIS")
     print("=" * 80)
-    
+
     # Caminhos
     script_dir = Path(__file__).parent.parent
     micro_path = script_dir / "data/planilhas/microatual.xlsx"
-    
+
     if not micro_path.exists():
         print(f"✗ Erro: {micro_path} nao encontrado")
         return False
-    
+
     print(f"\n1. Micro: {micro_path}")
-    
+
     # Sequencia de inputs
     inputs = [
         "1",       # microatual.xlsx
@@ -38,11 +39,11 @@ def test_e2e_gera_dossier():
         "1",       # 1 time
         "n",       # sem comparativo
     ]
-    
+
     input_str = "\n".join(inputs)
-    
+
     print(f"\n2. Inputs: {len(inputs)} comandos")
-    
+
     # Executar como modulo
     start_time = time.time()
     result = subprocess.run(
@@ -54,11 +55,11 @@ def test_e2e_gera_dossier():
         cwd=str(script_dir)
     )
     elapsed = time.time() - start_time
-    
+
     print(f"\n3. Execucao: {elapsed:.1f}s, returncode={result.returncode}")
-    
+
     output = result.stdout + result.stderr
-    
+
     # Validar
     if "Dossier" in output or "XLSX" in output or "cronograma" in output.lower() or result.returncode == 0:
         print("\n✓ Scheduler executou!")
@@ -72,7 +73,7 @@ def test_e2e_gera_dossier():
                     print(f"   - {d.name}")
         return True
     else:
-        print(f"\n✗ Erro:")
+        print("\n✗ Erro:")
         print(f"STDOUT: {result.stdout[-500:]}")
         print(f"STDERR: {result.stderr[-500:]}")
         return False

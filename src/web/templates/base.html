@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}SRF v6.3{% endblock %}</title>
+<title>{% block title %}Orca v7.3{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('srf-theme') || 'neo-brutalist');</script>
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('orca-theme') || 'neo-brutalist');</script>
 <script src="/static/app.js"></script>
 <style>
 :root {
@@ -190,26 +190,26 @@ input, select {
   margin-left: auto;
   flex-shrink: 0;
 }
-.srf-table {
+.orca-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
 }
-.srf-table th,
-.srf-table td {
+.orca-table th,
+.orca-table td {
   padding: 0.5rem;
   text-align: left;
   border: 1px solid var(--border);
 }
-.srf-table th {
+.orca-table th {
   font-weight: 700;
   color: var(--heading);
   background: var(--bg);
 }
-.srf-table td { color: var(--on-surface); }
-[data-theme="neo-brutalist"] .srf-table { box-shadow: var(--shadow); }
-[data-theme="neo-brutalist"] .srf-table th,
-[data-theme="neo-brutalist"] .srf-table td {
+.orca-table td { color: var(--on-surface); }
+[data-theme="neo-brutalist"] .orca-table { box-shadow: var(--shadow); }
+[data-theme="neo-brutalist"] .orca-table th,
+[data-theme="neo-brutalist"] .orca-table td {
   border-width: 2px;
 }
 .htmx-indicator {
@@ -219,10 +219,10 @@ input, select {
 .htmx-request.htmx-indicator {
   display: flex;
 }
-@keyframes srf-spin {
+@keyframes orca-spin {
   to { transform: rotate(360deg); }
 }
-.srf-spinner {
+.orca-spinner {
   width: 1.5rem;
   height: 1.5rem;
   border: 3px solid var(--muted);
@@ -254,7 +254,7 @@ input, select {
 #main-content { min-height: 60vh; }
 [data-selectable] { user-select: text; }
 ::selection { background-color: var(--primary); color: var(--on-primary); }
-.srf-output-block {
+.orca-output-block {
     background: var(--bg);
     border: var(--border-width) solid var(--border);
     border-radius: var(--radius);
@@ -263,7 +263,7 @@ input, select {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
-[data-theme="neo-brutalist"] .srf-output-block pre {
+[data-theme="neo-brutalist"] .orca-output-block pre {
     color: var(--heading);
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.75rem;

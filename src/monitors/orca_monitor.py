@@ -15,12 +15,11 @@ import glob
 import os
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
+from orca_monitor_state import default_state_path, ler_estado
 from rich.console import Console
 from rich.table import Table
-
-from srf_monitor_state import default_state_path, ler_estado
 
 try:
     import colorama
@@ -61,16 +60,16 @@ def sub(ch="-"):
     print(DM + ch * W + RS)
 
 
-def _resolver_pid_explicito(pid: Optional[int]) -> Optional[int]:
+def _resolver_pid_explicito(pid: int | None) -> int | None:
     if pid is not None:
         return pid
-    raw = os.environ.get("SRF_MONITOR_PID", "").strip()
+    raw = os.environ.get("ORCA_MONITOR_PID", "").strip()
     if raw.isdigit():
         return int(raw)
     return None
 
 
-def _resolver_pid_auto() -> Optional[int]:
+def _resolver_pid_auto() -> int | None:
     pattern = os.path.join(os.path.dirname(os.path.abspath(__file__)), "estado_sessao_*.json")
     cands = glob.glob(pattern)
     if len(cands) != 1:
@@ -96,7 +95,7 @@ def _cabecalho_monitor(feed_label: str, pid: int, path: str):
     sub()
 
 
-def _render_meta(d: Dict[str, Any]):
+def _render_meta(d: dict[str, Any]):
     op = d.get("operacao") or {}
     lo = d.get("lote") or {}
     t = Table(title="Operacao / meta", show_header=True, header_style="bold cyan")
@@ -122,7 +121,7 @@ def _render_meta(d: Dict[str, Any]):
     console.print(t2)
 
 
-def _render_rendimentos(d: Dict[str, Any]):
+def _render_rendimentos(d: dict[str, Any]):
     rows = d.get("rendimentos_sessao") or []
     t = Table(
         title="Rendimentos (agregado por atividade)",
@@ -146,7 +145,7 @@ def _render_rendimentos(d: Dict[str, Any]):
     console.print(t)
 
 
-def _render_relatorios(d: Dict[str, Any]):
+def _render_relatorios(d: dict[str, Any]):
     buf = d.get("buffer_relatorios") or []
     if not buf:
         console.print(DM + "  (sem entradas no buffer)" + RS)
@@ -157,19 +156,19 @@ def _render_relatorios(d: Dict[str, Any]):
         console.print()
 
 
-def _render_custo(d: Dict[str, Any]):
+def _render_custo(d: dict[str, Any]):
     """Renderiza feed de custos acumulados"""
     custos = d.get("custos_acumulados") or {}
-    
+
     if not custos:
         console.print(DM + " (custos ainda não calculados)" + RS)
         return
-    
+
     t = Table(title="💰 Custos Acumulados", show_header=True, header_style="bold yellow")
     t.add_column("Categoria", style="cyan", width=25)
     t.add_column("Valor (R$)", justify="right", style="white")
     t.add_column("Itens", style="dim", width=15)
-    
+
     categorias = [
         ("total_geral", "TOTAL GERAL"),
         ("materiais", "Materiais"),
@@ -177,15 +176,15 @@ def _render_custo(d: Dict[str, Any]):
         ("equipamentos", "Equipamentos"),
         ("frentes", "Frentes/Equipes"),
     ]
-    
+
     for key, label in categorias:
         if key in custos:
             val = custos[key]
             itens = len(custos.get(f"{key}_detalhes", []))
             t.add_row(label, f"R$ {float(val):,.2f}", f"{itens} itens")
-    
+
     console.print(t)
-    
+
     # Detalhes por fazenda
     detalhes_fazendas = custos.get("detalhes_por_fazenda", [])
     if detalhes_fazendas:
@@ -194,7 +193,7 @@ def _render_custo(d: Dict[str, Any]):
         t2.add_column("Custo Total", justify="right", style="white")
         t2.add_column("Custo/ha", justify="right", style="yellow")
         t2.add_column("Status", max_width=15)
-        
+
         # Mostra top 10
         for faz in detalhes_fazendas[:10]:
             t2.add_row(
@@ -203,37 +202,37 @@ def _render_custo(d: Dict[str, Any]):
                 f"R$ {float(faz.get('custo_ha', 0)):,.2f}",
                 str(faz.get('status', '-'))
             )
-        
+
         if len(detalhes_fazendas) > 10:
             t2.add_row(
                 DM + f"... +{len(detalhes_fazendas)-10} fazenda(s)",
                 "-", "-", "-"
             )
-        
+
         console.print(t2)
 
 
-def _render_territorio(d: Dict[str, Any]):
+def _render_territorio(d: dict[str, Any]):
     """Renderiza feed de distribuição geográfica por território"""
     territorio = d.get("distribuicao_territorio") or {}
-    
+
     if not territorio:
         console.print(DM + " (distribuição territorial não carregada)" + RS)
         return
-    
+
     t = Table(title="🗺️ Distribuição Territorial", show_header=True, header_style="bold cyan")
     t.add_column("Cidade/Região", style="green", width=20)
     t.add_column("Fazendas", justify="center", style="white")
     t.add_column("Equipe Sugerida", style="yellow", width=15)
     t.add_column("Área Total (ha)", justify="right", style="magenta")
-    
+
     # Agrupa por cidade
     distrib_por_cidade = {}
     for faz, info in territorio.items():
         cidade = info.get('cidade', 'Desconhecida')
         equipe = info.get('equipe_sugerida', '?')
         area = info.get('area_ha', 0)
-        
+
         if cidade not in distrib_por_cidade:
             distrib_por_cidade[cidade] = {
                 'fazendas': [],
@@ -245,14 +244,14 @@ def _render_territorio(d: Dict[str, Any]):
     if equipe not in distrib_por_cidade[cidade]['equipes']:
         distrib_por_cidade[cidade]['equipes'].append(equipe)
     distrib_por_cidade[cidade]['area_total'] += area
-    
+
     # Ordena por área total (decrescente)
     sorted_cidades = sorted(
         distrib_por_cidade.items(),
         key=lambda x: x[1]['area_total'],
         reverse=True
     )
-    
+
     for cidade, info in sorted_cidades[:20]:  # Top 20
         t.add_row(
             str(cidade).title(),
@@ -260,9 +259,9 @@ def _render_territorio(d: Dict[str, Any]):
             ", ".join(list(info['equipes'])[:2]),  # Mostra até 2 equipes
             f"{info['area_total']:,.1f}"
         )
-    
+
     console.print(t)
-    
+
     # Resumo por equipe
     resumo_equipe = {}
     for faz, info in territorio.items():
@@ -271,14 +270,14 @@ def _render_territorio(d: Dict[str, Any]):
             resumo_equipe[equipe] = {'fazendas': 0, 'area': 0}
         resumo_equipe[equipe]['fazendas'] += 1
         resumo_equipe[equipe]['area'] += info.get('area_ha', 0)
-    
+
     if resumo_equipe:
         t2 = Table(title="Resumo por Equipe", show_header=True, header_style="bold yellow")
         t2.add_column("Equipe", style="cyan", width=12)
         t2.add_column("Fazendas", justify="center")
         t2.add_column("Área Total (ha)", justify="right", style="green")
         t2.add_column("% Distribuição", justify="right")
-        
+
         area_total = sum(v['area'] for v in resumo_equipe.values())
         for equipe, info in sorted(resumo_equipe.items(), key=lambda x: x[1]['area'], reverse=True):
             perc = (info['area'] / area_total * 100) if area_total > 0 else 0
@@ -288,7 +287,7 @@ def _render_territorio(d: Dict[str, Any]):
                 f"{info['area']:,.1f}",
                 f"{perc:.1f}%"
             )
-        
+
         console.print(t2)
 
 
@@ -307,7 +306,7 @@ def main():
         print(
             "Indique o PID do atm_v5.py principal:\n"
             "  python srf_monitor.py --feed meta --pid <PID>\n"
-            "ou SRF_MONITOR_PID, ou um unico estado_sessao_*.json na pasta do projeto.",
+            "ou ORCA_MONITOR_PID, ou um unico estado_sessao_*.json na pasta do projeto.",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -337,7 +336,7 @@ def main():
             print(
                 Y
                 + f"  A aguardar estado em:\n  {path}\n"
-                + "  (corra o atm_v5.py com SRF_MONITOR=1 e execute o Smart Scheduler.)"
+                + "  (corra o atm_v5.py com ORCA_MONITOR=1 e execute o Smart Scheduler.)"
                 + RS
             )
         else:
