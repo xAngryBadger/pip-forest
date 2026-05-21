@@ -6,7 +6,7 @@ import threading
 import uuid
 from pathlib import Path
 
-from src.atm.srf import config as cfg_module
+from src.atm.orca import config as cfg_module
 
 _BASE_DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 _SESSIONS_DIR = _BASE_DATA_DIR / "sessions"
