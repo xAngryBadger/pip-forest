@@ -18,7 +18,7 @@ _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
 _DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 
-app = FastAPI(title="SRF v6.3 Web", docs_url=None, redoc_url=None)
+app = FastAPI(title="Orca v7.3 Web", docs_url=None, redoc_url=None)
 
 _jinja_env = Environment(
     loader=FileSystemLoader(str(_TEMPLATES_DIR)),
@@ -50,7 +50,7 @@ def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLRe
 
 
 def _get_session_token(request: Request) -> str | None:
-    return request.cookies.get("srf_token")
+    return request.cookies.get("orca_token")
 
 
 def _require_auth(request: Request) -> str:
@@ -73,7 +73,7 @@ async def login_submit(request: Request, password: str = Form(...)):
         response = RedirectResponse(url="/app", status_code=303)
         _is_secure = request.url.scheme == "https"
         response.set_cookie(
-            "srf_token", token,
+            "orca_token", token,
             httponly=True, max_age=86400,
             samesite="none" if _is_secure else "lax",
             secure=_is_secure,
@@ -88,7 +88,7 @@ async def logout(request: Request):
     if token:
         revoke_authentication(token)
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie("srf_token")
+    response.delete_cookie("orca_token")
     return response
 
 
@@ -409,7 +409,7 @@ async def terminal_start(request: Request):
 
 @app.websocket("/ws/term/{session_id}")
 async def websocket_terminal(websocket: WebSocket, session_id: str):
-    token = websocket.cookies.get("srf_token")
+    token = websocket.cookies.get("orca_token")
     if not token or not is_authenticated(token):
         await websocket.close(code=4003)
         return

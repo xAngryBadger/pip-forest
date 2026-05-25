@@ -32,7 +32,7 @@
 {% endif %}
 {% else %}
 <div id="step-zone" class="card p-6 text-center" style="color: var(--muted);">
-<div class="srf-spinner mx-auto mb-3"></div>
+<div class="orca-spinner mx-auto mb-3"></div>
 <p>Aguardando resposta do motor...</p>
 <div hx-get="/step/{{ session_id }}/pending"
      hx-trigger="every 1s"

@@ -1,7 +1,7 @@
 {% macro render_body(opts) %}
 {% if opts and opts.body %}
 <div class="mb-3">
-<div class="srf-output-block">
+<div class="orca-output-block">
 <pre class="text-sm whitespace-pre-wrap p-3" style="overflow-x: auto; margin: 0;" data-selectable data-asci-pt>{{ opts.body }}</pre>
 </div>
 </div>
@@ -162,7 +162,7 @@
   <div class="mb-3">
     <h3 class="font-bold mb-2" data-asci-pt>{{ step.prompt }}</h3>
     <div class="overflow-x-auto">
-      <table class="srf-table">
+      <table class="orca-table">
         <thead>
           <tr>
           {% for h in step.options.headers %}
@@ -241,7 +241,7 @@
 
 {% else %}
 <div id="step-zone" class="card p-6 text-center" style="color: var(--muted);">
-<div class="srf-spinner mx-auto mb-3"></div>
+<div class="orca-spinner mx-auto mb-3"></div>
 <p>Processando...</p>
 <div hx-get="/step/{{ session_id }}/pending"
      hx-trigger="every 1s"

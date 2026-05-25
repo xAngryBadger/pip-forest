@@ -46,3 +46,4 @@ Thumbs.db
 
 # Experiments (IA generated trash)
 experiments/
+.env
