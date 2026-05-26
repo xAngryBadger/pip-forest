@@ -50,7 +50,7 @@ def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLRe
 
 
 def _get_session_token(request: Request) -> str | None:
-    return request.cookies.get("orca_token")
+    return request.cookies.get("orca_token") or request.cookies.get("srf_token")
 
 
 def _require_auth(request: Request) -> str:
@@ -89,6 +89,7 @@ async def logout(request: Request):
         revoke_authentication(token)
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("orca_token")
+    response.delete_cookie("srf_token")
     return response
 
 
@@ -409,7 +410,7 @@ async def terminal_start(request: Request):
 
 @app.websocket("/ws/term/{session_id}")
 async def websocket_terminal(websocket: WebSocket, session_id: str):
-    token = websocket.cookies.get("orca_token")
+    token = websocket.cookies.get("orca_token") or websocket.cookies.get("srf_token")
     if not token or not is_authenticated(token):
         await websocket.close(code=4003)
         return
