@@ -475,13 +475,13 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
                                 )
                             else:
                                 mask_empty = validos["equipe"].isna() | (validos["equipe"].str.strip() == "")
-                                validos.loc[mask_empty, "equipe"] = validos.loc[mask_empty, "fazenda"].apply(
-                                    lambda f: _match_equipe(f, map_eq)
-                                )
-                            n_assigned = validos["equipe"].notna().sum()
-                            if n_assigned > 0:
-                                ok(f"EQUIPE enriquecida a partir de '{eq_sheet}': {n_assigned} registros atribuidos")
-            except Exception:
+                        validos.loc[mask_empty, "equipe"] = validos.loc[mask_empty, "fazenda"].apply(
+                            lambda f: _match_equipe(f, map_eq)
+                        )
+                n_assigned = validos["equipe"].notna().sum()
+                if n_assigned > 0:
+                    ok(f"EQUIPE enriquecida a partir de '{eq_sheet}': {n_assigned} registros atribuidos")
+            except (OSError, ValueError, KeyError):
                 pass
 
         ok(f"Carregadas {len(validos)} atividades validas.")

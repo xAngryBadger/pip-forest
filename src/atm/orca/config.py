@@ -1,13 +1,14 @@
 """
-SRF configuration — loading, saving, sequence defaults, territory config.
+Orca configuration — loading, saving, sequence defaults, territory config.
 
-Depends on: srf.text_utils (normalizar_chave)
+Depends on: orca.text_utils (normalizar_chave)
 External: os, json
 """
 
 import json
 import os
 import shutil
+import tempfile
 
 from .text_utils import normalizar_chave
 
@@ -319,12 +320,21 @@ def _normalize_for_json(obj):
 
 
 def salvar_config(cfg):
-    """Persist cfg to config.json. Creates .bak backup before overwriting."""
+    """Persist cfg to config.json. Creates .bak backup before overwriting. Uses atomic write."""
     cfg = _normalize_for_json(cfg)
     if os.path.exists(CFGP):
         try:
             shutil.copy2(CFGP, CFGP + ".bak")
-        except Exception:
+        except OSError:
             pass
-    with open(CFGP, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(CFGP), suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, CFGP)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

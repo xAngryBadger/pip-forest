@@ -1,7 +1,7 @@
 """
-SRF terminal UI helpers — colors, menus, headers, prompts.
+Orca terminal UI helpers — colors, menus, headers, prompts.
 
-Depends on: srf.text_utils (only for parse_intervalos_escolha)
+Depends on: orca.text_utils (only for parse_intervalos_escolha)
 External: colorama (optional), rich (required)
 
 When ORCA_WEB_MODE=1 is set, interactive functions (prompt, confirmar,

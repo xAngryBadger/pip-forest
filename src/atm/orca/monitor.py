@@ -1,9 +1,9 @@
 """
-SRF monitor subsystem — emit state/relatorio/rendimentos to external monitor.
+Orca monitor subsystem — emit state/relatorio/rendimentos to external monitor.
 
-Gracefully degrades to no-ops when srf_monitor_state is unavailable.
+Gracefully degrades to no-ops when orca_monitor_state is unavailable.
 Dependencies: none internal (contexto_sessao is injected at init time).
-External: srf_monitor_state (optional), os, json, subprocess
+External: orca_monitor_state (optional), os, json, subprocess
 """
 
 import os
@@ -149,7 +149,7 @@ def _emitir_monitor_rendimentos(
                 with open(_MONITOR_STATE_PATH, encoding="utf-8") as f:
                     dados_existentes = _json.load(f)
                 rendimentos_existentes = dados_existentes.get("rendimentos_sessao", []).copy()
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 rendimentos_existentes = []
 
         if atividade_nome and vincular and hh_ha > 0:

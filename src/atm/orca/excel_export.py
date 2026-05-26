@@ -132,7 +132,7 @@ def _gerar_aba_cascata_explicada(cronograma, jornada, dia_ref=None, mes_ref=None
             data_tuple = _converter_dia_simulado_para_data(
                 dia, dia_ref, mes_ref, ano_ref
             )
-            if data_tuple:
+            if data_tuple is not None:
                 data_real = data_tuple[0]
                 dia_semana = data_tuple[1]
 
@@ -236,7 +236,7 @@ def _gerar_aba_ocupacao_turmas(cronograma, turmas, jornada, dias_simulado, dia_r
             data_tuple = _converter_dia_simulado_para_data(
                 dia, dia_ref, mes_ref, ano_ref
             )
-            if data_tuple:
+            if data_tuple is not None:
                 data_real = data_tuple[0]
                 dia_semana = data_tuple[1]
 
@@ -285,17 +285,17 @@ def _df_crono_operacional(df_crono, dia_ref=None, mes_ref=None, ano_ref=None):
     if dia_ref and mes_ref and ano_ref and "Dia" in df.columns:
         datas_reais = []
         dias_semana = []
-        for _, row in df.iterrows():
-            dia_simulado = row.get("Dia", 1)
-            data_tuple = _converter_dia_simulado_para_data(
-                dia_simulado, dia_ref, mes_ref, ano_ref
-            )
-            if data_tuple:
-                datas_reais.append(data_tuple[0])
-                dias_semana.append(data_tuple[1])
-            else:
-                datas_reais.append(f"Dia_{dia_simulado}")
-                dias_semana.append("")
+    for _, row in df.iterrows():
+        dia_simulado = row.get("Dia", 1)
+        data_tuple = _converter_dia_simulado_para_data(
+            dia_simulado, dia_ref, mes_ref, ano_ref
+        )
+        if data_tuple is not None:
+            datas_reais.append(data_tuple[0])
+            dias_semana.append(data_tuple[1])
+        else:
+            datas_reais.append(f"Dia_{dia_simulado}")
+            dias_semana.append("")
 
         # Inserir colunas no inicio
         df.insert(0, "Dia_Semana", dias_semana)
@@ -373,7 +373,7 @@ def _listar_perfis_equipe():
                 with open(os.path.join(PERFIS_DIR, fn), encoding="utf-8") as f:
                     d = json.load(f)
                 out.append(d)
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 pass
     return out
 
@@ -638,12 +638,12 @@ def _exportar_excel_consolidado_lote(
                                 fill_type="solid",
                             ),
                         }
-                        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                            val = str(row[idx_st - 1].value or "")
-                            if val in fills_st:
-                                row[idx_st - 1].fill = fills_st[val]
-                                row[idx_st - 1].font = Font(color="FFFFFF", bold=True)
-            except Exception:
+                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                        val = str(row[idx_st - 1].value or "")
+                        if val in fills_st:
+                            row[idx_st - 1].fill = fills_st[val]
+                            row[idx_st - 1].font = Font(color="FFFFFF", bold=True)
+            except (AttributeError, KeyError, TypeError):
                 pass
         ok(f"Consolidado Excel exportado: {nome_xlsx}")
     except Exception as ex:

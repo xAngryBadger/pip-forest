@@ -18,6 +18,19 @@ _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
 _DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
 
+
+def _sanitize_filename(name: str) -> str:
+    safe = os.path.basename(name).replace("..", "").strip("/\\")
+    if not safe or safe.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    return safe
+
+
+def _require_path_inside(path: Path, parent: Path) -> None:
+    if path.resolve().parent != parent.resolve() and path.resolve() != parent.resolve() / path.name:
+        if not str(path.resolve()).startswith(str(parent.resolve()) + os.sep):
+            raise HTTPException(status_code=403, detail="Path traversal detected")
+
 app = FastAPI(title="Orca v7.3 Web", docs_url=None, redoc_url=None)
 
 _jinja_env = Environment(
@@ -247,13 +260,15 @@ async def download_file(request: Request, session_id: str, filename: str):
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404)
-    if filename not in session.result_files:
+    safe_filename = _sanitize_filename(filename)
+    if safe_filename not in session.result_files:
         raise HTTPException(status_code=404, detail="File not in session results")
     from src.atm.orca.config import OUTPUT_DIR
-    file_path = Path(OUTPUT_DIR) / filename
+    file_path = Path(OUTPUT_DIR) / safe_filename
+    _require_path_inside(file_path, Path(OUTPUT_DIR))
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
-    return FileResponse(str(file_path), filename=filename)
+    return FileResponse(str(file_path), filename=safe_filename)
 
 
 @app.post("/upload")
@@ -262,15 +277,17 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
 
+    safe_name = _sanitize_filename(file.filename)
     dest_dir = _DATA_DIR / "planilhas"
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / file.filename
+    dest_path = dest_dir / safe_name
+    _require_path_inside(dest_path, dest_dir)
 
     content = await file.read()
     with open(dest_path, "wb") as f:
         f.write(content)
 
-    return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
+    return JSONResponse({"status": "ok", "filename": safe_name, "size": len(content)})
 
 
 @app.post("/term/upload/{session_id}")
@@ -282,13 +299,17 @@ async def term_upload_file(request: Request, session_id: str, file: UploadFile =
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
 
+    safe_name = _sanitize_filename(file.filename)
     session_dir = ts.data_dir / "planilhas"
     session_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = session_dir / safe_name
+    _require_path_inside(dest_path, session_dir)
+
     content = await file.read()
-    with open(session_dir / file.filename, "wb") as f:
+    with open(dest_path, "wb") as f:
         f.write(content)
 
-    return JSONResponse({"status": "ok", "filename": file.filename, "size": len(content)})
+    return JSONResponse({"status": "ok", "filename": safe_name, "size": len(content)})
 
 
 @app.post("/abort/{session_id}")
@@ -383,11 +404,14 @@ async def term_download_file(request: Request, session_id: str, filename: str):
     ts = term_module.get_session(session_id)
     if not ts:
         raise HTTPException(status_code=404)
-    if filename not in ts.result_files:
+    safe_filename = _sanitize_filename(filename)
+    if safe_filename not in ts.result_files:
         raise HTTPException(status_code=404, detail="File not in session results")
-    file_path = ts.data_dir / "dossiês" / filename
+    dossier_dir = ts.data_dir / "dossiês"
+    file_path = dossier_dir / safe_filename
+    _require_path_inside(file_path, dossier_dir)
     if file_path.exists():
-        return FileResponse(str(file_path), filename=filename)
+        return FileResponse(str(file_path), filename=safe_filename)
     raise HTTPException(status_code=404, detail="File not found on disk")
 
 

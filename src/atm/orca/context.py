@@ -1,11 +1,11 @@
 """
-SRF session context — ContextoSessao class and dashboard display.
+Orca session context — ContextoSessao class and dashboard display.
 
 The ContextoSessao singleton stores all important session choices
 for display in the dashboard. It is the main shared mutable state
 of the application.
 
-Dependencies: srf.monitor (for init_monitor injection)
+Dependencies: orca.monitor (for init_monitor injection)
 External: rich (Console, Table), datetime
 """
 

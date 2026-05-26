@@ -45,8 +45,8 @@ def _converter_dia_simulado_para_data(
         while uteis_restantes > 0:
             if data_real.weekday() < 5:
                 uteis_restantes -= 1
-                if uteis_restantes == 0:
-                    break
+            if uteis_restantes == 0:
+                break
             data_real += timedelta(days=1)
 
         data_str = f"{data_real.day:02d}/{data_real.month:02d}/{data_real.year}"
@@ -56,8 +56,8 @@ def _converter_dia_simulado_para_data(
         dia_semana_completo = _DIAS_SEMANA_COMPLETO[dia_semana_idx]
 
         return (data_str, dia_semana_curto, dia_semana_completo, data_real)
-    except Exception:
-        return (f"Dia_{dia_simulado}", "-", "-", None)
+    except (ValueError, OverflowError):
+        return None
 
 
 def _calcular_data_fim_por_meses(dia_inicio, mes_ref, ano_ref, prazo_meses):
@@ -70,7 +70,7 @@ def _calcular_data_fim_por_meses(dia_inicio, mes_ref, ano_ref, prazo_meses):
         mes_ref = int(mes_ref)
         ano_ref = int(ano_ref)
         prazo_meses = int(round(float(prazo_meses)))
-    except Exception:
+    except (TypeError, ValueError):
         return None
     if prazo_meses <= 0:
         return (dia_inicio, mes_ref, ano_ref)
