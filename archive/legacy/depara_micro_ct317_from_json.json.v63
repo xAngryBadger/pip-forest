@@ -1,8 +1,8 @@
 {
   "arquivos": {
-    "planejamento_json": "/home/badger/Downloads/planejamento_abr_jun.json",
-    "preco_final_json": "/home/badger/Downloads/preco_final.json",
-    "config_json": "/run/media/badger/gazella/cli_planilhas/config.json"
+  "planejamento_json": "planejamento_abr_jun.json",
+  "preco_final_json": "preco_final.json",
+  "config_json": "config.json"
   },
   "chaves_detectadas": {
     "planejamento_coluna_escolhida": "atividade",
