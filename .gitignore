@@ -43,6 +43,9 @@ src/atm/config.json
 # Environment
 .env
 
+# Node
+node_modules/
+
 # IDE
 .vscode/
 .cursor/
