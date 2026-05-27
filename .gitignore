@@ -30,6 +30,9 @@ cloud/__pycache__/
 MinePal/
 ATM7/
 
+# Node
+node_modules/
+
 # Heap dumps
 *.heapsnapshot
 

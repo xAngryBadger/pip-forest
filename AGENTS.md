@@ -22,11 +22,11 @@ python -m unittest tests.test_orca_helpers tests.test_orca_strict -v
 ## Lint / Typecheck
 
 No linter or typechecker configured. Use `python -c "import ast; ast.parse(open('FILE').read())"` for syntax checks.
-Use `python -c "import src.atm.srf.MODULE"` for import checks.
+Use `python -c "import src.atm.orca.MODULE"` for import checks.
 
 ## Architecture
 
-- `src/atm/atm_v6_3.py` — thin shell (457 lines), imports from `srf/` and calls `main()`
+- `src/atm/atm_v6_3.py` — thin shell (457 lines), imports from `orca/` and calls `main()`
 - `src/atm/orca/` — modular package (19 modules), the actual application
 - `src/atm/orca/scheduler_core.py` — core engine (3350 lines), the largest module
 - `src/atm/orca/ui.py` — all interactive prompts (`prompt`, `confirmar`, `selecionar`, `pedir_float`, etc.)
