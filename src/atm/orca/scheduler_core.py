@@ -2760,27 +2760,12 @@ def calcular_cronograma_inteligente(
 # V6: ABAS EXCEL TIMELINE + OCUPACAO + PERFIS
 # ──────────────────────────────────────────────
 
-def _executar_lote_fazendas(
-    cfg, df_scope, fazendas, empresa_filtro=None, nome_arquivo_micro=""
-):
-    """Orchestrate all-farms batch: one-time setup, per-farm checkpoint, consolidated report."""
-
-    # ── One-time global setup ──
-    dashboard_header()
-    subcabecalho("CONFIGURACAO GLOBAL — TODAS AS FAZENDAS")
-
-    todas_atvs = sorted(
-        {_norm_atv(x) for x in df_scope["atividade"].dropna().unique() if _norm_atv(x)},
-        key=str,
-    )
-
-    # Sequence selection
+def _configurar_lote_global(cfg, todas_atvs):
     seq_cfg = cfg.get("sequencia") or {}
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
     modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, todas_atvs)
 
-    # Bloqueio / reforco / pool
     usar_bloqueio_global = False
     if modo_seq != "personalizado":
         usar_bloqueio_global = confirmar(
@@ -2794,7 +2779,6 @@ def _executar_lote_fazendas(
             "Usar PELOTAO UNIFICADO apos liberacao global?", default=True
         )
 
-    # Deadline
     prazo_meses = pedir_float("Prazo META para conclusao (meses)", 6.0)
     prazo_absoluto = confirmar(
         f"  {prazo_meses} meses e o periodo ABSOLUTO? Se sim, havera sugestoes se necessario",
@@ -2831,7 +2815,23 @@ def _executar_lote_fazendas(
     cfg["jornada_horas"] = jornada
     salvar_config(cfg)
 
-    # Team template — carregar perfil ou criar
+    return {
+        "modo_seq": modo_seq,
+        "usar_bloqueio_global": usar_bloqueio_global,
+        "usar_reforco_automatico": usar_reforco_automatico,
+        "usar_pool_pos_bloqueio": usar_pool_pos_bloqueio,
+        "prazo_meses": prazo_meses,
+        "prazo_absoluto": prazo_absoluto,
+        "mes_ref": mes_ref,
+        "ano_ref": ano_ref,
+        "dia_ref": dia_ref,
+        "data_inicio_txt": data_inicio_txt,
+        "data_fim_txt": data_fim_txt,
+        "jornada": jornada,
+    }
+
+
+def _configurar_equipe_template_lote(todas_atvs, jornada):
     sub()
     print(G + BL + "  CONFIGURAR EQUIPE PADRAO" + RS)
     print(DM + "  Defina as turmas que serao reutilizadas em todas as fazendas." + RS)
@@ -2876,7 +2876,7 @@ def _executar_lote_fazendas(
         )
         if executores <= 0:
             erro("Precisa de pelo menos 1 executor.")
-            return
+            return None, None
 
         turmas = []
         restantes = executores
@@ -2914,44 +2914,10 @@ def _executar_lote_fazendas(
         cam_p = _salvar_perfil_equipe(turmas, executores, jornada, nome_p)
         ok(f"Perfil salvo: {cam_p}")
 
-    sub()
-    print(G + BL + "  LOTE: TEMPLATE vs MICRO (lacunas)" + RS)
-    print(
-        DM
-        + "  Template estreito (ex. so irrigacao): outras demandas podem ficar sem turma."
-        + RS
-    )
-    print(
-        DM
-        + "  Com N, a turma especializada nao recebe tarefas que voce nao vinculou no modelo."
-        + RS
-    )
-    preencher_orfas_template = confirmar(
-        "  Por fazenda: distribuir automaticamente demandas sem turma para a turma com mais operarios?",
-        default=False,
-    )
+    return turmas, executores
 
-    cap_ep_dia = float(executores) * float(jornada)
-    dias_meta = dias_uteis_no_periodo(mes_ref, ano_ref, prazo_meses)
 
-    ctx_base = {
-        "modo_seq": modo_seq,
-        "usar_bloqueio_global": usar_bloqueio_global,
-        "usar_reforco_automatico": usar_reforco_automatico,
-        "usar_pool_pos_bloqueio": usar_pool_pos_bloqueio,
-        "prazo_meses": prazo_meses,
-        "mes_ref": mes_ref,
-        "ano_ref": ano_ref,
-        "data_inicio_txt": data_inicio_txt,
-        "data_fim_txt": data_fim_txt,
-        "jornada": jornada,
-        "executores": executores,
-        "turmas": turmas,
-        "penalidade": 1.0,
-        "preencher_orfas_template": preencher_orfas_template,
-    }
-
-    # ── Per-farm loop (lote continuo) ──
+def _executar_lote_continuo(cfg, df_scope, fazendas, ctx_base, prazo_absoluto, dias_meta, cap_ep_dia, jornada, todas_atvs):
     resultados = []
     dias_acumulados = 0
     for i_f, fz in enumerate(fazendas, 1):
@@ -2977,7 +2943,7 @@ def _executar_lote_fazendas(
         linha()
 
         if i_f > 1:
-            turmas = _checkpoint_editar_template(turmas, todas_atvs)
+            turmas = _checkpoint_editar_template(ctx_base["turmas"], todas_atvs)
             ctx_base["turmas"] = turmas
             ctx_base["executores"] = sum(t["operarios"] for t in turmas)
 
@@ -3031,7 +2997,10 @@ def _executar_lote_fazendas(
                 )
             resultados.append(r)
 
-    # ── Consolidated final report ──
+    return resultados, dias_acumulados
+
+
+def _exibir_consolidado_lote(resultados, dias_acumulados, dias_meta, turmas, jornada, cap_ep_dia, prazo_meses, prazo_absoluto, modo_seq, data_inicio_txt, data_fim_txt, preencher_orfas_template, empresa_filtro, nome_arquivo_micro, cfg):
     if not resultados:
         return
     linha()
@@ -3156,43 +3125,68 @@ def _executar_lote_fazendas(
     esperar("ENTER para voltar ao menu")
 
 
-# ──────────────────────────────────────────────
-#  V6: MODO MULTI-EQUIPES
-# ──────────────────────────────────────────────
-
-
-def _executar_multi_equipes(
+def _executar_lote_fazendas(
     cfg, df_scope, fazendas, empresa_filtro=None, nome_arquivo_micro=""
 ):
-    """Modo avançado: N equipes independentes, cada uma com carteira de fazendas e meta própria."""
+    """Orchestrate all-farms batch: one-time setup, per-farm checkpoint, consolidated report."""
     dashboard_header()
-    subcabecalho("MODO MULTI-EQUIPES")
-    print(
-        DM
-        + "  Cada equipe tera sua propria configuracao, meta e carteira de fazendas."
-        + RS
-    )
-    print(
-        DM
-        + "  Ao final, um consolidado comparativo mostra a situacao de cada equipe.\n"
-        + RS
-    )
-
-    n_equipes = pedir_int("Quantas equipes independentes?", 2)
-    if n_equipes < 1:
-        aviso("Precisa de pelo menos 1 equipe.")
-        return
+    subcabecalho("CONFIGURACAO GLOBAL — TODAS AS FAZENDAS")
 
     todas_atvs = sorted(
         {_norm_atv(x) for x in df_scope["atividade"].dropna().unique() if _norm_atv(x)},
         key=str,
     )
 
-    seq_cfg = cfg.get("sequencia") or {}
-    _merge_sequencia_defaults(seq_cfg)
-    cfg["sequencia"] = seq_cfg
-    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, todas_atvs)
+    glb = _configurar_lote_global(cfg, todas_atvs)
+    turmas, executores = _configurar_equipe_template_lote(todas_atvs, glb["jornada"])
+    if turmas is None:
+        return
 
+    preencher_orfas_template = confirmar(
+        "  Por fazenda: distribuir automaticamente demandas sem turma para a turma com mais operarios?",
+        default=False,
+    )
+
+    cap_ep_dia = float(executores) * float(glb["jornada"])
+    dias_meta = dias_uteis_no_periodo(glb["mes_ref"], glb["ano_ref"], glb["prazo_meses"])
+
+    ctx_base = {
+        "modo_seq": glb["modo_seq"],
+        "usar_bloqueio_global": glb["usar_bloqueio_global"],
+        "usar_reforco_automatico": glb["usar_reforco_automatico"],
+        "usar_pool_pos_bloqueio": glb["usar_pool_pos_bloqueio"],
+        "prazo_meses": glb["prazo_meses"],
+        "mes_ref": glb["mes_ref"],
+        "ano_ref": glb["ano_ref"],
+        "data_inicio_txt": glb["data_inicio_txt"],
+        "data_fim_txt": glb["data_fim_txt"],
+        "jornada": glb["jornada"],
+        "executores": executores,
+        "turmas": turmas,
+        "penalidade": 1.0,
+        "preencher_orfas_template": preencher_orfas_template,
+    }
+
+    resultados, dias_acumulados = _executar_lote_continuo(
+        cfg, df_scope, fazendas, ctx_base, glb["prazo_absoluto"], dias_meta,
+        cap_ep_dia, glb["jornada"], todas_atvs,
+    )
+
+    if resultados:
+        _exibir_consolidado_lote(
+            resultados, dias_acumulados, dias_meta, turmas, glb["jornada"],
+            cap_ep_dia, glb["prazo_meses"], glb["prazo_absoluto"], glb["modo_seq"],
+            glb["data_inicio_txt"], glb["data_fim_txt"],
+            preencher_orfas_template, empresa_filtro, nome_arquivo_micro, cfg,
+        )
+
+
+# ──────────────────────────────────────────────
+#  V6: MODO MULTI-EQUIPES
+# ──────────────────────────────────────────────
+
+
+def _configurar_data_multi_equipes():
     hoje = datetime.datetime.now()
     mes_ref = pedir_int("Mes inicial (1-12)", hoje.month)
     mes_ref = max(1, min(12, int(mes_ref)))
@@ -3200,12 +3194,11 @@ def _executar_multi_equipes(
     dia_max = calendar.monthrange(ano_ref, mes_ref)[1]
     dia_ref = pedir_int(f"Dia inicial (1-{dia_max})", min(hoje.day, dia_max))
     dia_ref = max(1, min(dia_max, int(dia_ref)))
-
     data_inicio_txt = _formatar_data_dia(dia_ref, mes_ref, ano_ref)
+    return mes_ref, ano_ref, dia_ref, data_inicio_txt
 
-    # ──────────────────────────────────────────────
-    # MODO EMPRESA AUTOMATICO (V8)
-    # ──────────────────────────────────────────────
+
+def _agrupar_e_sugerir_equipes(cfg, fazendas, df_scope, n_equipes):
     usar_modo_empresa = False
     config_empresa = None
 
@@ -3323,27 +3316,22 @@ def _executar_multi_equipes(
         sub()
         esperar("ENTER para continuar")
 
-    equipes_config = []
-    fazendas_restantes = list(fazendas)
+    return usar_modo_empresa, config_empresa, n_equipes
 
-    for ie in range(1, n_equipes + 1):
-        sub()
-        print(G + BL + f" EQUIPE {ie}/{n_equipes}" + RS)
 
-        # ──────────────────────────────────────────────
-        # CONFIGURACAO AUTOMATICA POR EMPRESA (V8)
-        # ──────────────────────────────────────────────
-        if usar_modo_empresa and config_empresa:
-            cfg_empresa_eq = None
-            equipe_idx_atual = ie - 1
-            acum_equipes = 0
+def _configurar_uma_equipe(ie, n_equipes, todas_atvs, fazendas_restantes, mes_ref, ano_ref, dia_ref, data_inicio_txt, modo_seq, usar_modo_empresa, config_empresa):
+    sub()
+    print(G + BL + f" EQUIPE {ie}/{n_equipes}" + RS)
+
+    if usar_modo_empresa and config_empresa:
+        cfg_empresa_eq = None
+        equipe_idx_atual = ie - 1
+        acum_equipes = 0
 
         for sug in config_empresa["sugestoes"]:
             n_eq_emp = sug["n_equipes"]
             if equipe_idx_atual < acum_equipes + n_eq_emp:
-                empresa_eq = sug["empresa"]
-                n_emp_idx = equipe_idx_atual - acum_equipes + 1
-                nome_eq = f"{sug['nome_empresa']} Eq{n_emp_idx}"
+                nome_eq = f"{sug['nome_empresa']} Eq{equipe_idx_atual - acum_equipes + 1}"
                 j_eq = sug.get("jornada", 4.3)
                 exec_eq = sug["operarios_por_equipe"]
                 turmas_eq = [
@@ -3355,110 +3343,65 @@ def _executar_multi_equipes(
                 ]
                 fazs_emp = sug["fazendas"]
                 n_por_eq = max(1, len(fazs_emp) // n_eq_emp)
-                inicio_emp = n_emp_idx - 1
+                inicio_emp = equipe_idx_atual - acum_equipes
                 faz_eq = fazs_emp[inicio_emp:inicio_emp + n_por_eq]
-                sobrando = n_emp_idx == n_eq_emp and len(fazs_emp) > inicio_emp + n_por_eq
-                if sobrando:
+                if equipe_idx_atual - acum_equipes + 1 == n_eq_emp and len(fazs_emp) > inicio_emp + n_por_eq:
                     faz_eq = fazs_emp[inicio_emp:]
 
                 if not faz_eq:
                     aviso(f"{nome_eq}: nenhuma fazenda atribuivel — pulando equipe.")
-                    cfg_empresa_eq = None
-                    break
+                    return None
 
                 ok(f"Configuracao automatica: {nome_eq}")
                 print(G + f" Empresa: {sug['nome_empresa']}" + RS)
                 print(G + f" Operarios: {exec_eq}" + RS)
                 print(G + f" Fazendas: {len(faz_eq)}" + RS)
-                cfg_empresa_eq = {
+                for f in faz_eq:
+                    if f in fazendas_restantes:
+                        fazendas_restantes.remove(f)
+                prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
+                data_fim_txt = _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq)
+                return {
                     "nome": nome_eq,
+                    "prazo_meses": prazo_eq,
                     "jornada": j_eq,
                     "executores": exec_eq,
                     "turmas": turmas_eq,
                     "fazendas": faz_eq,
+                    "modo_seq": modo_seq,
+                    "mes_ref": mes_ref,
+                    "ano_ref": ano_ref,
+                    "data_inicio_txt": data_inicio_txt,
+                    "data_fim_txt": data_fim_txt,
                 }
-                break
             acum_equipes += n_eq_emp
 
-    if usar_modo_empresa and cfg_empresa_eq:
-        nome_eq = cfg_empresa_eq["nome"]
-        j_eq = cfg_empresa_eq["jornada"]
-        exec_eq = cfg_empresa_eq["executores"]
-        turmas_eq = cfg_empresa_eq["turmas"]
-        faz_eq = cfg_empresa_eq["fazendas"]
-        for f in faz_eq:
-            if f in fazendas_restantes:
-                fazendas_restantes.remove(f)
-        prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
+    # Manual config
+    nome_eq = prompt(f"Nome da equipe {ie}", f"Equipe {ie}")
+    prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
+    j_eq = pedir_float(f"Jornada diaria '{nome_eq}' (horas)", 4.3)
+    exec_eq = pedir_int(f"Executores '{nome_eq}'", 10)
+    data_fim_txt = _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq)
 
-        data_fim_txt = None
-        if confirmar(
-            f"Informar dia final manualmente para '{nome_eq}'?", default=False
-        ):
-            mes_fim = pedir_int("Mes final (1-12)", mes_ref)
-            mes_fim = max(1, min(12, int(mes_fim)))
-            ano_fim = pedir_int("Ano final", ano_ref)
-            dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
-            dia_fim = pedir_int(
-                f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
-            )
-            dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
-            data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
-        else:
-            fim_calc = _calcular_data_fim_por_meses(
-                dia_ref, mes_ref, ano_ref, prazo_eq
-            )
-            if fim_calc:
-                data_fim_txt = _formatar_data_dia(
-                    fim_calc[0], fim_calc[1], fim_calc[2]
-                )
+    perfil_carregado = None
+    perfis = _listar_perfis_equipe()
+    if perfis and confirmar(f"Carregar perfil de equipe para '{nome_eq}'?", default=False):
+        perfil_carregado = _carregar_perfil_equipe_menu()
+
+    if perfil_carregado:
+        turmas_eq = [
+            {
+                "nome": t["nome"],
+                "operarios": t["operarios"],
+                "atividades": list(t.get("atividades") or []),
+            }
+            for t in perfil_carregado.get("turmas", [])
+        ]
+        exec_eq = sum(t["operarios"] for t in turmas_eq)
+        ok(f"Perfil carregado: {len(turmas_eq)} turma(s), {exec_eq} executores.")
     else:
-        nome_eq = prompt(f"Nome da equipe {ie}", f"Equipe {ie}")
-        prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
-        j_eq = pedir_float(f"Jornada diaria '{nome_eq}' (horas)", 4.3)
-        exec_eq = pedir_int(f"Executores '{nome_eq}'", 10)
-
-        data_fim_txt = None
-        if confirmar(
-            f"Informar dia final manualmente para '{nome_eq}'?", default=False
-        ):
-            mes_fim = pedir_int("Mes final (1-12)", mes_ref)
-            mes_fim = max(1, min(12, int(mes_fim)))
-            ano_fim = pedir_int("Ano final", ano_ref)
-            dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
-            dia_fim = pedir_int(
-                f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
-            )
-            dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
-            data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
-        else:
-            fim_calc = _calcular_data_fim_por_meses(dia_ref, mes_ref, ano_ref, prazo_eq)
-            if fim_calc:
-                data_fim_txt = _formatar_data_dia(fim_calc[0], fim_calc[1], fim_calc[2])
-
-        perfil_carregado = None
-        perfis = _listar_perfis_equipe()
-        if perfis and confirmar(
-            f"Carregar perfil de equipe para '{nome_eq}'?", default=False
-        ):
-            perfil_carregado = _carregar_perfil_equipe_menu()
-
-        if perfil_carregado:
-            turmas_eq = [
-                {
-                    "nome": t["nome"],
-                    "operarios": t["operarios"],
-                    "atividades": list(t.get("atividades") or []),
-                }
-                for t in perfil_carregado.get("turmas", [])
-            ]
-            exec_eq = sum(t["operarios"] for t in turmas_eq)
-            ok(
-                f"Perfil carregado: {len(turmas_eq)} turma(s), {exec_eq} executores."
-            )
-        else:
-            turmas_eq = [{"nome": nome_eq, "operarios": exec_eq, "atividades": []}]
-            menu_vincular_atividades_turma(turmas_eq[0], todas_atvs)
+        turmas_eq = [{"nome": nome_eq, "operarios": exec_eq, "atividades": []}]
+        menu_vincular_atividades_turma(turmas_eq[0], todas_atvs)
 
     if not fazendas_restantes:
         aviso("Todas as fazendas ja foram atribuidas. Esta equipe ficara vazia.")
@@ -3466,13 +3409,15 @@ def _executar_multi_equipes(
     elif ie == n_equipes:
         faz_eq = list(fazendas_restantes)
         ok(f"Restantes ({len(faz_eq)}) atribuidas a '{nome_eq}'.")
+        for f in faz_eq:
+            if f in fazendas_restantes:
+                fazendas_restantes.remove(f)
     else:
         print(G + f"\n Fazendas disponiveis ({len(fazendas_restantes)}):" + RS)
         for idx_f, f in enumerate(fazendas_restantes, 1):
             print(G + f" {idx_f:3}. " + C + f + RS)
         sel_txt = prompt(
-            f"Indices das fazendas para '{nome_eq}' (ex: 1,3,5-7) ou ENTER=todas restantes",
-            "",
+            f"Indices das fazendas para '{nome_eq}' (ex: 1,3,5-7) ou ENTER=todas restantes", "",
         )
         if not sel_txt.strip():
             faz_eq = list(fazendas_restantes)
@@ -3484,63 +3429,44 @@ def _executar_multi_equipes(
                 fazendas_restantes.remove(f)
         ok(f"{len(faz_eq)} fazenda(s) para '{nome_eq}'.")
 
-        equipes_config.append(
-            {
-                "nome": nome_eq,
-                "prazo_meses": prazo_eq,
-                "jornada": j_eq,
-                "executores": exec_eq,
-                "turmas": turmas_eq,
-                "fazendas": faz_eq,
-                "modo_seq": modo_seq,
-                "mes_ref": mes_ref,
-                "ano_ref": ano_ref,
-                "data_inicio_txt": data_inicio_txt,
-                "data_fim_txt": data_fim_txt,
-            }
-    )
+    return {
+        "nome": nome_eq,
+        "prazo_meses": prazo_eq,
+        "jornada": j_eq,
+        "executores": exec_eq,
+        "turmas": turmas_eq,
+        "fazendas": faz_eq,
+        "modo_seq": modo_seq,
+        "mes_ref": mes_ref,
+        "ano_ref": ano_ref,
+        "data_inicio_txt": data_inicio_txt,
+        "data_fim_txt": data_fim_txt,
+    }
 
-    if usar_modo_empresa and fazendas_restantes:
-        orfas = list(fazendas_restantes)
-        if equipes_config:
-            maior = max(equipes_config, key=lambda e: len(e["fazendas"]))
-            maior["fazendas"] = maior["fazendas"] + orfas
-            ok(f"{len(orfas)} fazenda(s) orfa(s) (sem empresa) atribuidas a '{maior['nome']}'.")
-        else:
-            n_equipes += 1
-            nome_orfa = f"Equipe Orfa {n_equipes}"
-            equipes_config.append(
-                {
-                    "nome": nome_orfa,
-                    "prazo_meses": 3.0,
-                    "jornada": 4.3,
-                    "executores": 10,
-                    "turmas": [{"nome": nome_orfa, "operarios": 10, "atividades": []}],
-                    "fazendas": orfas,
-                    "modo_seq": modo_seq,
-                    "mes_ref": mes_ref,
-                    "ano_ref": ano_ref,
-                    "data_inicio_txt": data_inicio_txt,
-                    "data_fim_txt": None,
-                }
-            )
-            ok(f"{len(orfas)} fazenda(s) orfa(s) atribuidas a '{nome_orfa}' (equipe extra).")
-        fazendas_restantes.clear()
 
+def _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq):
+    if confirmar("Informar dia final manualmente?", default=False):
+        mes_fim = pedir_int("Mes final (1-12)", mes_ref)
+        mes_fim = max(1, min(12, int(mes_fim)))
+        ano_fim = pedir_int("Ano final", ano_ref)
+        dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
+        dia_fim = pedir_int(f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim))
+        dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
+        return _formatar_data_dia(dia_fim, mes_fim, ano_fim)
+    fim_calc = _calcular_data_fim_por_meses(dia_ref, mes_ref, ano_ref, prazo_eq)
+    if fim_calc:
+        return _formatar_data_dia(fim_calc[0], fim_calc[1], fim_calc[2])
+    return None
+
+
+def _processar_equipes_e_consolidar(cfg, df_scope, equipes_config, empresa_filtro, nome_arquivo_micro):
     all_eq_results = []
     for ec in equipes_config:
         linha()
-        print(
-            G
-            + BL
-            + f"  PROCESSANDO EQUIPE: {ec['nome']} ({len(ec['fazendas'])} fazendas)"
-            + RS
-        )
+        print(G + BL + f"  PROCESSANDO EQUIPE: {ec['nome']} ({len(ec['fazendas'])} fazendas)" + RS)
         linha()
 
-        dias_meta_eq = dias_uteis_no_periodo(
-            ec["mes_ref"], ec["ano_ref"], ec["prazo_meses"]
-        )
+        dias_meta_eq = dias_uteis_no_periodo(ec["mes_ref"], ec["ano_ref"], ec["prazo_meses"])
         cap_eq_dia = float(ec["executores"]) * float(ec["jornada"])
         eq_resultados = []
         dias_acum_eq = 0
@@ -3565,33 +3491,28 @@ def _executar_multi_equipes(
         contexto_sessao.atualizar_equipe(ec["nome"])
         contexto_sessao.definir_datas(ec.get("data_inicio_txt"), ec.get("data_fim_txt"))
         _emitir_monitor_atual()
-        _emitir_monitor_state(
-            {
-                "operacao": {
-                    "modo": "multi_equipes",
-                    "equipe_atual": str(ec["nome"]),
-                    "status_geral": "processando_equipe",
-                    "mensagem_curta": f"Equipe {ec['nome']} ({len(ec['fazendas'])} fazendas)",
-                },
-                "lote": {
-                    "dias_meta": int(dias_meta_eq),
-                    "dias_consumidos": int(dias_acum_eq),
-                    "saldo_dias": int(max(0, int(dias_meta_eq) - int(dias_acum_eq))),
-                    "fazenda_indice": 0,
-                    "n_fazendas": int(len(ec["fazendas"])),
-                    "status_meta_continuo": "OK",
-                    "prazo_absoluto": True,
-                },
-            }
-        )
+        _emitir_monitor_state({
+            "operacao": {
+                "modo": "multi_equipes",
+                "equipe_atual": str(ec["nome"]),
+                "status_geral": "processando_equipe",
+                "mensagem_curta": f"Equipe {ec['nome']} ({len(ec['fazendas'])} fazendas)",
+            },
+            "lote": {
+                "dias_meta": int(dias_meta_eq),
+                "dias_consumidos": int(dias_acum_eq),
+                "saldo_dias": int(max(0, int(dias_meta_eq) - int(dias_acum_eq))),
+                "fazenda_indice": 0,
+                "n_fazendas": int(len(ec["fazendas"])),
+                "status_meta_continuo": "OK",
+                "prazo_absoluto": True,
+            },
+        })
 
         for fz in ec["fazendas"]:
             r = calcular_cronograma_inteligente(
-                cfg,
-                df_scope[df_scope["fazenda"] == fz].copy(),
-                fz,
-                esperar_enter=False,
-                ctx=dict(ctx_eq),
+                cfg, df_scope[df_scope["fazenda"] == fz].copy(), fz,
+                esperar_enter=False, ctx=dict(ctx_eq),
             )
             if r:
                 dias_faz = int(r.get("dias_simulado", 0))
@@ -3603,29 +3524,26 @@ def _executar_multi_equipes(
                     (dias_acum_eq / dias_meta_eq * 100) if dias_meta_eq > 0 else 0.0, 1
                 )
                 r["status_meta_continuo"] = (
-                    "EXCEDIDO"
-                    if dias_acum_eq > dias_meta_eq
+                    "EXCEDIDO" if dias_acum_eq > dias_meta_eq
                     else ("RISCO" if dias_acum_eq >= dias_meta_eq * 0.8 else "OK")
                 )
                 eq_resultados.append(r)
 
-        all_eq_results.append(
-            {
-                "equipe": ec["nome"],
-                "executores": ec["executores"],
-                "jornada": ec["jornada"],
-                "prazo_meses": ec["prazo_meses"],
-                "data_inicio_txt": ec.get("data_inicio_txt"),
-                "data_fim_txt": ec.get("data_fim_txt"),
-                "dias_meta": dias_meta_eq,
-                "dias_acumulados": dias_acum_eq,
-                "hh_total": sum(float(x.get("total_hh", 0)) for x in eq_resultados),
-                "total_custo": sum(float(x.get("total_custo", 0)) for x in eq_resultados),
-                "n_fazendas": len(ec["fazendas"]),
-                "status": "DENTRO" if dias_acum_eq <= dias_meta_eq else "EXCEDIDO",
-                "resultados_fazendas": eq_resultados,
-            }
-        )
+        all_eq_results.append({
+            "equipe": ec["nome"],
+            "executores": ec["executores"],
+            "jornada": ec["jornada"],
+            "prazo_meses": ec["prazo_meses"],
+            "data_inicio_txt": ec.get("data_inicio_txt"),
+            "data_fim_txt": ec.get("data_fim_txt"),
+            "dias_meta": dias_meta_eq,
+            "dias_acumulados": dias_acum_eq,
+            "hh_total": sum(float(x.get("total_hh", 0)) for x in eq_resultados),
+            "total_custo": sum(float(x.get("total_custo", 0)) for x in eq_resultados),
+            "n_fazendas": len(ec["fazendas"]),
+            "status": "DENTRO" if dias_acum_eq <= dias_meta_eq else "EXCEDIDO",
+            "resultados_fazendas": eq_resultados,
+        })
 
     linha()
     print(G + BL + "  CONSOLIDADO MULTI-EQUIPES" + RS)
@@ -3645,15 +3563,11 @@ def _executar_multi_equipes(
         st = eq["status"]
         cor = "[green]" if st == "DENTRO" else "[red]"
         t_meq.add_row(
-            eq["equipe"],
-            str(eq["executores"]),
-            str(eq["n_fazendas"]),
+            eq["equipe"], str(eq["executores"]), str(eq["n_fazendas"]),
             f"{eq['hh_total']:,.1f}",
             *([f"R$ {eq.get('total_custo', 0):,.2f}"] if not modo_somente_hh(cfg) else []),
-            str(eq["dias_acumulados"]),
-            str(eq["dias_meta"]),
-            f"{saldo} dias",
-            f"{cor}{st}[/]",
+            str(eq["dias_acumulados"]), str(eq["dias_meta"]),
+            f"{saldo} dias", f"{cor}{st}[/]",
         )
     console.print(t_meq)
 
@@ -3666,51 +3580,111 @@ def _executar_multi_equipes(
         rows_eq = []
         for eq in all_eq_results:
             for r in eq["resultados_fazendas"]:
-                  row_eq = {
-                      "Equipe": eq["equipe"],
-                      "Data_inicio": eq.get("data_inicio_txt"),
-                      "Data_termino": eq.get("data_fim_txt"),
-                      "Fazenda": r.get("fazenda"),
-                      "Dias": r.get("dias_simulado"),
-                      "Dia_inicio_acum": r.get("dia_inicio_acumulado"),
-                      "Dia_fim_acum": r.get("dia_fim_acumulado"),
-                      "Meta_consumida_%": r.get("pct_meta_consumida"),
-                      "Saldo": r.get("saldo_meta_apos"),
-                      "Status": r.get("status_meta_continuo"),
-        "HH": r.get("total_hh"),
-        "Custo_MO": r.get("total_custo") if not modo_somente_hh(cfg) else None,
-                  }
-                  rows_eq.append(row_eq)
-        rows_sumario = []
-        for eq in all_eq_results:
-            rows_sumario.append(
-                {
+                rows_eq.append({
                     "Equipe": eq["equipe"],
                     "Data_inicio": eq.get("data_inicio_txt"),
                     "Data_termino": eq.get("data_fim_txt"),
-                    "Executores": eq["executores"],
-                    "Jornada": eq["jornada"],
-                    "Fazendas": eq["n_fazendas"],
-        "HH_total": eq["hh_total"],
-        "Custo_total": eq.get("total_custo", 0) if not modo_somente_hh(cfg) else None,
-                    "Dias_acumulados": eq["dias_acumulados"],
-                    "Meta_dias": eq["dias_meta"],
-                    "Status": eq["status"],
-                }
-            )
+                    "Fazenda": r.get("fazenda"),
+                    "Dias": r.get("dias_simulado"),
+                    "Dia_inicio_acum": r.get("dia_inicio_acumulado"),
+                    "Dia_fim_acum": r.get("dia_fim_acumulado"),
+                    "Meta_consumida_%": r.get("pct_meta_consumida"),
+                    "Saldo": r.get("saldo_meta_apos"),
+                    "Status": r.get("status_meta_continuo"),
+                    "HH": r.get("total_hh"),
+                    "Custo_MO": r.get("total_custo") if not modo_somente_hh(cfg) else None,
+                })
+        rows_sumario = [
+            {
+                "Equipe": eq["equipe"],
+                "Data_inicio": eq.get("data_inicio_txt"),
+                "Data_termino": eq.get("data_fim_txt"),
+                "Executores": eq["executores"],
+                "Jornada": eq["jornada"],
+                "Fazendas": eq["n_fazendas"],
+                "HH_total": eq["hh_total"],
+                "Custo_total": eq.get("total_custo", 0) if not modo_somente_hh(cfg) else None,
+                "Dias_acumulados": eq["dias_acumulados"],
+                "Meta_dias": eq["dias_meta"],
+                "Status": eq["status"],
+            }
+            for eq in all_eq_results
+        ]
         with pd.ExcelWriter(caminho, engine="openpyxl") as w:
-            pd.DataFrame(rows_sumario).to_excel(
-                w, sheet_name="SUMARIO_EQUIPES", index=False
-            )
-            pd.DataFrame(rows_eq).to_excel(
-                w, sheet_name="DETALHE_POR_FAZENDA", index=False
-            )
+            pd.DataFrame(rows_sumario).to_excel(w, sheet_name="SUMARIO_EQUIPES", index=False)
+            pd.DataFrame(rows_eq).to_excel(w, sheet_name="DETALHE_POR_FAZENDA", index=False)
         ok(f"Multi-equipes exportado: {nome_xlsx}")
     except Exception as ex:
         aviso(f"Erro ao exportar multi-equipes: {ex}")
 
     linha()
     esperar("ENTER para voltar ao menu")
+
+
+def _executar_multi_equipes(
+    cfg, df_scope, fazendas, empresa_filtro=None, nome_arquivo_micro=""
+):
+    """Modo avançado: N equipes independentes, cada uma com carteira de fazendas e meta própria."""
+    dashboard_header()
+    subcabecalho("MODO MULTI-EQUIPES")
+    print(DM + "  Cada equipe tera sua propria configuracao, meta e carteira de fazendas." + RS)
+    print(DM + "  Ao final, um consolidado comparativo mostra a situacao de cada equipe.\n" + RS)
+
+    n_equipes = pedir_int("Quantas equipes independentes?", 2)
+    if n_equipes < 1:
+        aviso("Precisa de pelo menos 1 equipe.")
+        return
+
+    todas_atvs = sorted(
+        {_norm_atv(x) for x in df_scope["atividade"].dropna().unique() if _norm_atv(x)},
+        key=str,
+    )
+
+    seq_cfg = cfg.get("sequencia") or {}
+    _merge_sequencia_defaults(seq_cfg)
+    cfg["sequencia"] = seq_cfg
+    modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, todas_atvs)
+
+    mes_ref, ano_ref, dia_ref, data_inicio_txt = _configurar_data_multi_equipes()
+
+    usar_modo_empresa, config_empresa, n_equipes = _agrupar_e_sugerir_equipes(
+        cfg, fazendas, df_scope, n_equipes,
+    )
+
+    equipes_config = []
+    fazendas_restantes = list(fazendas)
+
+    for ie in range(1, n_equipes + 1):
+        ec = _configurar_uma_equipe(
+            ie, n_equipes, todas_atvs, fazendas_restantes,
+            mes_ref, ano_ref, dia_ref, data_inicio_txt, modo_seq,
+            usar_modo_empresa, config_empresa,
+        )
+        if ec:
+            equipes_config.append(ec)
+
+    if usar_modo_empresa and fazendas_restantes:
+        orfas = list(fazendas_restantes)
+        if equipes_config:
+            maior = max(equipes_config, key=lambda e: len(e["fazendas"]))
+            maior["fazendas"] = maior["fazendas"] + orfas
+            ok(f"{len(orfas)} fazenda(s) orfa(s) (sem empresa) atribuidas a '{maior['nome']}'.")
+        else:
+            n_equipes += 1
+            nome_orfa = f"Equipe Orfa {n_equipes}"
+            equipes_config.append({
+                "nome": nome_orfa, "prazo_meses": 3.0, "jornada": 4.3,
+                "executores": 10,
+                "turmas": [{"nome": nome_orfa, "operarios": 10, "atividades": []}],
+                "fazendas": orfas, "modo_seq": modo_seq,
+                "mes_ref": mes_ref, "ano_ref": ano_ref,
+                "data_inicio_txt": data_inicio_txt, "data_fim_txt": None,
+            })
+            ok(f"{len(orfas)} fazenda(s) orfa(s) atribuidas a '{nome_orfa}' (equipe extra).")
+        fazendas_restantes.clear()
+
+    if equipes_config:
+        _processar_equipes_e_consolidar(cfg, df_scope, equipes_config, empresa_filtro, nome_arquivo_micro)
 
 
 # ──────────────────────────────────────────────

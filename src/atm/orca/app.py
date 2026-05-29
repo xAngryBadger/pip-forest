@@ -864,36 +864,36 @@ def _menu_ajustar_escopo_atividades(df_faz, cfg=None, atividades_catalogo=None):
                 aviso("Nenhum talhao selecionado para adicionar atividade.")
                 continue
 
-        area_def = float(out["area_ha"].median() or 1.0)
-        area_nova = pedir_float(
-            "Area/ha para nova atividade (por talhao)", round(area_def, 2),
-            allow_zero=True,
-        )
-        pen_def = float(out["penalidade"].median() or 1.0)
-        pen_nova = pedir_float(
-            "Penalidade de terreno da nova atividade", round(pen_def, 2),
-            allow_zero=False,
-        )
+            area_def = float(out["area_ha"].median() or 1.0)
+            area_nova = pedir_float(
+                "Area/ha para nova atividade (por talhao)", round(area_def, 2),
+                allow_zero=True,
+            )
+            pen_def = float(out["penalidade"].median() or 1.0)
+            pen_nova = pedir_float(
+                "Penalidade de terreno da nova atividade", round(pen_def, 2),
+                allow_zero=False,
+            )
 
-        add_rows = []
-        for nova in novas:
-            for th in sel_talhoes:
-                ja = out[
-                    (out["chave"].astype(str) == str(th))
-                    & (out["atividade"].astype(str) == str(nova))
-                ]
-                if not ja.empty:
-                    continue
-                ref = out[out["chave"].astype(str) == str(th)].head(1)
-                row = ref.iloc[0].to_dict() if not ref.empty else {}
-                row["chave"] = th
-                row["atividade"] = nova
-                row["area_ha"] = float(area_nova)
-                row["penalidade"] = float(pen_nova)
-                add_rows.append(row)
-        if add_rows:
-            out = pd.concat([out, pd.DataFrame(add_rows)], ignore_index=True)
-            ok(f"{len(novas)} atividade(s) adicionada(s) em {len(add_rows)} linha(s).")
+            add_rows = []
+            for nova in novas:
+                for th in sel_talhoes:
+                    ja = out[
+                        (out["chave"].astype(str) == str(th))
+                        & (out["atividade"].astype(str) == str(nova))
+                    ]
+                    if not ja.empty:
+                        continue
+                    ref = out[out["chave"].astype(str) == str(th)].head(1)
+                    row = ref.iloc[0].to_dict() if not ref.empty else {}
+                    row["chave"] = th
+                    row["atividade"] = nova
+                    row["area_ha"] = float(area_nova)
+                    row["penalidade"] = float(pen_nova)
+                    add_rows.append(row)
+            if add_rows:
+                out = pd.concat([out, pd.DataFrame(add_rows)], ignore_index=True)
+                ok(f"{len(novas)} atividade(s) adicionada(s) em {len(add_rows)} linha(s).")
 
     return out
 
