@@ -2377,6 +2377,48 @@ def _construir_atividade_remap(cfg, ctx=None, _batch=False):
     return atividade_remap
 
 
+def _configurar_projeto_dados(cfg, ctx, _batch):
+    if _batch:
+        prazo_meses = ctx["prazo_meses"]
+        mes_ref = ctx["mes_ref"]
+        ano_ref = ctx["ano_ref"]
+        dia_ref = ctx.get("dia_ref", 1)
+        data_inicio_txt = ctx.get("data_inicio_txt")
+        data_fim_txt = ctx.get("data_fim_txt")
+        if data_inicio_txt or data_fim_txt:
+            contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
+        jornada = ctx["jornada"]
+        executores = ctx["executores"]
+        comparativo_cfg = ctx.get("comparativo_cfg")
+        turmas = []
+        for t in ctx["turmas"]:
+            turmas.append(
+                {
+                    "nome": t["nome"],
+                    "operarios": t["operarios"],
+                    "atividades": [
+                        _norm_atv(a) for a in (t.get("atividades") or []) if _norm_atv(a)
+                    ],
+                }
+            )
+    else:
+        proj = _configurar_projeto_interativo(cfg)
+        if proj is None:
+            return None
+        prazo_meses = proj["prazo_meses"]
+        mes_ref = proj["mes_ref"]
+        ano_ref = proj["ano_ref"]
+        dia_ref = proj["dia_ref"]
+        data_inicio_txt = proj["data_inicio_txt"]
+        data_fim_txt = proj["data_fim_txt"]
+        jornada = proj["jornada"]
+        executores = proj["executores"]
+        comparativo_cfg = proj["comparativo_cfg"]
+        turmas = proj["turmas"]
+    return prazo_meses, mes_ref, ano_ref, dia_ref, data_inicio_txt, \
+        data_fim_txt, jornada, executores, comparativo_cfg, turmas
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -2511,46 +2553,11 @@ def calcular_cronograma_inteligente(
         cfg, seq_cfg, atividades_reais, ctx, _batch,
     )
 
-    if _batch:
-        prazo_meses = ctx["prazo_meses"]
-        mes_ref = ctx["mes_ref"]
-        ano_ref = ctx["ano_ref"]
-        dia_ref = ctx.get("dia_ref", 1)
-        data_inicio_txt = ctx.get("data_inicio_txt")
-        data_fim_txt = ctx.get("data_fim_txt")
-        if data_inicio_txt or data_fim_txt:
-            contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
-            # Não chamar dashboard_header() aqui para evitar flickering
-        jornada = ctx["jornada"]
-        executores = ctx["executores"]
-        comparativo_cfg = ctx.get("comparativo_cfg")
-        turmas = []
-        for t in ctx["turmas"]:
-            turmas.append(
-                {
-                    "nome": t["nome"],
-                    "operarios": t["operarios"],
-                    "atividades": [
-                        _norm_atv(a)
-                        for a in (t.get("atividades") or [])
-                        if _norm_atv(a)
-                    ],
-                }
-            )
-    else:
-        proj = _configurar_projeto_interativo(cfg)
-        if proj is None:
-            return
-        prazo_meses = proj["prazo_meses"]
-        mes_ref = proj["mes_ref"]
-        ano_ref = proj["ano_ref"]
-        dia_ref = proj["dia_ref"]
-        data_inicio_txt = proj["data_inicio_txt"]
-        data_fim_txt = proj["data_fim_txt"]
-        jornada = proj["jornada"]
-        executores = proj["executores"]
-        comparativo_cfg = proj["comparativo_cfg"]
-        turmas = proj["turmas"]
+    _proj_result = _configurar_projeto_dados(cfg, ctx, _batch)
+    if _proj_result is None:
+        return
+    prazo_meses, mes_ref, ano_ref, dia_ref, data_inicio_txt, \
+    data_fim_txt, jornada, executores, comparativo_cfg, turmas = _proj_result
 
     atividade_remap = _construir_atividade_remap(cfg, ctx, _batch)
 
