@@ -140,134 +140,11 @@ def _validar_input(df_faz):
     return None, df_faz
 
 
-def calcular_cronograma_inteligente(
-    cfg,
-    df_faz,
-    fazenda,
-    esperar_enter=True,
-    ctx=None,
-    escopo_meta=None,
-    atividades_catalogo=None,
-    modo_comparativo=False,
-    substituicoes_comparativo=None,
-):
-    """
-    ctx: optional dict with preconfigured session state for batch mode.
-    When ctx is provided, interactive setup questions are skipped.
-    """
-    _batch = ctx is not None
-    comparativo_cfg = None
-
-    erro_colunas, df_faz = _validar_input(df_faz)
-    if erro_colunas:
-        return None
-    tarifas = cfg.get("tarifas") or {}
-    if not tarifas:
-        aviso("Nenhuma tarifa carregada — rendimentos serao estimados (fallback)")
-
-    contexto_sessao.atualizar_configuracoes(cfg)
-    contexto_sessao.atualizar_fazenda(fazenda, df_faz)
-    _emitir_monitor_atual()
-    dashboard_header()
-
-    if not _batch:
-        subcabecalho(f"SMART SCHEDULER - {fazenda}")
-        df_faz = avaliar_terreno(df_faz)
-        aviso_politica_tarifas_planas()
-    else:
-        sub()
-        print(G + BL + f"  SMART SCHEDULER - {fazenda}" + RS)
-        df_faz["penalidade"] = float(ctx.get("penalidade", 1.0))
-
-        _emitir_monitor_state(
-            {
-                "operacao": {
-                    "fazenda_atual": str(fazenda),
-                    "modo": "batch" if _batch else "single",
-                    "micro_basename": str(cfg.get("arquivo_micro", "")),
-                    "status_geral": "iniciando_scheduler",
-                    "mensagem_curta": f"Scheduler iniciado para {fazenda}",
-                }
-            }
-        )
-
-    # ── Extrair atividades REAIS da fazenda ──
-    df_faz = df_faz.copy()
-    df_faz["atividade"] = df_faz["atividade"].map(
-        lambda x: _norm_atv(x) if pd.notna(x) else x
-    )
-    if not _batch and confirmar(
-        "Ajustar escopo de atividades (substituir/remover/adicionar) nesta execucao?",
-        default=False,
-    ):
-        df_faz = _menu_ajustar_escopo_atividades(
-            df_faz,
-            cfg=cfg,
-            atividades_catalogo=atividades_catalogo,
-        )
-    atividades_reais = sorted(
-        {a for a in df_faz["atividade"].dropna().unique().tolist() if _norm_atv(a)},
-        key=str,
-    )
-    catalogo_global = _catalogo_atividades_completo(
-        atividades_reais,
-        cfg=cfg,
-        atividades_catalogo=atividades_catalogo,
-    )
-    talhoes_ordenados = sorted(df_faz["chave"].dropna().unique().tolist())
-    escopo_talhoes = []
-    if isinstance(escopo_meta, dict):
-        escopo_talhoes = list(escopo_meta.get("talhoes") or [])
-
-    if escopo_talhoes:
-        contexto_sessao.definir_escopo_talhoes(escopo_talhoes, talhoes_ordenados)
-    else:
-        contexto_sessao.definir_escopo_talhoes(talhoes_ordenados, talhoes_ordenados)
-    contexto_sessao.atualizar_atividades(0, len(atividades_reais))
-    _emitir_monitor_atual()
-
-    novos_fixos = aplicar_depara_padrao_exame(cfg, atividades_reais)
-    if novos_fixos > 0:
-        ok(f"de_para PADRAO aplicado: {novos_fixos} mapeamento(s) fixos EXAME->CT_313.")
-    if not cfg.get("orcamento_estrito", True):
-        novos_de_para = auto_mapear_de_para(cfg, atividades_reais)
-        if novos_de_para > 0:
-            ok(f"de_para complementar: {novos_de_para} mapeamento(s) adicionais.")
-
-    if not _batch:
-        sub()
-        print(
-            DM
-            + "  Orcamento estrito (sem mediana silenciosa; lacunas pedem input): "
-            + C
-            + str(cfg.get("orcamento_estrito", True))
-            + RS
-        )
-        if confirmar("  Alternar orcamento_estrito para esta execucao?", default=False):
-            cfg["orcamento_estrito"] = not cfg.get("orcamento_estrito", True)
-            salvar_config(cfg)
-            ok(f"orcamento_estrito = {cfg['orcamento_estrito']}")
-
-    sub()
-    print(G + BL + "  ATIVIDADES ENCONTRADAS NESTA FAZENDA:" + RS)
-    for i, a in enumerate(atividades_reais, 1):
-        print(G + f"  {i:2}. " + C + a + RS)
-    print(G + "\n  Talhoes: " + C + f"{len(talhoes_ordenados)}" + RS)
-    if escopo_talhoes:
-        n_show = min(8, len(escopo_talhoes))
-        base = ", ".join(str(x)[:24] for x in escopo_talhoes[:n_show])
-        if len(escopo_talhoes) > n_show:
-            base += f", ... (+{len(escopo_talhoes) - n_show})"
-            print(DM + f" Escopo talhoes selecionados: {base}" + RS)
-    sub()
-
-    # ═══════════════════════════════════════════════════════════════════════════
+def _configurar_modo_comparativo(atividades_reais, _batch):
     # MODO COMPARATIVO: MANUAL vs MECANIZADO
-    # ═══════════════════════════════════════════════════════════════════════════
     modo_comparativo = False
     substituicoes_comparativo = {}
 
-    seq_cfg = cfg.get("sequencia") or {}
 
     if not _batch:
         # Verificar se há atividades com equivalente mecanizado
@@ -558,6 +435,137 @@ def calcular_cronograma_inteligente(
 
                     aviso("Opcao invalida. Use 1, 2, 3 ou 0.")
                     continue
+
+    return modo_comparativo, substituicoes_comparativo
+
+
+
+def calcular_cronograma_inteligente(
+    cfg,
+    df_faz,
+    fazenda,
+    esperar_enter=True,
+    ctx=None,
+    escopo_meta=None,
+    atividades_catalogo=None,
+    modo_comparativo=False,
+    substituicoes_comparativo=None,
+):
+    """
+    ctx: optional dict with preconfigured session state for batch mode.
+    When ctx is provided, interactive setup questions are skipped.
+    """
+    _batch = ctx is not None
+    comparativo_cfg = None
+
+    erro_colunas, df_faz = _validar_input(df_faz)
+    if erro_colunas:
+        return None
+    tarifas = cfg.get("tarifas") or {}
+    if not tarifas:
+        aviso("Nenhuma tarifa carregada — rendimentos serao estimados (fallback)")
+
+    contexto_sessao.atualizar_configuracoes(cfg)
+    contexto_sessao.atualizar_fazenda(fazenda, df_faz)
+    _emitir_monitor_atual()
+    dashboard_header()
+
+    if not _batch:
+        subcabecalho(f"SMART SCHEDULER - {fazenda}")
+        df_faz = avaliar_terreno(df_faz)
+        aviso_politica_tarifas_planas()
+    else:
+        sub()
+        print(G + BL + f"  SMART SCHEDULER - {fazenda}" + RS)
+        df_faz["penalidade"] = float(ctx.get("penalidade", 1.0))
+
+        _emitir_monitor_state(
+            {
+                "operacao": {
+                    "fazenda_atual": str(fazenda),
+                    "modo": "batch" if _batch else "single",
+                    "micro_basename": str(cfg.get("arquivo_micro", "")),
+                    "status_geral": "iniciando_scheduler",
+                    "mensagem_curta": f"Scheduler iniciado para {fazenda}",
+                }
+            }
+        )
+
+    # ── Extrair atividades REAIS da fazenda ──
+    df_faz = df_faz.copy()
+    df_faz["atividade"] = df_faz["atividade"].map(
+        lambda x: _norm_atv(x) if pd.notna(x) else x
+    )
+    if not _batch and confirmar(
+        "Ajustar escopo de atividades (substituir/remover/adicionar) nesta execucao?",
+        default=False,
+    ):
+        df_faz = _menu_ajustar_escopo_atividades(
+            df_faz,
+            cfg=cfg,
+            atividades_catalogo=atividades_catalogo,
+        )
+    atividades_reais = sorted(
+        {a for a in df_faz["atividade"].dropna().unique().tolist() if _norm_atv(a)},
+        key=str,
+    )
+    catalogo_global = _catalogo_atividades_completo(
+        atividades_reais,
+        cfg=cfg,
+        atividades_catalogo=atividades_catalogo,
+    )
+    talhoes_ordenados = sorted(df_faz["chave"].dropna().unique().tolist())
+    escopo_talhoes = []
+    if isinstance(escopo_meta, dict):
+        escopo_talhoes = list(escopo_meta.get("talhoes") or [])
+
+    if escopo_talhoes:
+        contexto_sessao.definir_escopo_talhoes(escopo_talhoes, talhoes_ordenados)
+    else:
+        contexto_sessao.definir_escopo_talhoes(talhoes_ordenados, talhoes_ordenados)
+    contexto_sessao.atualizar_atividades(0, len(atividades_reais))
+    _emitir_monitor_atual()
+
+    novos_fixos = aplicar_depara_padrao_exame(cfg, atividades_reais)
+    if novos_fixos > 0:
+        ok(f"de_para PADRAO aplicado: {novos_fixos} mapeamento(s) fixos EXAME->CT_313.")
+    if not cfg.get("orcamento_estrito", True):
+        novos_de_para = auto_mapear_de_para(cfg, atividades_reais)
+        if novos_de_para > 0:
+            ok(f"de_para complementar: {novos_de_para} mapeamento(s) adicionais.")
+
+    if not _batch:
+        sub()
+        print(
+            DM
+            + "  Orcamento estrito (sem mediana silenciosa; lacunas pedem input): "
+            + C
+            + str(cfg.get("orcamento_estrito", True))
+            + RS
+        )
+        if confirmar("  Alternar orcamento_estrito para esta execucao?", default=False):
+            cfg["orcamento_estrito"] = not cfg.get("orcamento_estrito", True)
+            salvar_config(cfg)
+            ok(f"orcamento_estrito = {cfg['orcamento_estrito']}")
+
+    sub()
+    print(G + BL + "  ATIVIDADES ENCONTRADAS NESTA FAZENDA:" + RS)
+    for i, a in enumerate(atividades_reais, 1):
+        print(G + f"  {i:2}. " + C + a + RS)
+    print(G + "\n  Talhoes: " + C + f"{len(talhoes_ordenados)}" + RS)
+    if escopo_talhoes:
+        n_show = min(8, len(escopo_talhoes))
+        base = ", ".join(str(x)[:24] for x in escopo_talhoes[:n_show])
+        if len(escopo_talhoes) > n_show:
+            base += f", ... (+{len(escopo_talhoes) - n_show})"
+            print(DM + f" Escopo talhoes selecionados: {base}" + RS)
+    sub()
+
+    seq_cfg = cfg.get("sequencia") or {}
+
+    modo_comparativo, substituicoes_comparativo = _configurar_modo_comparativo(
+        atividades_reais, _batch,
+    )
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
     modo_ctx = None
