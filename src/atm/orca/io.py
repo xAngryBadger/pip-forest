@@ -240,7 +240,7 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
                 if aba is None:
                     return None
 
-        df = pd.read_excel(caminho, sheet_name=aba, header=0)
+        df = ExcelReader.read(caminho, sheet_name=aba, header=0)
         cols = df.columns.tolist()
 
         # Mapear com KNOWN_COLUMNS primeiro
@@ -430,7 +430,7 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
                         break
                 if not eq_sheet:
                     for s in xls_eq.sheet_names:
-                        sh = pd.read_excel(xls_eq, sheet_name=s, nrows=2)
+                        sh = ExcelReader.read(xls_eq, sheet_name=s, nrows=2)
                         cols_s = [normalizar_chave(c) for c in sh.columns]
                         if any("equipe" in c for c in cols_s):
                             has_faz = any("fazenda" in c for c in cols_s)
@@ -438,7 +438,7 @@ def carregar_planilha_microplanejamento(cfg, caminho=None, modo_auto=False):
                                 eq_sheet = s
                                 break
                 if eq_sheet:
-                    df_eq = pd.read_excel(xls_eq, sheet_name=eq_sheet)
+                    df_eq = ExcelReader.read(xls_eq, sheet_name=eq_sheet)
                     eq_col = None
                     fz_col = None
                     for c in df_eq.columns:
@@ -529,3 +529,10 @@ def garantir_fazendas_micro_no_ct(cfg, df):
             idx[nk] = f
             ad += 1
     return ad
+
+
+class ExcelReader:
+    """Thin adapter around pd.read_excel for testability."""
+    @staticmethod
+    def read(caminho, sheet_name=None, **kwargs):
+        return pd.read_excel(caminho, sheet_name=sheet_name, **kwargs)

@@ -7,6 +7,7 @@ from statistics import median
 
 import pandas as pd
 
+from .io import ExcelReader
 from .config import (
     _PRECO_FINAL_JSON_CACHE,
     INPUT_DIR,
@@ -461,7 +462,7 @@ def normalizar_ct313(caminho_ct):
     # Layout antigo (indices fixos) e layout CT317 real (cabecalho na linha 1)
     # coexistem. Aqui tentamos primeiro por cabecalho real; se falhar, caimos para
     # o parser legado por indice.
-    dfh = pd.read_excel(caminho_ct, sheet_name=pf)
+    dfh = ExcelReader.read(caminho_ct, sheet_name=pf)
 
     custo_hora_tf = 0.0
     rows_by_name = {}
@@ -537,7 +538,7 @@ def normalizar_ct313(caminho_ct):
 
     # Fallback legado (layout por indice fixo)
     if len(rows_by_name) < 20:
-        df = pd.read_excel(caminho_ct, sheet_name=pf, header=None)
+        df = ExcelReader.read(caminho_ct, sheet_name=pf, header=None)
         for i in range(5, len(df)):
             r = df.iloc[i]
             nome = str(r[2]).strip() if pd.notna(r[2]) else ""
@@ -650,7 +651,7 @@ def normalizar_ct313(caminho_ct):
 
 def carregar_stg_tarifas(stg_path):
     """Le STG_TARIFAS e retorna dict {atividade: {rendimento_hh, preco_ha, custo_hora, custo_ha, tipo}}."""
-    df = pd.read_excel(stg_path, sheet_name="STG_TARIFAS")
+    df = ExcelReader.read(stg_path, sheet_name="STG_TARIFAS")
     t = {}
     for _, r in df.iterrows():
         nome = str(r.get("atividade", "")).strip()
@@ -727,7 +728,7 @@ def _is_raw_cost_row_label(lbl):
 
 def _extrair_custos_globais_brutos(caminho, sheet_cd, sheet_ci):
     def parse_sheet(sheet_name):
-        df = pd.read_excel(caminho, sheet_name=sheet_name, header=None)
+        df = ExcelReader.read(caminho, sheet_name=sheet_name, header=None)
         itens = []
         total_linha = None
         for _, r in df.iterrows():
@@ -864,9 +865,9 @@ def modulo_importar_precos_contrato(cfg):
             if ci is None:
                 return
 
-        df_pf = pd.read_excel(caminho, sheet_name=pf)
-        df_cd = pd.read_excel(caminho, sheet_name=cd)
-        df_ci = pd.read_excel(caminho, sheet_name=ci)
+        df_pf = ExcelReader.read(caminho, sheet_name=pf)
+        df_cd = ExcelReader.read(caminho, sheet_name=cd)
+        df_ci = ExcelReader.read(caminho, sheet_name=ci)
 
         col_atv_pf = _pick_col(df_pf, [["atividade"], ["servico"], ["descricao"]])
         col_preco = _pick_col(df_pf, [["preco", "final"], ["preco"], ["valor"]])

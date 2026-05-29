@@ -11,6 +11,7 @@ from .config import (
 )
 from .context import contexto_sessao, dashboard_header
 from .io import (
+    ExcelReader,
     _to_float_br,
     encontrar_coluna,
     selecionar_arquivo,
@@ -121,7 +122,7 @@ def modulo_importar_tarifas(cfg):
             return
 
         print(DM + f"  Lendo aba '{aba}'..." + RS)
-        df = pd.read_excel(caminho, sheet_name=aba, nrows=1000)
+        df = ExcelReader.read(caminho, sheet_name=aba, nrows=1000)
         cols_ct = df.columns.tolist()
 
         # Tentar mapear automaticamente
