@@ -439,6 +439,123 @@ def _configurar_modo_comparativo(atividades_reais, _batch):
     return modo_comparativo, substituicoes_comparativo
 
 
+def _configurar_projeto_interativo(cfg):
+    print(G + BL + "\n  CONFIGURACAO DO PROJETO" + RS + "\n")
+
+    prazo_meses = pedir_float("Prazo META para conclusao (meses)", 6.0)
+    hoje = datetime.datetime.now()
+    print(
+        DM
+        + "  Referencia do calendario para DIAS UTEIS da meta (meses corridos a partir de): "
+        + RS
+    )
+    mes_ref = pedir_int("Mes inicial (1-12)", hoje.month)
+    mes_ref = max(1, min(12, int(mes_ref)))
+    ano_ref = pedir_int("Ano inicial", hoje.year)
+    dia_max = calendar.monthrange(ano_ref, mes_ref)[1]
+    dia_ref = pedir_int(f"Dia inicial (1-{dia_max})", min(hoje.day, dia_max))
+    dia_ref = max(1, min(dia_max, int(dia_ref)))
+
+    data_inicio_txt = _formatar_data_dia(dia_ref, mes_ref, ano_ref)
+    data_fim_txt = None
+    if confirmar("Informar dia final manualmente?", default=False):
+        mes_fim = pedir_int("Mes final (1-12)", mes_ref)
+        mes_fim = max(1, min(12, int(mes_fim)))
+        ano_fim = pedir_int("Ano final", ano_ref)
+        dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
+        dia_fim = pedir_int(
+            f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
+        )
+        dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
+        data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
+    else:
+        fim_calc = _calcular_data_fim_por_meses(
+            dia_ref, mes_ref, ano_ref, prazo_meses
+        )
+        if fim_calc:
+            data_fim_txt = _formatar_data_dia(fim_calc[0], fim_calc[1], fim_calc[2])
+
+    contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
+    # Não chamar dashboard_header() aqui para evitar flickering
+
+    j_def = float(cfg.get("jornada_horas") or _JORNADA_DEFAULT_H)
+    if j_def <= 0:
+        j_def = _JORNADA_DEFAULT_H
+    executores = pedir_int(
+        "Operarios totais (quem realmente trabalha)",
+        9,
+    )
+    jornada = pedir_jornada(
+        "Jornada efetiva diaria (ex: 6.5 ou 6:30 = 6h30)", round(j_def, 2)
+    )
+    cfg["jornada_horas"] = jornada
+    salvar_config(cfg)
+
+    if executores <= 0:
+        erro("Precisa de pelo menos 1 executor.")
+        return None
+    print(
+        G + f"\n Equipe Operacional: {executores} operarios @ {jornada}h/dia" + RS
+    )
+    if confirmar(
+        "Configurar COMPARATIVO MULTI-FATOR agora (para exportar no Excel)?",
+        default=False,
+    ):
+        comparativo_cfg = coletar_config_comparativo_multifator(executores, jornada)
+    else:
+        comparativo_cfg = None
+
+    sub()
+    print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
+    print(
+        DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
+    )
+    print(
+        DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
+    )
+
+    turmas = []
+    restantes = executores
+
+    while restantes > 0:
+        print(G + f"  Operarios disponiveis: {restantes}" + RS)
+        nome_turma = prompt(
+            "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
+        )
+        def_pad = min(restantes, max(1, restantes // 2 or restantes))
+        qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
+        if qtd > restantes:
+            aviso(f"Maximo disponivel: {restantes}. Ajustando.")
+            qtd = restantes
+        turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
+        restantes -= qtd
+        if restantes > 0:
+            if not confirmar(
+                f"Criar outra turma? ({restantes} restantes)", default=True
+            ):
+                turmas.append(
+                    {"nome": "Geral", "operarios": restantes, "atividades": []}
+                )
+                restantes = 0
+
+    sub()
+    print(G + BL + "  TURMAS CRIADAS:" + RS)
+    for t in turmas:
+        print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
+    sub()
+
+    return {
+        "prazo_meses": prazo_meses,
+        "mes_ref": mes_ref,
+        "ano_ref": ano_ref,
+        "data_inicio_txt": data_inicio_txt,
+        "data_fim_txt": data_fim_txt,
+        "jornada": jornada,
+        "executores": executores,
+        "comparativo_cfg": comparativo_cfg,
+        "turmas": turmas,
+    }
+
 
 def calcular_cronograma_inteligente(
     cfg,
@@ -670,126 +787,18 @@ def calcular_cronograma_inteligente(
                 }
             )
     else:
-        # ── Config equipe ──
-        print(G + BL + "\n  CONFIGURACAO DO PROJETO" + RS + "\n")
-
-        prazo_meses = pedir_float("Prazo META para conclusao (meses)", 6.0)
-        hoje = datetime.datetime.now()
-        print(
-            DM
-            + "  Referencia do calendario para DIAS UTEIS da meta (meses corridos a partir de): "
-            + RS
-        )
-        mes_ref = pedir_int("Mes inicial (1-12)", hoje.month)
-        mes_ref = max(1, min(12, int(mes_ref)))
-        ano_ref = pedir_int("Ano inicial", hoje.year)
-        dia_max = calendar.monthrange(ano_ref, mes_ref)[1]
-        dia_ref = pedir_int(f"Dia inicial (1-{dia_max})", min(hoje.day, dia_max))
-        dia_ref = max(1, min(dia_max, int(dia_ref)))
-
-        data_inicio_txt = _formatar_data_dia(dia_ref, mes_ref, ano_ref)
-        data_fim_txt = None
-        if confirmar("Informar dia final manualmente?", default=False):
-            mes_fim = pedir_int("Mes final (1-12)", mes_ref)
-            mes_fim = max(1, min(12, int(mes_fim)))
-            ano_fim = pedir_int("Ano final", ano_ref)
-            dia_max_fim = calendar.monthrange(ano_fim, mes_fim)[1]
-            dia_fim = pedir_int(
-                f"Dia final (1-{dia_max_fim})", min(dia_ref, dia_max_fim)
-            )
-            dia_fim = max(1, min(dia_max_fim, int(dia_fim)))
-            data_fim_txt = _formatar_data_dia(dia_fim, mes_fim, ano_fim)
-        else:
-            fim_calc = _calcular_data_fim_por_meses(
-                dia_ref, mes_ref, ano_ref, prazo_meses
-            )
-            if fim_calc:
-                data_fim_txt = _formatar_data_dia(fim_calc[0], fim_calc[1], fim_calc[2])
-
-        contexto_sessao.definir_datas(data_inicio_txt, data_fim_txt)
-        # Não chamar dashboard_header() aqui para evitar flickering
-
-        j_def = float(cfg.get("jornada_horas") or _JORNADA_DEFAULT_H)
-        if j_def <= 0:
-            j_def = _JORNADA_DEFAULT_H
-        executores = pedir_int(
-            "Operarios totais (quem realmente trabalha)",
-            9,
-        )
-        jornada = pedir_jornada(
-            "Jornada efetiva diaria (ex: 6.5 ou 6:30 = 6h30)", round(j_def, 2)
-        )
-        cfg["jornada_horas"] = jornada
-        salvar_config(cfg)
-
-        if executores <= 0:
-            erro("Precisa de pelo menos 1 executor.")
+        proj = _configurar_projeto_interativo(cfg)
+        if proj is None:
             return
-        print(
-            G + f"\n Equipe Operacional: {executores} operarios @ {jornada}h/dia" + RS
-        )
-        if confirmar(
-            "Configurar COMPARATIVO MULTI-FATOR agora (para exportar no Excel)?",
-            default=False,
-        ):
-            comparativo_cfg = coletar_config_comparativo_multifator(executores, jornada)
-
-        # ──────────────────────────────────────────
-        #  ETAPA 1: CRIAR TURMAS
-        # ──────────────────────────────────────────
-        sub()
-        print(G + BL + "  ETAPA 1: CRIAR TURMAS / FUNCOES" + RS)
-        print(
-            DM + "  Defina grupos de trabalho (ex: Rocadores, Adubadores, Geral)." + RS
-        )
-        print(
-            DM + "  Depois voce vinculara quais atividades cada turma executa.\n" + RS
-        )
-
-        turmas = []
-        restantes = executores
-
-        while restantes > 0:
-            print(G + f"  Operarios disponiveis: {restantes}" + RS)
-            nome_turma = prompt(
-                "Nome da turma (ex: Rocadores)", f"Turma {len(turmas) + 1}"
-            )
-            def_pad = min(restantes, max(1, restantes // 2 or restantes))
-            qtd = pedir_int(f"  Quantos operarios na turma '{nome_turma}'", def_pad)
-            if qtd > restantes:
-                aviso(f"Maximo disponivel: {restantes}. Ajustando.")
-                qtd = restantes
-            turmas.append({"nome": nome_turma, "operarios": qtd, "atividades": []})
-            restantes -= qtd
-            if restantes > 0:
-                if not confirmar(
-                    f"Criar outra turma? ({restantes} restantes)", default=True
-                ):
-                    turmas.append(
-                        {"nome": "Geral", "operarios": restantes, "atividades": []}
-                    )
-                    restantes = 0
-
-        sub()
-        print(G + BL + "  TURMAS CRIADAS:" + RS)
-        for t in turmas:
-            print(G + f"  - {t['nome']}: " + C + f"{t['operarios']} operarios" + RS)
-        sub()
-
-        # ──────────────────────────────────────────
-        #  ETAPA 2: VINCULAR ATIVIDADES AS TURMAS
-        # ──────────────────────────────────────────
-        print(G + BL + "\n  ETAPA 2: VINCULAR ATIVIDADES AS TURMAS" + RS)
-        print(
-            DM
-            + "  Use FILTRO por texto para ligar varias de uma vez (ex: todas com 'roçada')."
-            + RS
-        )
-        print(
-            DM
-            + "  Depois: conflitos (paralelo vs uma turma) e opcao de REATRIBUIR a outra turma.\n"
-            + RS
-        )
+        prazo_meses = proj["prazo_meses"]
+        mes_ref = proj["mes_ref"]
+        ano_ref = proj["ano_ref"]
+        data_inicio_txt = proj["data_inicio_txt"]
+        data_fim_txt = proj["data_fim_txt"]
+        jornada = proj["jornada"]
+        executores = proj["executores"]
+        comparativo_cfg = proj["comparativo_cfg"]
+        turmas = proj["turmas"]
 
     atividade_remap = {}
     for manual, destino in (cfg.get("de_para", {}) or {}).items():
