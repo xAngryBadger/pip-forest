@@ -206,11 +206,33 @@ class ContextoSessao:
 
 
 # ──────────────────────────────────────────────
-# GLOBAL SINGLETON
+# GLOBAL CONTEXT HOLDER (swapable instance)
 # ──────────────────────────────────────────────
-contexto_sessao = ContextoSessao()
+class _ContextoHolder:
+    """Holds a ContextoSessao instance. Delegates attribute access so that
+    modules importing 'contexto_sessao' via 'from .context import contexto_sessao'
+    see the injected instance after a swap."""
+    def __init__(self):
+        self._inst = ContextoSessao()
+    def __getattr__(self, name):
+        if name == '_inst':
+            return super().__getattr__(name)
+        return getattr(self._inst, name)
+    def __setattr__(self, name, value):
+        if name == '_inst':
+            super().__setattr__(name, value)
+        else:
+            setattr(self._inst, name, value)
+
+
+contexto_sessao = _ContextoHolder()
+
+
+def set_contexto_sessao(ctx):
+    """Swap the underlying ContextoSessao instance (for testing)."""
+    contexto_sessao._inst = ctx
 
 
 def dashboard_header(console_inst=None, mostrar_sempre=True):
-    """Wrapper para exibir o dashboard (mantem compatibilidade com chamadas existentes)."""
+    """Wrapper para exibir o dashboard."""
     contexto_sessao.exibir(console_inst, mostrar_sempre)
