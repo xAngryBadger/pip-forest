@@ -48,6 +48,8 @@ def encontrar_coluna(cols, campo):
 
 
 def buscar_arquivos_excel():
+    if os.path.lexists(INPUT_DIR) and not os.path.isdir(INPUT_DIR):
+        os.remove(INPUT_DIR)
     if not os.path.isdir(INPUT_DIR):
         os.makedirs(INPUT_DIR, exist_ok=True)
         return []
@@ -529,3 +531,18 @@ def garantir_fazendas_micro_no_ct(cfg, df):
             idx[nk] = f
             ad += 1
     return ad
+
+
+def _proximo_caminho_livre(pasta, nome_arquivo):
+    base, ext = os.path.splitext(str(nome_arquivo))
+    candidato_nome = str(nome_arquivo)
+    candidato_path = os.path.join(pasta, candidato_nome)
+    if not os.path.exists(candidato_path):
+        return candidato_nome, candidato_path
+    i = 2
+    while True:
+        candidato_nome = f"{base}_v{i}{ext}"
+        candidato_path = os.path.join(pasta, candidato_nome)
+        if not os.path.exists(candidato_path):
+            return candidato_nome, candidato_path
+        i += 1

@@ -15,11 +15,6 @@ _HH_EPSILON = 0.01
 DIAS_UTEIS_POR_MES = 22.0
 _JORNADA_DEFAULT_H = 4.6
 
-from .app import (
-    _menu_ajustar_escopo_atividades,
-    _proximo_caminho_livre,
-    avaliar_terreno,
-)
 from .comparativo_mec import (
     _atividades_com_mecanizado_disponivel,
     _cadastrar_recurso_mecanizado_externo,
@@ -77,6 +72,7 @@ from .scheduler import (
     menu_ajustes_hh_apenas_sessao,
     pode_agendar_atividade_cascata,
     validar_e_completar_orcamento,
+    avaliar_terreno,
 )
 from .tarifas import (
     aviso_politica_tarifas_planas,
@@ -92,9 +88,11 @@ from .text_utils import (
     normalizar_chave,
     parse_intervalos_escolha,
 )
+from .io import _proximo_caminho_livre
 from .turmas import (
     _cadastrar_recursos_mecanizados_sn,
     _catalogo_atividades_completo,
+    _menu_ajustar_escopo_atividades,
     menu_vincular_atividades_turma,
     resolver_conflitos_e_reatribuir,
     sequencia_manutencao_seco_placeholder,
@@ -555,13 +553,14 @@ def calcular_cronograma_inteligente(
                     continue
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
+    modo_ctx = None
 
     if _batch:
-        modo_seq = ctx["modo_seq"]
+        modo_seq = ctx.get("modo_seq", "implantacao")
     else:
         modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 
-        modo_ctx = f"seq:{modo_seq}"
+    modo_ctx = f"seq:{modo_seq}"
     modo_existente = contexto_sessao.modo_atual
     if modo_existente:
         if modo_ctx not in str(modo_existente):
@@ -1338,6 +1337,8 @@ def calcular_cronograma_inteligente(
     cronograma = []
     dia = 0
     MAX_DIAS = 10000
+    min_fase_dia_dict = None
+    min_fase_dia = None
 
     def _registrar_fim_plantio_talhao(th, dia_atual):
         if dia_termino_plantio.get(th) is not None:
@@ -1375,8 +1376,8 @@ def calcular_cronograma_inteligente(
                         dia,
                         dia_termino_plantio,
                         tem_plantio_por_talhao,
-                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                     )
+                    min_fase_dia = min_fase_dia_dict
                     for talhao in talhoes_ordenados:
                         tlist = list(demandas.get(talhao, []))
                         tlist.sort(
@@ -1467,8 +1468,8 @@ def calcular_cronograma_inteligente(
                         dia,
                         dia_termino_plantio,
                         tem_plantio_por_talhao,
-                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                     )
+                    min_fase_dia = min_fase_dia_dict
                     item = fila[idx]
                     key = (item["talhao"], item["atividade"])
                     rest = demanda_global.get(key, 0)
@@ -1560,8 +1561,8 @@ def calcular_cronograma_inteligente(
                                 dia,
                                 dia_termino_plantio,
                                 tem_plantio_por_talhao,
-                    min_fase_dia = min(min_fase_dia_dict.values()) if min_fase_dia_dict else None  # Cascata GLOBAL
                             )
+                            min_fase_dia = min_fase_dia_dict
                             atv = t["atividade"]
                             key_ref = (talhao, atv)
                             rest_ref = demanda_global.get(key_ref, 0.0)
@@ -3157,47 +3158,47 @@ def _executar_multi_equipes(
             equipe_idx_atual = ie - 1
             acum_equipes = 0
 
-        for sug in config_empresa["sugestoes"]:
-            n_eq_emp = sug["n_equipes"]
-            if equipe_idx_atual < acum_equipes + n_eq_emp:
-                empresa_eq = sug["empresa"]
-                n_emp_idx = equipe_idx_atual - acum_equipes + 1
-                nome_eq = f"{sug['nome_empresa']} Eq{n_emp_idx}"
-                j_eq = sug.get("jornada", 4.3)
-                exec_eq = sug["operarios_por_equipe"]
-                turmas_eq = [
-                    {
-                        "nome": sug["nome_empresa"],
-                        "operarios": exec_eq,
-                        "atividades": [],
+            for sug in config_empresa["sugestoes"]:
+                n_eq_emp = sug["n_equipes"]
+                if equipe_idx_atual < acum_equipes + n_eq_emp:
+                    empresa_eq = sug["empresa"]
+                    n_emp_idx = equipe_idx_atual - acum_equipes + 1
+                    nome_eq = f"{sug['nome_empresa']} Eq{n_emp_idx}"
+                    j_eq = sug.get("jornada", 4.3)
+                    exec_eq = sug["operarios_por_equipe"]
+                    turmas_eq = [
+                        {
+                            "nome": sug["nome_empresa"],
+                            "operarios": exec_eq,
+                            "atividades": [],
+                        }
+                    ]
+                    fazs_emp = sug["fazendas"]
+                    n_por_eq = max(1, len(fazs_emp) // n_eq_emp)
+                    inicio_emp = n_emp_idx - 1
+                    faz_eq = fazs_emp[inicio_emp:inicio_emp + n_por_eq]
+                    sobrando = n_emp_idx == n_eq_emp and len(fazs_emp) > inicio_emp + n_por_eq
+                    if sobrando:
+                        faz_eq = fazs_emp[inicio_emp:]
+
+                    if not faz_eq:
+                        aviso(f"{nome_eq}: nenhuma fazenda atribuivel — pulando equipe.")
+                        cfg_empresa_eq = None
+                        break
+
+                    ok(f"Configuracao automatica: {nome_eq}")
+                    print(G + f" Empresa: {sug['nome_empresa']}" + RS)
+                    print(G + f" Operarios: {exec_eq}" + RS)
+                    print(G + f" Fazendas: {len(faz_eq)}" + RS)
+                    cfg_empresa_eq = {
+                        "nome": nome_eq,
+                        "jornada": j_eq,
+                        "executores": exec_eq,
+                        "turmas": turmas_eq,
+                        "fazendas": faz_eq,
                     }
-                ]
-                fazs_emp = sug["fazendas"]
-                n_por_eq = max(1, len(fazs_emp) // n_eq_emp)
-                inicio_emp = n_emp_idx - 1
-                faz_eq = fazs_emp[inicio_emp:inicio_emp + n_por_eq]
-                sobrando = n_emp_idx == n_eq_emp and len(fazs_emp) > inicio_emp + n_por_eq
-                if sobrando:
-                    faz_eq = fazs_emp[inicio_emp:]
-
-                if not faz_eq:
-                    aviso(f"{nome_eq}: nenhuma fazenda atribuivel — pulando equipe.")
-                    cfg_empresa_eq = None
                     break
-
-                ok(f"Configuracao automatica: {nome_eq}")
-                print(G + f" Empresa: {sug['nome_empresa']}" + RS)
-                print(G + f" Operarios: {exec_eq}" + RS)
-                print(G + f" Fazendas: {len(faz_eq)}" + RS)
-                cfg_empresa_eq = {
-                    "nome": nome_eq,
-                    "jornada": j_eq,
-                    "executores": exec_eq,
-                    "turmas": turmas_eq,
-                    "fazendas": faz_eq,
-                }
-                break
-            acum_equipes += n_eq_emp
+                acum_equipes += n_eq_emp
 
     if usar_modo_empresa and cfg_empresa_eq:
         nome_eq = cfg_empresa_eq["nome"]
