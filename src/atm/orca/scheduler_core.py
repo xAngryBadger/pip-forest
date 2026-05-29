@@ -1857,6 +1857,526 @@ def _exportar_dossier_excel(
         aviso(f"Nao foi possivel salvar Dossier: {ex}")
 
 
+def _verificar_atividades_sem_tarifa(demandas, cfg, tarifas, strict):
+    sem_tarifa = []
+    for talhao, tarefas in demandas.items():
+        for t in tarefas:
+            atv = t["atividade"]
+            t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
+            if t_nome not in tarifas:
+                sem_tarifa.append((str(atv)[:50], str(t_nome)[:50]))
+    if not strict and sem_tarifa:
+        est_fb = resolver_rendimento_hh(
+            cfg, tarifas, "!__chave_inexistente__!", strict=False
+        )
+        print(
+            Y
+            + "\n  !  Chave de tarifa NAO encontrada no orcamento importado (desencontro de nome)."
+            + RS
+        )
+        print(
+            Y
+            + f"     Rendimento estimado aplicado: ~{est_fb:.2f} h/ha (mediana/config; ver doc)."
+            + RS
+        )
+        visto = set()
+        for a, tn in sem_tarifa:
+            key = (a, tn)
+            if key in visto:
+                continue
+            visto.add(key)
+            print(Y + f"    micro: {a}  ->  chave buscada: {tn}" + RS)
+        print(
+            DM
+            + "    Correcao: menu [4] de_para ou importe tarifas [2] — no orcamento o homem/ha existe."
+            + RS
+        )
+
+
+def _configurar_sequencia_bloqueio(cfg, seq_cfg, atividades_reais, ctx, _batch):
+    if _batch:
+        modo_seq = ctx["modo_seq"]
+    else:
+        modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
+
+    modo_ctx = f"seq:{modo_seq}"
+    modo_existente = contexto_sessao.modo_atual
+    if modo_existente:
+        if modo_ctx not in str(modo_existente):
+            contexto_sessao.atualizar_modo(f"{modo_existente} | {modo_ctx}")
+    else:
+        contexto_sessao.atualizar_modo(modo_ctx)
+
+    if modo_seq == "manutencao_seco":
+        sequencia_manutencao_seco_placeholder(cfg)
+    elif modo_seq == "manutencao_umido":
+        sequencia_manutencao_umido_placeholder(cfg)
+    usar_cascata = modo_seq in ("implantacao", "personalizado")
+    diagnosticar_sequencia_atividades(atividades_reais, seq_cfg, modo_seq)
+
+    if _batch:
+        usar_bloqueio_global = ctx.get("usar_bloqueio_global", False)
+        atividades_bloqueadas = set()
+        if usar_bloqueio_global:
+            filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
+            atividades_bloqueadas = set(
+                atividades_por_filtro(atividades_reais, filtros_bloqueio)
+            )
+        usar_reforco_automatico = ctx.get("usar_reforco_automatico", True)
+        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)
+    else:
+        filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
+        candidatas_bloqueio = atividades_por_filtro(atividades_reais, filtros_bloqueio)
+        usar_bloqueio_global = False
+        atividades_bloqueadas = set()
+        if modo_seq == "personalizado":
+            print(
+                DM
+                + "  Modo PERSONALIZADO: bloqueio global plantio/irrigacao DESLIGADO."
+                + RS
+            )
+        elif candidatas_bloqueio:
+            usar_bloqueio_global = confirmar(
+                "Aplicar BLOQUEIO GLOBAL (plantio/irrigacao so iniciam quando TODO o resto zerar na fazenda)?",
+                default=True,
+            )
+            if usar_bloqueio_global:
+                atividades_bloqueadas = set(candidatas_bloqueio)
+                print(
+                    Y
+                    + f"\n  BLOQUEADAS ATE LIBERACAO GLOBAL ({len(atividades_bloqueadas)}):"
+                    + RS
+                )
+                for a in sorted(atividades_bloqueadas, key=lambda x: str(x))[:20]:
+                    print(Y + f"    - {str(a)[:58]}" + RS)
+                if len(atividades_bloqueadas) > 20:
+                    print(DM + f"    ... +{len(atividades_bloqueadas) - 20}" + RS)
+                if confirmar(
+                    "Salvar estes filtros de bloqueio no config para proximas execucoes?",
+                    default=True,
+                ):
+                    cfg["filtros_bloqueio_global"] = filtros_bloqueio
+                    salvar_config(cfg)
+        usar_reforco_automatico = confirmar(
+            "Ativar REFORCO AUTOMATICO (turma ociosa ajuda outras atividades nao bloqueadas)?",
+            default=True,
+        )
+        usar_pool_pos_bloqueio = False
+        if usar_bloqueio_global:
+            usar_pool_pos_bloqueio = confirmar(
+                "Usar PELOTAO UNIFICADO (todos os executores) so em plantio/irrigacao apos liberacao global?",
+                default=True,
+            )
+    return modo_seq, usar_cascata, usar_bloqueio_global, atividades_bloqueadas, usar_reforco_automatico, usar_pool_pos_bloqueio
+
+
+def _mostrar_tabela_ocupacao(turmas, dias_simulado_hum, jornada, hh_por_turma, cronograma, executores, usar_pool_pos_bloqueio, usar_bloqueio_global, n_fb, pct_fallback, n_demandas):
+    sub()
+    print(G + BL + "  OCUPACAO POR TURMA" + RS)
+    t_occ = Table()
+    t_occ.add_column("Turma", style="cyan")
+    t_occ.add_column("HH", justify="right")
+    t_occ.add_column("Cap. max", justify="right")
+    t_occ.add_column("Uso %", justify="right")
+    crit_nm, crit_pct = "", 0.0
+    for turma in turmas:
+        nm = turma["nome"]
+        cap = float(dias_simulado_hum) * float(turma["operarios"]) * float(jornada)
+        us = hh_por_turma.get(nm, 0.0)
+        pct = (100.0 * us / cap) if cap > _HH_EPSILON else 0.0
+        if pct > crit_pct:
+            crit_pct, crit_nm = pct, nm
+        t_occ.add_row(nm, f"{us:.1f}", f"{cap:.1f}", f"{pct:.0f}%")
+    if hh_por_turma.get("Pelotao_Unificado", 0) > _HH_EPSILON:
+        d_pool = len(set(c["Dia"] for c in cronograma if c.get("Turma") == "Pelotao_Unificado"))
+        pu = hh_por_turma["Pelotao_Unificado"]
+        cap_p = float(d_pool) * float(executores) * float(jornada)
+        pct_p = (100.0 * pu / cap_p) if cap_p > _HH_EPSILON else 0.0
+        t_occ.add_row("Pelotao_Unificado", f"{pu:.1f}", f"{cap_p:.1f}", f"{pct_p:.0f}%")
+    console.print(t_occ)
+    print(DM + "  Uso % = HH no cronograma com o nome da turma / (dias simulados x operarios x jornada)." + RS)
+    print(DM + "  Reforco nao aumenta n_ops; bloqueio global impede reforco em plantio/irrigacao ate liberar tudo." + RS)
+    if usar_pool_pos_bloqueio and usar_bloqueio_global:
+        print(DM + "  Pelotao_Unificado: plantio/irrigacao apos liberacao usam todos os executores num so pelotao." + RS)
+    if crit_nm:
+        print(DM + f"  Heuristica caminho critico (maior Uso %): turma '{crit_nm}' (~{crit_pct:.0f}%)." + RS)
+    if n_fb > 0:
+        print(DM + f"  Cobertura CT no escopo: {100 - pct_fallback:.0f}% (fallback em {n_fb}/{n_demandas} item(ns))." + RS)
+
+
+def _executar_modo_mecanizado_opcional(
+    _batch, modo_comparativo, substituicoes_comparativo,
+    atividades_reais, cfg, hm_only_list, catalogo_global,
+    demandas, fazenda, jornada, cronograma, turmas, executores,
+    cronograma_base, cronograma_mec_base, dias_simulado,
+):
+    recursos_mec = []
+    cronograma_mec = []
+    cronograma_com_mec = []
+    atividades_mec_set = set()
+    if _batch:
+        sub()
+        print(
+            DM
+            + "  Modo batch: pulando 'modo mecanizado opcional' (sem prompts interativos)."
+            + RS
+        )
+    elif modo_comparativo and substituicoes_comparativo:
+        sub()
+        print(
+            DM
+            + "  Comparativo MANUAL vs MECANIZADO ativo: pulando 'modo mecanizado opcional' para evitar duplicidade de cenarios."
+            + RS
+        )
+    else:
+        sub()
+        print(C + BL + "  ATIVAR MODO MECANIZADO" + RS)
+        print(
+            DM
+            + "  Cenario opcional: cadastrar recurso extra para adicionar/substituir atividades."
+            + RS
+        )
+        if cronograma_mec_base:
+            print(
+                DM
+                + "  As atividades HM do orcamento ja foram contabilizadas automaticamente no cronograma base."
+                + RS
+            )
+            for a in hm_only_list[:5]:
+                print(DM + f"    - {str(a)[:58]}" + RS)
+            if len(hm_only_list) > 5:
+                print(DM + f"    ... +{len(hm_only_list) - 5}" + RS)
+        if hm_only_list:
+            print(
+                DM
+                + f"  HM-only (HH=0) detectadas: {len(hm_only_list)} atividade(s)."
+                + RS
+            )
+        if confirmar("  Ativar modo mecanizado opcional?", default=False):
+            recursos_mec = _cadastrar_recursos_mecanizados_sn(
+                atividades_reais, cfg, atividades_catalogo=catalogo_global,
+            )
+            for rec in recursos_mec:
+                atividades_mec_set.update(rec.get("atividades", set()))
+            if recursos_mec and atividades_mec_set:
+                cronograma_mec = construir_cronograma_mecanizado(
+                    demandas, fazenda, jornada, recursos_mec
+                )
+
+            if cronograma_mec and atividades_mec_set:
+                regra_implantacao_mec = "substituir_total"
+                if confirmar(
+                    "Regra de implantacao mecanizado: manter humano em PARALELO nas atividades mecanizadas?",
+                    default=False,
+                ):
+                    regra_implantacao_mec = "paralelo"
+                if regra_implantacao_mec == "paralelo":
+                    crono_hum_sem_mec = [dict(x) for x in cronograma_base]
+                else:
+                    crono_hum_sem_mec_h = construir_cronograma_humano_sem_mecanizadas(
+                        cronograma, turmas, jornada, executores, atividades_mec_set
+                    )
+                    crono_hum_sem_mec = sorted(
+                        crono_hum_sem_mec_h + cronograma_mec_base,
+                        key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
+                    )
+                cronograma_com_mec = sorted(
+                    crono_hum_sem_mec + cronograma_mec,
+                    key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
+                )
+                d_hum = max([int(x.get("Dia", 0)) for x in crono_hum_sem_mec], default=0)
+                d_mec = max([int(x.get("Dia", 0)) for x in cronograma_mec], default=0)
+                d_comb = max(d_hum, d_mec)
+                t_mec = Table(title="Comparativo Operacional - Modo Mecanizado")
+                t_mec.add_column("Metrica", style="cyan")
+                t_mec.add_column("Valor", justify="right")
+                t_mec.add_row("Dias baseline (cronograma base)", str(dias_simulado))
+                t_mec.add_row("Dias base sem atividades opcionais", str(d_hum))
+                t_mec.add_row("Dias recursos mecanizados (filas dedicadas)", str(d_mec))
+                t_mec.add_row("Dias cenario combinado (humano || mecanizado)", str(d_comb))
+                t_mec.add_row("Ganho de prazo (dias)", f"{int(dias_simulado) - int(d_comb):+d}")
+                t_mec.add_row("Regra mecanizada", regra_implantacao_mec)
+                for rec in recursos_mec:
+                    t_mec.add_row(
+                        f"  Recurso: {rec['nome']}", f"{rec['prod_ha_h']} ha/h",
+                    )
+                    t_mec.add_row(
+                        f"  Atividades ({rec['nome']})",
+                        str(len(rec.get("atividades", set()))),
+                    )
+                hm_mec_total = sum(
+                    float(x.get("HM", x.get("HH", 0)) or 0) for x in cronograma_mec
+                )
+                t_mec.add_row("Horas mecanizadas (HM)", f"{hm_mec_total:.1f}")
+                console.print(t_mec)
+
+                t_alt = Table(title="Cronograma Alternativo (Humano + Mecanizado)")
+                t_alt.add_column("Semana", justify="center", style="cyan")
+                t_alt.add_column("Dias", justify="center")
+                t_alt.add_column("Acoes", style="green")
+                sem_alt = defaultdict(lambda: {"dias": set(), "acoes": set()})
+                for c in cronograma_com_mec:
+                    s = (int(math.ceil(float(c.get("Dia", 0)) / 5.0)) if c.get("Dia") else 0)
+                    if s <= 0:
+                        continue
+                    sem_alt[s]["dias"].add(int(c["Dia"]))
+                    txt = f"[{str(c.get('Talhao', ''))[:18]}] {str(c.get('Atividade', ''))[:18]} ({c.get('Turma', '')})"
+                    sem_alt[s]["acoes"].add(txt)
+                for s in sorted(sem_alt.keys())[:8]:
+                    d = sem_alt[s]
+                    dias_str = f"Dia {min(d['dias'])} a {max(d['dias'])}"
+                    acoes = ", ".join(list(d["acoes"])[:3])
+                    if len(d["acoes"]) > 3:
+                        acoes += " (+)"
+                    t_alt.add_row(f"Sem {s}", dias_str, acoes)
+                console.print(t_alt)
+    return recursos_mec, cronograma_mec, cronograma_com_mec, atividades_mec_set
+
+
+def _render_tabela_cenarios(rows, label):
+    if not rows:
+        return
+    t_sc = Table(title=f"Comparativo de Cenários (Equipe x Jornada) - {label}")
+    t_sc.add_column("Equipe", justify="right")
+    t_sc.add_column("Jornada", justify="right")
+    t_sc.add_column("Dias", justify="right")
+    t_sc.add_column("Meses", justify="right")
+    t_sc.add_column("Ganho vs Meta", justify="right")
+    for r in rows[:40]:
+        t_sc.add_row(
+            str(r["Equipe"]),
+            f"{r['Jornada_h_dia']:.2f}",
+            str(r["Dias_Simulados"]),
+            f"{r['Meses_Simulados']:.2f}",
+            f"{r['Ganho_vs_Meta_dias']:+d}",
+        )
+    console.print(t_sc)
+
+
+def _executar_multi_fator_simulation(comparativo_cfg, _batch, recursos_mec, cronograma_com_mec, total_hh, dias_meta, executores, jornada):
+    cenarios_rows = []
+    if comparativo_cfg is not None and isinstance(comparativo_cfg, dict):
+        hh_base_multi = float(total_hh)
+        lbl_base_multi = "Sem mecanizado"
+        if (not _batch) and recursos_mec and cronograma_com_mec:
+            hh_hum_pos_mec = sum(
+                float(x.get("HH", 0) or 0)
+                for x in cronograma_com_mec
+                if not str(x.get("Turma", "")).startswith("MEC_")
+            )
+            base_opt = selecionar(
+                "BASE DO COMPARATIVO MULTI-FATOR",
+                ["Sem mecanizado (HH total atual)", "Com mecanizado (HH humano remanescente)"],
+            )
+            if base_opt and base_opt.startswith("Com mecanizado"):
+                hh_base_multi = float(hh_hum_pos_mec)
+                lbl_base_multi = "Com mecanizado"
+        print(DM + f"  Base selecionada: {lbl_base_multi} | HH={hh_base_multi:.1f}" + RS)
+        cenarios_rows = simular_cenarios_multifator(
+            total_hh=hh_base_multi, dias_meta=dias_meta,
+            executores_base=executores, jornada_base=jornada,
+            jornadas_in=comparativo_cfg.get("jornadas"),
+            equipes_in=comparativo_cfg.get("equipes"),
+            interativo=False,
+        )
+        _render_tabela_cenarios(cenarios_rows, lbl_base_multi)
+
+    if not _batch:
+        while confirmar("Recalcular comparativo multi-fator com novos valores agora?", default=False):
+            hh_base_multi = float(total_hh)
+            lbl_base_multi = "Sem mecanizado"
+            if recursos_mec and cronograma_com_mec:
+                hh_hum_pos_mec = sum(
+                    float(x.get("HH", 0) or 0)
+                    for x in cronograma_com_mec
+                    if not str(x.get("Turma", "")).startswith("MEC_")
+                )
+                base_opt = selecionar(
+                    "BASE DO COMPARATIVO MULTI-FATOR",
+                    ["Sem mecanizado (HH total atual)", "Com mecanizado (HH humano remanescente)"],
+                )
+                if base_opt and base_opt.startswith("Com mecanizado"):
+                    hh_base_multi = float(hh_hum_pos_mec)
+                    lbl_base_multi = "Com mecanizado"
+            print(DM + f"  Base selecionada: {lbl_base_multi} | HH={hh_base_multi:.1f}" + RS)
+            cenarios_rows = simular_cenarios_multifator(
+                total_hh=hh_base_multi, dias_meta=dias_meta,
+                executores_base=executores, jornada_base=jornada,
+                jornadas_in=comparativo_cfg.get("jornadas") if isinstance(comparativo_cfg, dict) else None,
+                equipes_in=comparativo_cfg.get("equipes") if isinstance(comparativo_cfg, dict) else None,
+                interativo=True,
+            )
+            _render_tabela_cenarios(cenarios_rows, lbl_base_multi)
+    return cenarios_rows
+
+
+def _merge_cronograma_base_e_metricas(hm_only_atividades, demandas, cronograma, fazenda, jornada, cfg, tarifas, dia, mes_ref, ano_ref, prazo_meses, total_hh, executores):
+    hm_only_list = sorted(hm_only_atividades, key=str)
+    cronograma_mec_base = []
+    if hm_only_list:
+        cronograma_mec_base, _ = construir_cronograma_mecanizado_auto_hm_tarifa(
+            demandas, fazenda, jornada, cfg, tarifas, atividades_alvo=hm_only_list,
+        )
+        if cronograma_mec_base:
+            ok(f"Cronograma base incluiu {len(cronograma_mec_base)} linha(s) mecanizadas (HM do orcamento).")
+
+    cronograma_base = sorted(
+        cronograma + cronograma_mec_base,
+        key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
+    )
+
+    dias_simulado_hum = dia
+    if dia > 1:
+        print()
+    d_mec_base = max([int(x.get("Dia", 0)) for x in cronograma_mec_base], default=0)
+    dias_simulado = max(dias_simulado_hum, d_mec_base)
+
+    dias_meta = dias_uteis_no_periodo(mes_ref, ano_ref, prazo_meses)
+    meses_simulado = dias_simulado / DIAS_UTEIS_POR_MES if dias_simulado > 0 else 0
+
+    _mostrar_tabela_semanal(cronograma_base, fazenda, executores)
+
+    hh_por_turma = defaultdict(float)
+    for c in cronograma:
+        hh_por_turma[c["Turma"]] += float(c["HH"])
+
+    n_demandas = sum(1 for tarefas in demandas.values() for t in tarefas)
+    n_fb = sum(1 for tarefas in demandas.values() for t in tarefas if t.get("origem") == "fallback")
+    pct_fallback = (100.0 * n_fb / n_demandas) if n_demandas > 0 else 0.0
+
+    return cronograma_base, dias_simulado_hum, dias_simulado, dias_meta, \
+        meses_simulado, hh_por_turma, n_demandas, n_fb, pct_fallback, \
+        hm_only_list, cronograma_mec_base
+
+
+def _construir_filas_e_demanda_global(turmas, talhoes_ordenados, demandas, reatribuicao, paralelo, primaria, atividades_reais, seq_cfg, modo_seq, usar_cascata):
+    turma_filas = {}
+    for turma in turmas:
+        fila = []
+        for talhao in talhoes_ordenados:
+            for tarefa in demandas.get(talhao, []):
+                atv = tarefa["atividade"]
+                if tarefa["hh_total"] > _HH_EPSILON and turma["nome"] in turmas_que_executam(
+                    atv, turmas, reatribuicao, paralelo, primaria
+                ):
+                    fila.append(
+                        {
+                            "talhao": talhao,
+                            "atividade": atv,
+                            "hh_rest": tarefa["hh_total"],
+                        }
+                    )
+        turma_filas[turma["nome"]] = fila
+
+    demanda_global = {}
+    for talhao, tarefas in demandas.items():
+        for t in tarefas:
+            demanda_global[(talhao, t["atividade"])] = t["hh_total"]
+
+    atividades_plantio = set(
+        atividades_por_filtro(
+            atividades_reais, seq_cfg.get("filtros_plantio") or ["plantio"]
+        )
+    )
+    atividades_irrig = set(
+        atividades_por_filtro(
+            atividades_reais, seq_cfg.get("filtros_irrigacao") or ["irrig"]
+        )
+    )
+    tem_plantio_por_talhao = {}
+    for th in talhoes_ordenados:
+        tem_plantio_por_talhao[th] = any(
+            t["atividade"] in atividades_plantio and t["hh_total"] > _HH_EPSILON
+            for t in demandas.get(th, [])
+        )
+
+    if usar_cascata:
+        for _tn, fila in turma_filas.items():
+            fila.sort(
+                key=lambda x: (
+                    classificar_fase_cascata_valor(
+                        x["atividade"],
+                        seq_cfg,
+                        modo_seq,
+                        atividades_plantio,
+                        atividades_irrig,
+                    ),
+                    str(x["talhao"]),
+                    str(x["atividade"]),
+                )
+            )
+
+    return turma_filas, demanda_global, atividades_plantio, atividades_irrig, tem_plantio_por_talhao
+
+
+def _verificar_atividades_sem_executor(demandas, turmas, reatribuicao, paralelo, primaria, _batch, cfg):
+    sem_executor = []
+    for talhao, tarefas in demandas.items():
+        for t in tarefas:
+            if t["hh_total"] < _HH_EPSILON:
+                continue
+            atv = t["atividade"]
+            if not turmas_que_executam(atv, turmas, reatribuicao, paralelo, primaria):
+                sem_executor.append(atv)
+    if sem_executor:
+        print(R + "\n  X  Atividades com demanda mas SEM turma executora:" + RS)
+        for a in sorted(set(str(x) for x in sem_executor))[:15]:
+            print(R + f"    - {a[:58]}" + RS)
+        if len(set(sem_executor)) > 15:
+            print(DM + f"    ... +{len(set(sem_executor)) - 15}" + RS)
+        continuar_sem_executor = True
+        if _batch:
+            aviso("Modo batch: HH sem turma executora serao zeradas automaticamente.")
+        else:
+            continuar_sem_executor = confirmar(
+                "  Continuar mesmo assim (essas HH nao serao agendadas)?", default=False
+            )
+        if not continuar_sem_executor:
+            return None
+        for talhao, tarefas in demandas.items():
+            for t in tarefas:
+                atv = t["atividade"]
+                if t["hh_total"] > _HH_EPSILON and not turmas_que_executam(
+                    atv, turmas, reatribuicao, paralelo, primaria
+                ):
+                    t["hh_total"] = 0.0
+                    t["custo_total"] = 0.0
+        total_hh = sum(t["hh_total"] for tarefas in demandas.values() for t in tarefas)
+        total_custo = sum(t["custo_total"] for tarefas in demandas.values() for t in tarefas)
+        total_hm = sum(t.get("hm_total", 0) for tarefas in demandas.values() for t in tarefas)
+        aviso("HH sem executora foram zeradas no cronograma.")
+        print(DM + f"  Total HH agendavel: {total_hh:.1f} horas-homem" + RS)
+        if not modo_somente_hh(cfg):
+            print(DM + f" Custo MO agendavel: R$ {total_custo:,.2f}" + RS)
+        return total_hh, total_custo, total_hm
+    return None
+
+
+def _construir_atividade_remap(cfg, ctx=None, _batch=False):
+    atividade_remap = {}
+    for manual, destino in (cfg.get("de_para", {}) or {}).items():
+        manual_n = _norm_atv(manual)
+        destino_n = _norm_atv(destino)
+        if manual_n and destino_n:
+            atividade_remap[manual_n] = destino_n
+    if _batch and isinstance(ctx.get("substituicoes_template"), dict):
+        for manual, destino in (ctx.get("substituicoes_template") or {}).items():
+            manual_n = _norm_atv(manual)
+            if isinstance(destino, dict):
+                destino_nome = str(
+                    destino.get("atividade_mecanizada")
+                    or destino.get("nome")
+                    or destino.get("recurso")
+                    or ""
+                ).strip()
+            else:
+                destino_nome = str(destino).strip()
+            destino_n = _norm_atv(destino_nome)
+            if manual_n and destino_n:
+                atividade_remap[manual_n] = destino_n
+    return atividade_remap
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -1986,79 +2506,10 @@ def calcular_cronograma_inteligente(
     _merge_sequencia_defaults(seq_cfg)
     cfg["sequencia"] = seq_cfg
 
-    if _batch:
-        modo_seq = ctx["modo_seq"]
-    else:
-        modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
-
-        modo_ctx = f"seq:{modo_seq}"
-    modo_existente = contexto_sessao.modo_atual
-    if modo_existente:
-        if modo_ctx not in str(modo_existente):
-            contexto_sessao.atualizar_modo(f"{modo_existente} | {modo_ctx}")
-    else:
-        contexto_sessao.atualizar_modo(modo_ctx)
-
-    if modo_seq == "manutencao_seco":
-        sequencia_manutencao_seco_placeholder(cfg)
-    elif modo_seq == "manutencao_umido":
-        sequencia_manutencao_umido_placeholder(cfg)
-    usar_cascata = modo_seq in ("implantacao", "personalizado")
-    diagnosticar_sequencia_atividades(atividades_reais, seq_cfg, modo_seq)
-
-    if _batch:
-        usar_bloqueio_global = ctx.get("usar_bloqueio_global", False)
-        atividades_bloqueadas = set()
-        if usar_bloqueio_global:
-            filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
-            atividades_bloqueadas = set(
-                atividades_por_filtro(atividades_reais, filtros_bloqueio)
-            )
-        usar_reforco_automatico = ctx.get("usar_reforco_automatico", True)
-        usar_pool_pos_bloqueio = ctx.get("usar_pool_pos_bloqueio", False)
-    else:
-        filtros_bloqueio = cfg.get("filtros_bloqueio_global", ["plantio", "irrig"])
-        candidatas_bloqueio = atividades_por_filtro(atividades_reais, filtros_bloqueio)
-        usar_bloqueio_global = False
-        atividades_bloqueadas = set()
-        if modo_seq == "personalizado":
-            print(
-                DM
-                + "  Modo PERSONALIZADO: bloqueio global plantio/irrigacao DESLIGADO."
-                + RS
-            )
-        elif candidatas_bloqueio:
-            usar_bloqueio_global = confirmar(
-                "Aplicar BLOQUEIO GLOBAL (plantio/irrigacao so iniciam quando TODO o resto zerar na fazenda)?",
-                default=True,
-            )
-            if usar_bloqueio_global:
-                atividades_bloqueadas = set(candidatas_bloqueio)
-                print(
-                    Y
-                    + f"\n  BLOQUEADAS ATE LIBERACAO GLOBAL ({len(atividades_bloqueadas)}):"
-                    + RS
-                )
-                for a in sorted(atividades_bloqueadas, key=lambda x: str(x))[:20]:
-                    print(Y + f"    - {str(a)[:58]}" + RS)
-                if len(atividades_bloqueadas) > 20:
-                    print(DM + f"    ... +{len(atividades_bloqueadas) - 20}" + RS)
-                if confirmar(
-                    "Salvar estes filtros de bloqueio no config para proximas execucoes?",
-                    default=True,
-                ):
-                    cfg["filtros_bloqueio_global"] = filtros_bloqueio
-                    salvar_config(cfg)
-        usar_reforco_automatico = confirmar(
-            "Ativar REFORCO AUTOMATICO (turma ociosa ajuda outras atividades nao bloqueadas)?",
-            default=True,
-        )
-        usar_pool_pos_bloqueio = False
-        if usar_bloqueio_global:
-            usar_pool_pos_bloqueio = confirmar(
-                "Usar PELOTAO UNIFICADO (todos os executores) so em plantio/irrigacao apos liberacao global?",
-                default=True,
-            )
+    modo_seq, usar_cascata, usar_bloqueio_global, atividades_bloqueadas, \
+    usar_reforco_automatico, usar_pool_pos_bloqueio = _configurar_sequencia_bloqueio(
+        cfg, seq_cfg, atividades_reais, ctx, _batch,
+    )
 
     if _batch:
         prazo_meses = ctx["prazo_meses"]
@@ -2101,27 +2552,7 @@ def calcular_cronograma_inteligente(
         comparativo_cfg = proj["comparativo_cfg"]
         turmas = proj["turmas"]
 
-    atividade_remap = {}
-    for manual, destino in (cfg.get("de_para", {}) or {}).items():
-        manual_n = _norm_atv(manual)
-        destino_n = _norm_atv(destino)
-        if manual_n and destino_n:
-            atividade_remap[manual_n] = destino_n
-    if _batch and isinstance(ctx.get("substituicoes_template"), dict):
-        for manual, destino in (ctx.get("substituicoes_template") or {}).items():
-            manual_n = _norm_atv(manual)
-            if isinstance(destino, dict):
-                destino_nome = str(
-                    destino.get("atividade_mecanizada")
-                    or destino.get("nome")
-                    or destino.get("recurso")
-                    or ""
-                ).strip()
-            else:
-                destino_nome = str(destino).strip()
-            destino_n = _norm_atv(destino_nome)
-            if manual_n and destino_n:
-                atividade_remap[manual_n] = destino_n
+    atividade_remap = _construir_atividade_remap(cfg, ctx, _batch)
 
     atividades_reais_set = set(atividades_reais)
 
@@ -2200,39 +2631,7 @@ def calcular_cronograma_inteligente(
     hm_only_atividades = demandas_data["hm_only_atividades"]
     fallback_hh_items = demandas_data["fallback_hh_items"]
 
-    sem_tarifa = []
-    for talhao, tarefas in demandas.items():
-        for t in tarefas:
-            atv = t["atividade"]
-            t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
-            if t_nome not in tarifas:
-                sem_tarifa.append((str(atv)[:50], str(t_nome)[:50]))
-    if not strict and sem_tarifa:
-        est_fb = resolver_rendimento_hh(
-            cfg, tarifas, "!__chave_inexistente__!", strict=False
-        )
-        print(
-            Y
-            + "\n  !  Chave de tarifa NAO encontrada no orcamento importado (desencontro de nome)."
-            + RS
-        )
-        print(
-            Y
-            + f"     Rendimento estimado aplicado: ~{est_fb:.2f} h/ha (mediana/config; ver doc)."
-            + RS
-        )
-        visto = set()
-        for a, tn in sem_tarifa:
-            key = (a, tn)
-            if key in visto:
-                continue
-            visto.add(key)
-            print(Y + f"    micro: {a}  ->  chave buscada: {tn}" + RS)
-        print(
-            DM
-            + "    Correcao: menu [4] de_para ou importe tarifas [2] — no orcamento o homem/ha existe."
-            + RS
-        )
+    _verificar_atividades_sem_tarifa(demandas, cfg, tarifas, strict)
 
     sub()
     print(C + BL + "  PRE-CHECAGEM HH/HM ANTES DO CRONOGRAMA" + RS)
@@ -2246,115 +2645,22 @@ def calcular_cronograma_inteligente(
     if (not _batch) and confirmar("Exibir HH/HM detalhado por talhao?", default=False):
         _mostrar_painel_hh_hm_pre_scheduler(demandas, fazenda, detalhado=True)
 
-    sem_executor = []
-    for talhao, tarefas in demandas.items():
-        for t in tarefas:
-            if t["hh_total"] < _HH_EPSILON:
-                continue
-            atv = t["atividade"]
-            if not turmas_que_executam(atv, turmas, reatribuicao, paralelo, primaria):
-                sem_executor.append(atv)
-    if sem_executor:
-        print(R + "\n  X  Atividades com demanda mas SEM turma executora:" + RS)
-        for a in sorted(set(str(x) for x in sem_executor))[:15]:
-            print(R + f"    - {a[:58]}" + RS)
-        if len(set(sem_executor)) > 15:
-            print(DM + f"    ... +{len(set(sem_executor)) - 15}" + RS)
-        continuar_sem_executor = True
-        if _batch:
-            aviso("Modo batch: HH sem turma executora serao zeradas automaticamente.")
-        else:
-            continuar_sem_executor = confirmar(
-                "  Continuar mesmo assim (essas HH nao serao agendadas)?", default=False
-            )
-        if not continuar_sem_executor:
-            esperar("ENTER para voltar")
-            return
-        for talhao, tarefas in demandas.items():
-            for t in tarefas:
-                atv = t["atividade"]
-                if t["hh_total"] > _HH_EPSILON and not turmas_que_executam(
-                    atv, turmas, reatribuicao, paralelo, primaria
-                ):
-                    t["hh_total"] = 0.0
-                    t["custo_total"] = 0.0
-        total_hh = sum(t["hh_total"] for tarefas in demandas.values() for t in tarefas)
-        total_custo = sum(t["custo_total"] for tarefas in demandas.values() for t in tarefas)
-        total_hm = sum(t.get("hm_total", 0) for tarefas in demandas.values() for t in tarefas)
-        aviso("HH sem executora foram zeradas no cronograma.")
-        print(DM + f"  Total HH agendavel: {total_hh:.1f} horas-homem" + RS)
-        if not modo_somente_hh(cfg):
-            print(DM + f" Custo MO agendavel: R$ {total_custo:,.2f}" + RS)
+    _result_sem_exec = _verificar_atividades_sem_executor(
+        demandas, turmas, reatribuicao, paralelo, primaria, _batch, cfg,
+    )
+    if _result_sem_exec is None:
+        return
+    total_hh, total_custo, total_hm = _result_sem_exec
 
     sub()
     print(G + BL + "  GERANDO CRONOGRAMA (talhao a talhao)..." + RS + "\n")
 
-    # ──────────────────────────────────────────
-    #  SCHEDULER: Filas por TURMA, sequenciais por talhao.
-    #  Cada turma tem uma fila de trabalho construida a partir
-    #  das atividades vinculadas, na ordem dos talhoes.
-    #  Quando a turma termina no talhao 1, avanca pro 2.
-    # ──────────────────────────────────────────
-
-    # Build per-turma work queue: list of {talhao, atividade, hh_rest}
-    turma_filas = {}
-    for turma in turmas:
-        fila = []
-        for talhao in talhoes_ordenados:
-            for tarefa in demandas.get(talhao, []):
-                atv = tarefa["atividade"]
-                if tarefa["hh_total"] > _HH_EPSILON and turma["nome"] in turmas_que_executam(
-                    atv, turmas, reatribuicao, paralelo, primaria
-                ):
-                    fila.append(
-                        {
-                            "talhao": talhao,
-                            "atividade": atv,
-                            "hh_rest": tarefa["hh_total"],
-                        }
-                    )
-        turma_filas[turma["nome"]] = fila
-
-    # Uma entrada por (talhao, atividade): todas as turmas autorizadas
-    # consomem o mesmo saldo (paralelo) ou so uma turma (exclusivo/reatribuido).
-    demanda_global = {}  # key=(talhao,atividade) -> remaining hh
-    for talhao, tarefas in demandas.items():
-        for t in tarefas:
-            demanda_global[(talhao, t["atividade"])] = t["hh_total"]
-
-    atividades_plantio = set(
-        atividades_por_filtro(
-            atividades_reais, seq_cfg.get("filtros_plantio") or ["plantio"]
-        )
+    turma_filas, demanda_global, atividades_plantio, atividades_irrig, \
+    tem_plantio_por_talhao = _construir_filas_e_demanda_global(
+        turmas, talhoes_ordenados, demandas, reatribuicao, paralelo, primaria,
+        atividades_reais, seq_cfg, modo_seq, usar_cascata,
     )
-    atividades_irrig = set(
-        atividades_por_filtro(
-            atividades_reais, seq_cfg.get("filtros_irrigacao") or ["irrig"]
-        )
-    )
-    tem_plantio_por_talhao = {}
-    for th in talhoes_ordenados:
-        tem_plantio_por_talhao[th] = any(
-            t["atividade"] in atividades_plantio and t["hh_total"] > _HH_EPSILON
-            for t in demandas.get(th, [])
-        )
     dia_termino_plantio = {}
-
-    if usar_cascata:
-        for _tn, fila in turma_filas.items():
-            fila.sort(
-                key=lambda x: (
-                    classificar_fase_cascata_valor(
-                        x["atividade"],
-                        seq_cfg,
-                        modo_seq,
-                        atividades_plantio,
-                        atividades_irrig,
-                ),
-                    str(x["talhao"]),
-                    str(x["atividade"]),
-                )
-            )
 
     cronograma, dia = _executar_scheduler_loop(
         turmas, turma_filas, demanda_global, demandas,
@@ -2369,347 +2675,32 @@ def calcular_cronograma_inteligente(
 
 
 
-    # Baseline mecanizado: HM-only do orcamento entra automaticamente no cronograma base.
-    hm_only_list = sorted(hm_only_atividades, key=str)
-    cronograma_mec_base = []
-    recursos_mec_base = []
-    if hm_only_list:
-        cronograma_mec_base, _ = construir_cronograma_mecanizado_auto_hm_tarifa(
-            demandas,
-            fazenda,
-            jornada,
-            cfg,
-            tarifas,
-            atividades_alvo=hm_only_list,
+    cronograma_base, dias_simulado_hum, dias_simulado, dias_meta, \
+    meses_simulado, hh_por_turma, n_demandas, n_fb, pct_fallback, \
+    hm_only_list, cronograma_mec_base = _merge_cronograma_base_e_metricas(
+            hm_only_atividades, demandas, cronograma, fazenda, jornada,
+            cfg, tarifas, dia, mes_ref, ano_ref, prazo_meses,
+            total_hh, executores,
         )
-        if cronograma_mec_base:
-            ok(
-                f"Cronograma base incluiu {len(cronograma_mec_base)} linha(s) mecanizadas (HM do orcamento)."
-            )
 
-    cronograma_base = sorted(
-        cronograma + cronograma_mec_base,
-        key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
+    recursos_mec, cronograma_mec, cronograma_com_mec, atividades_mec_set = \
+        _executar_modo_mecanizado_opcional(
+            _batch, modo_comparativo, substituicoes_comparativo,
+            atividades_reais, cfg, hm_only_list, catalogo_global,
+            demandas, fazenda, jornada, cronograma, turmas, executores,
+            cronograma_base, cronograma_mec_base, dias_simulado,
+        )
+
+    _mostrar_tabela_ocupacao(
+        turmas, dias_simulado_hum, jornada, hh_por_turma, cronograma,
+        executores, usar_pool_pos_bloqueio, usar_bloqueio_global,
+        n_fb, pct_fallback, n_demandas,
     )
 
-    dias_simulado_hum = dia
-    if dia > 1:
-        print()
-    d_mec_base = max([int(x.get("Dia", 0)) for x in cronograma_mec_base], default=0)
-    dias_simulado = max(dias_simulado_hum, d_mec_base)
-
-    # ── Diagnostico ──
-    dias_meta = dias_uteis_no_periodo(mes_ref, ano_ref, prazo_meses)
-    exec_teoricos = (
-        math.ceil(total_hh / (dias_meta * jornada)) if (dias_meta * jornada) > 0 else 1
+    cenarios_rows = _executar_multi_fator_simulation(
+        comparativo_cfg, _batch, recursos_mec, cronograma_com_mec,
+        total_hh, dias_meta, executores, jornada,
     )
-    meses_simulado = dias_simulado / DIAS_UTEIS_POR_MES if dias_simulado > 0 else 0
-
-    _mostrar_tabela_semanal(cronograma_base, fazenda, executores)
-
-    # ── Metricas operacionais ──
-    hh_por_turma = defaultdict(float)
-    for c in cronograma:
-        hh_por_turma[c["Turma"]] += float(c["HH"])
-
-    hh_agendada_total = sum(hh_por_turma.values())
-    n_demandas = sum(1 for tarefas in demandas.values() for t in tarefas)
-    n_fb = sum(
-        1
-        for tarefas in demandas.values()
-        for t in tarefas
-        if t.get("origem") == "fallback"
-    )
-    pct_fallback = (100.0 * n_fb / n_demandas) if n_demandas > 0 else 0.0
-
-    recursos_mec = []
-    cronograma_mec = []
-    cronograma_com_mec = []
-    atividades_mec_set = set()
-    default_ativar_mec = False
-    if _batch:
-        sub()
-        print(
-            DM
-            + "  Modo batch: pulando 'modo mecanizado opcional' (sem prompts interativos)."
-            + RS
-        )
-    elif modo_comparativo and substituicoes_comparativo:
-        sub()
-        print(
-            DM
-            + "  Comparativo MANUAL vs MECANIZADO ativo: pulando 'modo mecanizado opcional' para evitar duplicidade de cenarios."
-            + RS
-        )
-    else:
-        sub()
-        print(C + BL + "  ATIVAR MODO MECANIZADO" + RS)
-        print(
-            DM
-            + "  Cenario opcional: cadastrar recurso extra para adicionar/substituir atividades."
-            + RS
-        )
-        if cronograma_mec_base:
-            print(
-                DM
-                + "  As atividades HM do orcamento ja foram contabilizadas automaticamente no cronograma base."
-                + RS
-            )
-            for a in hm_only_list[:5]:
-                print(DM + f"    - {str(a)[:58]}" + RS)
-            if len(hm_only_list) > 5:
-                print(DM + f"    ... +{len(hm_only_list) - 5}" + RS)
-        if hm_only_list:
-            print(
-                DM
-                + f"  HM-only (HH=0) detectadas: {len(hm_only_list)} atividade(s)."
-                + RS
-            )
-        if confirmar("  Ativar modo mecanizado opcional?", default=default_ativar_mec):
-            recursos_mec = _cadastrar_recursos_mecanizados_sn(
-                atividades_reais,
-                cfg,
-                atividades_catalogo=catalogo_global,
-            )
-            for rec in recursos_mec:
-                atividades_mec_set.update(rec.get("atividades", set()))
-            if recursos_mec and atividades_mec_set:
-                cronograma_mec = construir_cronograma_mecanizado(
-                    demandas, fazenda, jornada, recursos_mec
-                )
-
-            if cronograma_mec and atividades_mec_set:
-                regra_implantacao_mec = "substituir_total"
-                if confirmar(
-                    "Regra de implantacao mecanizado: manter humano em PARALELO nas atividades mecanizadas?",
-                    default=False,
-                ):
-                    regra_implantacao_mec = "paralelo"
-                if regra_implantacao_mec == "paralelo":
-                    crono_hum_sem_mec = [dict(x) for x in cronograma_base]
-                else:
-                    crono_hum_sem_mec_h = construir_cronograma_humano_sem_mecanizadas(
-                        cronograma, turmas, jornada, executores, atividades_mec_set
-                    )
-                    crono_hum_sem_mec = sorted(
-                        crono_hum_sem_mec_h + cronograma_mec_base,
-                        key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
-                    )
-                cronograma_com_mec = sorted(
-                    crono_hum_sem_mec + cronograma_mec,
-                    key=lambda r: (int(r.get("Dia", 0)), str(r.get("Turma", ""))),
-                )
-                d_hum = max(
-                    [int(x.get("Dia", 0)) for x in crono_hum_sem_mec], default=0
-                )
-                d_mec = max([int(x.get("Dia", 0)) for x in cronograma_mec], default=0)
-                d_comb = max(d_hum, d_mec)
-                t_mec = Table(title="Comparativo Operacional - Modo Mecanizado")
-                t_mec.add_column("Metrica", style="cyan")
-                t_mec.add_column("Valor", justify="right")
-                t_mec.add_row("Dias baseline (cronograma base)", str(dias_simulado))
-                t_mec.add_row("Dias base sem atividades opcionais", str(d_hum))
-                t_mec.add_row("Dias recursos mecanizados (filas dedicadas)", str(d_mec))
-                t_mec.add_row(
-                    "Dias cenario combinado (humano || mecanizado)", str(d_comb)
-                )
-                t_mec.add_row(
-                    "Ganho de prazo (dias)", f"{int(dias_simulado) - int(d_comb):+d}"
-                )
-                t_mec.add_row("Regra mecanizada", regra_implantacao_mec)
-                for rec in recursos_mec:
-                    t_mec.add_row(
-                        f"  Recurso: {rec['nome']}",
-                          f"{rec['prod_ha_h']} ha/h",
-                    )
-                    t_mec.add_row(
-                        f"  Atividades ({rec['nome']})",
-                        str(len(rec.get("atividades", set()))),
-                    )
-                hm_mec_total = sum(
-                    float(x.get("HM", x.get("HH", 0)) or 0) for x in cronograma_mec
-                )
-                t_mec.add_row("Horas mecanizadas (HM)", f"{hm_mec_total:.1f}")
-                console.print(t_mec)
-
-                t_alt = Table(title="Cronograma Alternativo (Humano + Mecanizado)")
-                t_alt.add_column("Semana", justify="center", style="cyan")
-                t_alt.add_column("Dias", justify="center")
-                t_alt.add_column("Acoes", style="green")
-                sem_alt = defaultdict(lambda: {"dias": set(), "acoes": set()})
-                for c in cronograma_com_mec:
-                    s = (
-                        int(math.ceil(float(c.get("Dia", 0)) / 5.0))
-                        if c.get("Dia")
-                        else 0
-                    )
-                    if s <= 0:
-                        continue
-                    sem_alt[s]["dias"].add(int(c["Dia"]))
-                    txt = f"[{str(c.get('Talhao', ''))[:18]}] {str(c.get('Atividade', ''))[:18]} ({c.get('Turma', '')})"
-                    sem_alt[s]["acoes"].add(txt)
-                for s in sorted(sem_alt.keys())[:8]:
-                    d = sem_alt[s]
-                    dias_str = f"Dia {min(d['dias'])} a {max(d['dias'])}"
-                    acoes = ", ".join(list(d["acoes"])[:3])
-                    if len(d["acoes"]) > 3:
-                        acoes += " (+)"
-                    t_alt.add_row(f"Sem {s}", dias_str, acoes)
-                console.print(t_alt)
-
-    # ── Tabela ocupacao ──
-    sub()
-    print(G + BL + "  OCUPACAO POR TURMA" + RS)
-    t_occ = Table()
-    t_occ.add_column("Turma", style="cyan")
-    t_occ.add_column("HH", justify="right")
-    t_occ.add_column("Cap. max", justify="right")
-    t_occ.add_column("Uso %", justify="right")
-    crit_nm, crit_pct = "", 0.0
-    for turma in turmas:
-        nm = turma["nome"]
-        cap = float(dias_simulado_hum) * float(turma["operarios"]) * float(jornada)
-        us = hh_por_turma.get(nm, 0.0)
-        pct = (100.0 * us / cap) if cap > _HH_EPSILON else 0.0
-        if pct > crit_pct:
-            crit_pct, crit_nm = pct, nm
-        t_occ.add_row(
-            nm,
-            f"{us:.1f}",
-            f"{cap:.1f}",
-            f"{pct:.0f}%",
-        )
-    if hh_por_turma.get("Pelotao_Unificado", 0) > _HH_EPSILON:
-        d_pool = len(
-            set(c["Dia"] for c in cronograma if c.get("Turma") == "Pelotao_Unificado")
-        )
-        pu = hh_por_turma["Pelotao_Unificado"]
-        cap_p = float(d_pool) * float(executores) * float(jornada)
-        pct_p = (100.0 * pu / cap_p) if cap_p > _HH_EPSILON else 0.0
-        t_occ.add_row(
-            "Pelotao_Unificado",
-            f"{pu:.1f}",
-            f"{cap_p:.1f}",
-            f"{pct_p:.0f}%",
-        )
-    console.print(t_occ)
-    print(
-        DM
-        + "  Uso % = HH no cronograma com o nome da turma / (dias simulados x operarios x jornada)."
-        + RS
-    )
-    print(
-        DM
-        + "  Reforco nao aumenta n_ops; bloqueio global impede reforco em plantio/irrigacao ate liberar tudo."
-        + RS
-    )
-    if usar_pool_pos_bloqueio and usar_bloqueio_global:
-        print(
-            DM
-            + "  Pelotao_Unificado: plantio/irrigacao apos liberacao usam todos os executores num so pelotao."
-            + RS
-        )
-    if crit_nm:
-        print(
-            DM
-            + f"  Heuristica caminho critico (maior Uso %): turma '{crit_nm}' (~{crit_pct:.0f}%)."
-            + RS
-        )
-    if n_fb > 0:
-        print(
-            DM
-            + f"  Cobertura CT no escopo: {100 - pct_fallback:.0f}% (fallback em {n_fb}/{n_demandas} item(ns))."
-            + RS
-        )
-
-    def _render_tabela_cenarios(rows, label):
-        if not rows:
-            return
-        t_sc = Table(title=f"Comparativo de Cenários (Equipe x Jornada) - {label}")
-        t_sc.add_column("Equipe", justify="right")
-        t_sc.add_column("Jornada", justify="right")
-        t_sc.add_column("Dias", justify="right")
-        t_sc.add_column("Meses", justify="right")
-        t_sc.add_column("Ganho vs Meta", justify="right")
-        for r in rows[:40]:
-            t_sc.add_row(
-                str(r["Equipe"]),
-                f"{r['Jornada_h_dia']:.2f}",
-                str(r["Dias_Simulados"]),
-                f"{r['Meses_Simulados']:.2f}",
-                f"{r['Ganho_vs_Meta_dias']:+d}",
-            )
-        console.print(t_sc)
-
-    cenarios_rows = []
-    if comparativo_cfg is not None and isinstance(comparativo_cfg, dict):
-        hh_base_multi = float(total_hh)
-        lbl_base_multi = "Sem mecanizado"
-        if (not _batch) and recursos_mec and cronograma_com_mec:
-            hh_hum_pos_mec = sum(
-                float(x.get("HH", 0) or 0)
-                for x in cronograma_com_mec
-                if not str(x.get("Turma", "")).startswith("MEC_")
-            )
-            base_opt = selecionar(
-                "BASE DO COMPARATIVO MULTI-FATOR",
-                [
-                    "Sem mecanizado (HH total atual)",
-                    "Com mecanizado (HH humano remanescente)",
-                ],
-            )
-            if base_opt and base_opt.startswith("Com mecanizado"):
-                hh_base_multi = float(hh_hum_pos_mec)
-                lbl_base_multi = "Com mecanizado"
-        print(
-            DM + f"  Base selecionada: {lbl_base_multi} | HH={hh_base_multi:.1f}" + RS
-        )
-        cenarios_rows = simular_cenarios_multifator(
-            total_hh=hh_base_multi,
-            dias_meta=dias_meta,
-            executores_base=executores,
-            jornada_base=jornada,
-            jornadas_in=comparativo_cfg.get("jornadas"),
-            equipes_in=comparativo_cfg.get("equipes"),
-            interativo=False,
-        )
-        _render_tabela_cenarios(cenarios_rows, lbl_base_multi)
-
-    if not _batch:
-        while confirmar(
-            "Recalcular comparativo multi-fator com novos valores agora?", default=False
-        ):
-            hh_base_multi = float(total_hh)
-            lbl_base_multi = "Sem mecanizado"
-            if recursos_mec and cronograma_com_mec:
-                hh_hum_pos_mec = sum(
-                    float(x.get("HH", 0) or 0)
-                    for x in cronograma_com_mec
-                    if not str(x.get("Turma", "")).startswith("MEC_")
-                )
-                base_opt = selecionar(
-                    "BASE DO COMPARATIVO MULTI-FATOR",
-                    [
-                        "Sem mecanizado (HH total atual)",
-                        "Com mecanizado (HH humano remanescente)",
-                    ],
-                )
-                if base_opt and base_opt.startswith("Com mecanizado"):
-                    hh_base_multi = float(hh_hum_pos_mec)
-                    lbl_base_multi = "Com mecanizado"
-            print(
-                DM + f"  Base selecionada: {lbl_base_multi} | HH={hh_base_multi:.1f}" + RS
-            )
-            cenarios_rows = simular_cenarios_multifator(
-                total_hh=hh_base_multi,
-                dias_meta=dias_meta,
-                executores_base=executores,
-                jornada_base=jornada,
-                jornadas_in=comparativo_cfg.get("jornadas") if isinstance(comparativo_cfg, dict) else None,
-                equipes_in=comparativo_cfg.get("equipes") if isinstance(comparativo_cfg, dict) else None,
-                interativo=True,
-            )
-            _render_tabela_cenarios(cenarios_rows, lbl_base_multi)
 
     audit = _auditar_escopo_cronograma(
         df_faz, cronograma_com_mec, cronograma_base, demandas, atividades_mec_set, recursos_mec,
