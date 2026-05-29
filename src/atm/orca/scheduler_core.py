@@ -3078,17 +3078,17 @@ def _exibir_consolidado_lote(resultados, dias_acumulados, dias_meta, turmas, jor
                 cor_st = "[yellow]"
             else:
                 cor_st = "[red]"
-        t_ep.add_row(
-            str(r["fazenda"])[:28],
-            f"{float(r.get('total_hh', 0)):,.1f}",
-            *([f"R$ {float(r.get('total_custo', 0)):,.2f}"] if not modo_somente_hh(cfg) else []),
-            str(r.get("dias_simulado", 0)),
-            f"Dia {r.get('dia_inicio_acumulado', '?')}",
-            f"Dia {r.get('dia_fim_acumulado', '?')}",
-            f"{pct:.0f}%",
-            f"{r.get('saldo_meta_apos', '?')} dias",
-            f"{cor_st}{st}[/]",
-        )
+            t_ep.add_row(
+                str(r["fazenda"])[:28],
+                f"{float(r.get('total_hh', 0)):,.1f}",
+                *([f"R$ {float(r.get('total_custo', 0)):,.2f}"] if not modo_somente_hh(cfg) else []),
+                str(r.get("dias_simulado", 0)),
+                f"Dia {r.get('dia_inicio_acumulado', '?')}",
+                f"Dia {r.get('dia_fim_acumulado', '?')}",
+                f"{pct:.0f}%",
+                f"{r.get('saldo_meta_apos', '?')} dias",
+                f"{cor_st}{st}[/]",
+            )
         hh_total_all = sum(float(x.get("total_hh", 0)) for x in resultados)
         st_global = "OK" if dias_acumulados <= dias_meta else "EXCEDIDO"
         cor_g = "[green]" if st_global == "OK" else "[red]"
@@ -3687,15 +3687,5 @@ def _executar_multi_equipes(
 
     if equipes_config:
         _processar_equipes_e_consolidar(cfg, df_scope, equipes_config, empresa_filtro, nome_arquivo_micro)
-
-
-# ──────────────────────────────────────────────
-#  MENU PRINCIPAL
-# ──────────────────────────────────────────────
-
-
-
-
-
 
 
