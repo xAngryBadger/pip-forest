@@ -1517,6 +1517,138 @@ def _executar_modo_comparativo(
     return resultado_mecanizado, resultado_mecanizado_valido
 
 
+def _executar_checkpoint_retroativo(
+    _batch, turmas, atividades_reais, catalogo_global,
+    executores, jornada, cfg, session_hh,
+    reatribuicao, paralelo, primaria, df_faz,
+    recalcular_callback,
+):
+    if not _batch:
+        if confirmar(
+            "Ajustar HH/ha por atividade APENAS nesta execucao (nao grava config)?",
+            default=False,
+        ):
+            menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
+
+    while True:
+        sub()
+        print(G + BL + " CHECKPOINT RETROATIVO" + RS)
+        op_cp = selecionar(
+            "O QUE DESEJA REVISAR?",
+            [
+                "Editar atividades de uma turma",
+                "Reprocessar conflitos/reatribuicao",
+                "Ajustar HH/ha desta sessao",
+                "Ajustar escopo de atividades desta execucao",
+                "Revisar jornada/equipe",
+                "Voltar ao seletor de fazenda/escopo",
+                "Continuar para simulacao",
+            ],
+        )
+
+        if not op_cp or op_cp == "Continuar para simulacao":
+            break
+
+        if op_cp == "Voltar ao seletor de fazenda/escopo":
+            return {"acao": "retroceder_escopo"}
+
+        if op_cp == "Revisar jornada/equipe":
+            print(DM + f"\n Atual: {executores} operarios @ {jornada}h/dia" + RS)
+            alterou = False
+            if confirmar("Alterar jornada?", default=False):
+                jornada = pedir_jornada(
+                    "Nova jornada (ex: 6.5 ou 6:30 = 6h30)", round(jornada, 2)
+                )
+                cfg["jornada_horas"] = jornada
+                salvar_config(cfg)
+                ok(f"Jornada atualizada: {jornada}h/dia")
+                alterou = True
+            if confirmar("Alterar operarios?", default=False):
+                executores = pedir_int("Operarios totais", executores)
+                print(
+                    G + f" Equipe: {executores} operarios @ {jornada}h/dia = {executores * jornada:.1f} HH/dia" + RS
+                )
+                alterou = True
+            if not alterou:
+                ok("Jornada/equipe mantidos sem alteracao.")
+            continue
+
+        if op_cp == "Editar atividades de uma turma":
+            nomes_t = [t["nome"] for t in turmas]
+            nm = selecionar("TURMA", nomes_t)
+            if nm:
+                for t in turmas:
+                    if t["nome"] == nm:
+                        menu_vincular_atividades_turma(
+                            t,
+                            atividades_reais,
+                            atividades_catalogo=catalogo_global,
+                        )
+                        ok(f"Turma '{nm}' — edicao concluida.")
+                        break
+            else:
+                ok("Nenhuma turma selecionada.")
+            continue
+
+        if op_cp == "Reprocessar conflitos/reatribuicao":
+            reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
+                turmas, atividades_reais
+            )
+            if not paralelo and not reatribuicao:
+                ok("Nenhum conflito multi-turma encontrado.")
+            continue
+
+        if op_cp == "Ajustar HH/ha desta sessao":
+            menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
+            continue
+
+        if op_cp == "Ajustar escopo de atividades desta execucao":
+            df_faz = _menu_ajustar_escopo_atividades(
+                df_faz,
+                cfg=cfg,
+                atividades_catalogo=catalogo_global,
+            )
+            atividades_reais, talhoes_ordenados, catalogo_global = recalcular_callback()
+            reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
+                turmas, atividades_reais
+            )
+            continue
+
+    return {
+        "jornada": jornada,
+        "executores": executores,
+        "reatribuicao": reatribuicao,
+        "paralelo": paralelo,
+        "primaria": primaria,
+        "df_faz": df_faz,
+    }
+
+
+def _mostrar_tabela_semanal(cronograma_base, fazenda, executores):
+    table = Table(title=f"Cronograma - {fazenda} ({executores} Exec.)")
+    table.add_column("Semana", justify="center", style="cyan")
+    table.add_column("Dias", justify="center")
+    table.add_column("Talhoes / Atividades", style="green")
+
+    semanas = defaultdict(lambda: {"dias": set(), "acoes": set()})
+    for c in cronograma_base:
+        sem = math.ceil(c["Dia"] / 5)
+        semanas[sem]["dias"].add(c["Dia"])
+        semanas[sem]["acoes"].add(f"[{c['Talhao']}] {c['Atividade'][:18]}")
+
+    for sem in sorted(semanas.keys())[:8]:
+        d = semanas[sem]
+        dias_str = f"Dia {min(d['dias'])} a {max(d['dias'])}"
+        acoes = ", ".join(list(d["acoes"])[:3])
+        if len(d["acoes"]) > 3:
+            acoes += " (+)"
+        table.add_row(f"Sem {sem}", dias_str, acoes)
+
+    console.print(table)
+    if len(semanas) > 8:
+        print(DM + f"  ... e mais {len(semanas) - 8} semanas no Excel." + RS)
+
+
 def _exportar_dossier_excel(
     cronograma_base, escopo_meta, fazenda, executores, jornada,
     prazo_meses, dias_meta, dias_simulado, meses_simulado,
@@ -2029,97 +2161,22 @@ def calcular_cronograma_inteligente(
         for t in turmas:
             cur = [a for a in (t.get("atividades") or []) if a in catalogo_global]
             t["atividades"] = sorted(set(cur), key=str)
+        return atividades_reais, talhoes_ordenados, catalogo_global
 
-    if not _batch:
-        if confirmar(
-            "Ajustar HH/ha por atividade APENAS nesta execucao (nao grava config)?",
-            default=False,
-        ):
-            menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
-
-    while True:
-        sub()
-        print(G + BL + " CHECKPOINT RETROATIVO" + RS)
-        op_cp = selecionar(
-            "O QUE DESEJA REVISAR?",
-            [
-                "Editar atividades de uma turma",
-                "Reprocessar conflitos/reatribuicao",
-                "Ajustar HH/ha desta sessao",
-                "Ajustar escopo de atividades desta execucao",
-                "Revisar jornada/equipe",
-                "Voltar ao seletor de fazenda/escopo",
-                "Continuar para simulacao",
-            ],
-        )
-
-        if not op_cp or op_cp == "Continuar para simulacao":
-            break
-
-        if op_cp == "Voltar ao seletor de fazenda/escopo":
-            return {"acao": "retroceder_escopo"}
-
-        if op_cp == "Revisar jornada/equipe":
-            print(DM + f"\n Atual: {executores} operarios @ {jornada}h/dia" + RS)
-            alterou = False
-            if confirmar("Alterar jornada?", default=False):
-                jornada = pedir_jornada(
-                    "Nova jornada (ex: 6.5 ou 6:30 = 6h30)", round(jornada, 2)
-                )
-                cfg["jornada_horas"] = jornada
-                salvar_config(cfg)
-                ok(f"Jornada atualizada: {jornada}h/dia")
-                alterou = True
-            if confirmar("Alterar operarios?", default=False):
-                executores = pedir_int("Operarios totais", executores)
-                print(
-                    G + f" Equipe: {executores} operarios @ {jornada}h/dia = {executores * jornada:.1f} HH/dia" + RS
-                )
-                alterou = True
-            if not alterou:
-                ok("Jornada/equipe mantidos sem alteracao.")
-            continue
-
-        if op_cp == "Editar atividades de uma turma":
-            nomes_t = [t["nome"] for t in turmas]
-            nm = selecionar("TURMA", nomes_t)
-            if nm:
-                for t in turmas:
-                    if t["nome"] == nm:
-                        menu_vincular_atividades_turma(
-                            t,
-                            atividades_reais,
-                            atividades_catalogo=catalogo_global,
-                        )
-                        ok(f"Turma '{nm}' — edicao concluida.")
-                        break
-            else:
-                ok("Nenhuma turma selecionada.")
-            continue
-
-        if op_cp == "Reprocessar conflitos/reatribuicao":
-            reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
-                turmas, atividades_reais
-            )
-            if not paralelo and not reatribuicao:
-                ok("Nenhum conflito multi-turma encontrado.")
-            continue
-
-        if op_cp == "Ajustar HH/ha desta sessao":
-            menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
-            continue
-
-        if op_cp == "Ajustar escopo de atividades desta execucao":
-            df_faz = _menu_ajustar_escopo_atividades(
-                df_faz,
-                cfg=cfg,
-                atividades_catalogo=catalogo_global,
-            )
-            _recalcular_apos_ajuste_escopo()
-            reatribuicao, paralelo, primaria = resolver_conflitos_e_reatribuir(
-                turmas, atividades_reais
-            )
-            continue
+    cp_result = _executar_checkpoint_retroativo(
+        _batch, turmas, atividades_reais, catalogo_global,
+        executores, jornada, cfg, session_hh,
+        reatribuicao, paralelo, primaria, df_faz,
+        _recalcular_apos_ajuste_escopo,
+    )
+    if isinstance(cp_result, dict) and cp_result.get("acao") == "retroceder_escopo":
+        return cp_result
+    jornada = cp_result["jornada"]
+    executores = cp_result["executores"]
+    reatribuicao = cp_result["reatribuicao"]
+    paralelo = cp_result["paralelo"]
+    primaria = cp_result["primaria"]
+    df_faz = cp_result["df_faz"]
 
     # ── Validacao orcamento estrito (antes das demandas) ──
     if not validar_e_completar_orcamento(cfg, atividades_reais, session_hh=session_hh):
@@ -2348,29 +2405,7 @@ def calcular_cronograma_inteligente(
     )
     meses_simulado = dias_simulado / DIAS_UTEIS_POR_MES if dias_simulado > 0 else 0
 
-    # ── Tabela semanal ──
-    table = Table(title=f"Cronograma - {fazenda} ({executores} Exec.)")
-    table.add_column("Semana", justify="center", style="cyan")
-    table.add_column("Dias", justify="center")
-    table.add_column("Talhoes / Atividades", style="green")
-
-    semanas = defaultdict(lambda: {"dias": set(), "acoes": set()})
-    for c in cronograma_base:
-        sem = math.ceil(c["Dia"] / 5)
-        semanas[sem]["dias"].add(c["Dia"])
-        semanas[sem]["acoes"].add(f"[{c['Talhao']}] {c['Atividade'][:18]}")
-
-    for sem in sorted(semanas.keys())[:8]:
-        d = semanas[sem]
-        dias_str = f"Dia {min(d['dias'])} a {max(d['dias'])}"
-        acoes = ", ".join(list(d["acoes"])[:3])
-        if len(d["acoes"]) > 3:
-            acoes += " (+)"
-        table.add_row(f"Sem {sem}", dias_str, acoes)
-
-    console.print(table)
-    if len(semanas) > 8:
-        print(DM + f"  ... e mais {len(semanas) - 8} semanas no Excel." + RS)
+    _mostrar_tabela_semanal(cronograma_base, fazenda, executores)
 
     # ── Metricas operacionais ──
     hh_por_turma = defaultdict(float)
