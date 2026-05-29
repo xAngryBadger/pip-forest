@@ -153,18 +153,18 @@ def modulo_importar_tarifas(cfg):
                 continue
             hh = 0 if not col_hh else row.get(col_hh, 0)
             preco = 0 if not col_preco else row.get(col_preco, 0)
-        if pd.notna(hh) and str(hh).strip() != "":
-            hh_val = _to_float_br(hh)
-        else:
-            hh_val = resolver_rendimento_hh(cfg, tarifas, nome)
-            preco_val = _to_float_br(preco) if pd.notna(preco) else 0.0
-            tarifas[nome] = {
-                "rendimento_hh": hh_val,
-                "preco_unit": preco_val,
-                "recurso": "homem",
-                "eficiencia": 1.0,
-            }
-            importadas += 1
+            if pd.notna(hh) and str(hh).strip() != "":
+                hh_val = _to_float_br(hh)
+            else:
+                hh_val = resolver_rendimento_hh(cfg, tarifas, nome)
+                preco_val = _to_float_br(preco) if pd.notna(preco) else 0.0
+                tarifas[nome] = {
+                    "rendimento_hh": hh_val,
+                    "preco_unit": preco_val,
+                    "recurso": "homem",
+                    "eficiencia": 1.0,
+                }
+                importadas += 1
 
         cfg["tarifas"] = tarifas
         salvar_config(cfg)
@@ -263,6 +263,12 @@ def _aplicar_filtro_regiao(df):
         else:
             op_est = ["TODOS"] + estados_disp
             sel_estado = selecionar("ESTADO", op_est)
+            if sel_estado is None:
+                ok("Selecao cancelada — filtro de regiao ignorado, todos os dados incluidos.")
+                contexto_sessao.total_talhoes_fazenda = df_filt["chave"].nunique() if "chave" in df_filt.columns else 0
+                contexto_sessao.total_atividades = df_filt["atividade"].nunique() if "atividade" in df_filt.columns else 0
+                contexto_sessao.atividades_distribuidas = contexto_sessao.total_atividades
+                return df_filt, None
             if sel_estado == "TODOS":
                 sel_estado = None
     if sel_estado and tem_mun:
@@ -284,7 +290,10 @@ def _aplicar_filtro_regiao(df):
         else:
             op_mun = ["TODOS"] + mun_filtrados
             sel_municipio = selecionar("MUNICIPIO", op_mun)
-            if sel_municipio == "TODOS":
+            if sel_municipio is None:
+                sel_municipio = None
+                ok("Selecao de municipio cancelada — filtrando apenas por estado.")
+            elif sel_municipio == "TODOS":
                 sel_municipio = None
     if sel_estado:
         df_filt = df_filt[df_filt["estado"].astype(str).str.strip() == sel_estado]
@@ -300,6 +309,9 @@ def _aplicar_filtro_regiao(df):
         )
     else:
         ok("Nenhum filtro de regiao aplicado — todos os dados incluidos.")
+    contexto_sessao.total_talhoes_fazenda = df_filt["chave"].nunique() if "chave" in df_filt.columns else 0
+    contexto_sessao.total_atividades = df_filt["atividade"].nunique() if "atividade" in df_filt.columns else 0
+    contexto_sessao.atividades_distribuidas = contexto_sessao.total_atividades
     return df_filt, regiao_info or None
 
 
@@ -326,13 +338,18 @@ def _aplicar_filtro_empresa_e_escopo(df):
                 contexto_sessao.atualizar_equipe(None)
                 _emitir_monitor_atual()
                 return df_filt, None
-            if len(equipes) == 1:
-                empresa_filtro = equipes[0]
-                ok(f"Unica empresa: {empresa_filtro}")
-            else:
-                eq = selecionar("EMPRESA / EQUIPE", equipes)
-                if eq:
-                    empresa_filtro = eq
+        if len(equipes) == 1:
+            empresa_filtro = equipes[0]
+            ok(f"Unica empresa: {empresa_filtro}")
+        else:
+            eq = selecionar("EMPRESA / EQUIPE", equipes)
+            if eq is None:
+                ok("Selecao cancelada — filtro de empresa ignorado, todos os dados incluidos.")
+                contexto_sessao.atualizar_equipe(None)
+                _emitir_monitor_atual()
+                return df_filt, None
+            if eq:
+                empresa_filtro = eq
             if empresa_filtro:
                 nk_sel = normalizar_chave(empresa_filtro)
                 sem_eq = df_filt["equipe"].isna() | (
@@ -357,8 +374,14 @@ def _aplicar_filtro_empresa_e_escopo(df):
                 )
     if empresa_filtro:
         contexto_sessao.atualizar_equipe(empresa_filtro)
+        contexto_sessao.total_talhoes_fazenda = df_filt["chave"].nunique() if "chave" in df_filt.columns else 0
+        contexto_sessao.total_atividades = df_filt["atividade"].nunique() if "atividade" in df_filt.columns else 0
+        contexto_sessao.atividades_distribuidas = contexto_sessao.total_atividades
     else:
         contexto_sessao.atualizar_equipe(None)
+        contexto_sessao.total_talhoes_fazenda = df_filt["chave"].nunique() if "chave" in df_filt.columns else 0
+        contexto_sessao.total_atividades = df_filt["atividade"].nunique() if "atividade" in df_filt.columns else 0
+        contexto_sessao.atividades_distribuidas = contexto_sessao.total_atividades
     _emitir_monitor_atual()
     return df_filt, empresa_filtro
 

@@ -916,32 +916,32 @@ def modulo_importar_precos_contrato(cfg):
             atv = str(r.get(col_atv_pf, "")).strip()
             if not atv:
                 continue
-        try:
-            preco = float(str(r.get(col_preco, 0)).replace(",", "."))
-        except (TypeError, ValueError):
-            preco = 0.0
-        try:
-            hh_pf = (
-                float(str(r.get(col_hh, 0)).replace(",", ".")) if col_hh else 0.0
-            )
-        except (TypeError, ValueError):
-            hh_pf = 0.0
-        try:
-            hm = float(str(r.get(col_hm, 0)).replace(",", ".")) if col_hm else 0.0
-        except (TypeError, ValueError):
-            hm = 0.0
+            try:
+                preco = float(str(r.get(col_preco, 0)).replace(",", "."))
+            except (TypeError, ValueError):
+                preco = 0.0
+            try:
+                hh_pf = (
+                    float(str(r.get(col_hh, 0)).replace(",", ".")) if col_hh else 0.0
+                )
+            except (TypeError, ValueError):
+                hh_pf = 0.0
+            try:
+                hm = float(str(r.get(col_hm, 0)).replace(",", ".")) if col_hm else 0.0
+            except (TypeError, ValueError):
+                hm = 0.0
             nk = normalizar_chave(atv)
             chave_ct = str(de_para_cfg.get(atv, atv) or atv).strip()
             nk_ct = normalizar_chave(chave_ct)
             row_ct = tarifas_ct_idx.get(nk_ct, tarifas_ct_idx.get(nk, {}))
-        try:
-            hh_ct = float(row_ct.get("rendimento_hh", 0) or 0.0)
-        except (TypeError, ValueError):
-            hh_ct = 0.0
-        try:
-            hm_ct = float(row_ct.get("rendimento_hm", 0) or 0.0)
-        except (TypeError, ValueError):
-            hm_ct = 0.0
+            try:
+                hh_ct = float(row_ct.get("rendimento_hh", 0) or 0.0)
+            except (TypeError, ValueError):
+                hh_ct = 0.0
+            try:
+                hm_ct = float(row_ct.get("rendimento_hm", 0) or 0.0)
+            except (TypeError, ValueError):
+                hm_ct = 0.0
             hh = hh_ct if hh_ct > 0 else hh_pf
             hm = max(hm, hm_ct)
             tipo = (
@@ -953,10 +953,10 @@ def modulo_importar_precos_contrato(cfg):
                 tipo = "Mecanizada" if hm > 0 else "Manual"
             cd_v = float(custo_direto.get(nk, 0.0))
             ci_v = float(custo_indireto.get(nk, 0.0))
-        try:
-            c_h = float(row_ct.get("custo_hora", 0) or 0.0)
-        except (TypeError, ValueError):
-            c_h = 0.0
+            try:
+                c_h = float(row_ct.get("custo_hora", 0) or 0.0)
+            except (TypeError, ValueError):
+                c_h = 0.0
             if c_h <= 0:
                 c_h = float(cfg.get("custo_hora_tf") or 0.0)
             if hh <= 0.01 and hm > 0:
