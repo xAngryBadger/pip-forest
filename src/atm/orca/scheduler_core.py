@@ -948,9 +948,14 @@ def _build_resultado_final(
 
 
 @dataclass
-class _ModoComparativoCtx:
+class _ComparativoUIConfig:
     modo_comparativo: any
     substituicoes_comparativo: any
+    session_hh: any
+
+
+@dataclass
+class _ComparativoExecutionConfig:
     cfg: any
     df_faz: any
     fazenda: any
@@ -970,60 +975,118 @@ class _ModoComparativoCtx:
     reatribuicao: any
     paralelo: any
     primaria: any
-    session_hh: any
     escopo_meta: any
     atividades_catalogo: any
-    dias_simulado: any
+
+
+@dataclass
+class _ComparativoResult:
     total_hh: any
     total_hm: any
+    dias_simulado: any
 
 
-def _executar_modo_comparativo(ctx: _ModoComparativoCtx):
+def _exibir_comparativo_resultado(ui_config: _ComparativoUIConfig, exec_config: _ComparativoExecutionConfig, result: _ComparativoResult, resultado_mecanizado: dict):
+    """Exibe o resultado do comparativo mecanizado vs manual."""
+    d_manual = float(result.dias_simulado)
+    d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
+    hh_manual = float(result.total_hh)
+    hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
+    hm_manual = float(result.total_hm)
+    hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
+
+    economia_dias = int(d_manual - d_mec)
+    economia_hh = hh_manual - hh_mec
+    economia_hm = hm_mec - hm_manual
+    cap_hh_dia = float(exec_config.executores) * float(exec_config.jornada)
+    dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
+    dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
+    delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
+    cronograma_mec_ref = resultado_mecanizado.get("cronograma") or []
+    turmas_mec_comp = sorted(
+        {
+            str(x.get("Turma", ""))
+            for x in cronograma_mec_ref
+            if str(x.get("Turma", "")).startswith("MEC_")
+        },
+        key=str,
+    )
+
+    sub()
+    print(G + BL + "══════════════════════════════════════════════════════════════════" + RS)
+    print(G + BL + "       COMPARATIVO: MANUAL vs MECANIZADO" + RS)
+    print(G + BL + "══════════════════════════════════════════════════════════════════" + RS)
+    print()
+
+    print(f"  {C}Métrica{RS}                    {C}Manual{RS}          {C}Mecanizado{RS}      {C}Diferença{RS}")
+    print(f"  {DM}{'─' * 70}{RS}")
+    print(f"  {'Dias necessários':<25} {d_manual:>10.0f}      {d_mec:>10.0f}      {Y}{economia_dias:>+10.0f}{RS}")
+    print(f"  {'HH totais':<25} {hh_manual:>10.1f}      {hh_mec:>10.1f}      {Y}{economia_hh:>+10.1f}{RS}")
+    print(f"  {'HM totais':<25} {hm_manual:>10.1f}      {hm_mec:>10.1f}      {Y}{economia_hm:>+10.1f}{RS}")
+    print(f"  {'Dias eq. via HH/cap':<25} {dias_eq_hh_manual:>10.2f}      {dias_eq_hh_mec:>10.2f}      {Y}{delta_dias_eq_hh:>+10.2f}{RS}")
+    print()
+    if turmas_mec_comp:
+        print(G + BL + "  TURMAS MECANIZADAS NO CENARIO:" + RS)
+        for nm_turma in turmas_mec_comp:
+            print(DM + f"    - {nm_turma}" + RS)
+        print()
+    if ui_config.substituicoes_comparativo:
+        print(G + BL + "  SUBSTITUICOES APLICADAS:" + RS)
+        for manual, mec in ui_config.substituicoes_comparativo.items():
+            print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
+        print()
+
+    print(G + BL + "  DESTAQUES:" + RS)
+    if economia_dias > 0:
+        print(f"  {G}✓{RS} Redução de {G}{economia_dias}{RS} dias com mecanização")
+    if economia_hh > 0:
+        print(f"  {G}✓{RS} Economia de {G}{economia_hh:.1f}{RS} HH (mão de obra humana)")
+    if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > _HH_EPSILON:
+        print(
+            DM
+            + f"  Nota: a reducao de HH equivale a ~{delta_dias_eq_hh:.2f} dia(s), "
+            + "mas o cronograma fecha por dias inteiros e caminho critico; por isso pode manter o mesmo total de dias."
+            + RS
+        )
+    print()
+    print(G + BL + "══════════════════════════════════════════════════════════════════" + RS)
+    sub()
+
+
+def _executar_modo_comparativo(ui_config: _ComparativoUIConfig, exec_config: _ComparativoExecutionConfig, result: _ComparativoResult):
     resultado_mecanizado = None
     resultado_mecanizado_valido = False
-    if ctx.modo_comparativo and ctx.substituicoes_comparativo:
-        sub()
-        print(C + BL + " EXECUTANDO CENÁRIO MECANIZADO (Comparativo)" + RS)
-        print(DM + " Preparando substituições de atividades..." + RS)
-
-        comparativo_cfg = ctx.cfg.get("comparativo", {}) if isinstance(ctx.cfg, dict) else {}
+    if ui_config.modo_comparativo and ui_config.substituicoes_comparativo:
+        comparativo_cfg = exec_config.cfg.get("comparativo", {}) if isinstance(exec_config.cfg, dict) else {}
         execucao_compacta = bool(comparativo_cfg.get("execucao_compacta", True))
-        if execucao_compacta:
-            print(
-                DM
-                + " Cenário mecanizado em modo compacto: detalhes intermediários suprimidos."
-                + RS
-            )
 
-        df_mec = _substituir_por_mecanizado(ctx.df_faz, ctx.substituicoes_comparativo)
-        cfg_mec = _clonar_cfg_comparativo_mecanizado(ctx.cfg, ctx.substituicoes_comparativo)
+        df_mec = _substituir_por_mecanizado(exec_config.df_faz, ui_config.substituicoes_comparativo)
+        cfg_mec = _clonar_cfg_comparativo_mecanizado(exec_config.cfg, ui_config.substituicoes_comparativo)
 
         n_substituicoes = 0
-        for manual, mec in ctx.substituicoes_comparativo.items():
-            if (ctx.df_faz["atividade"] == manual).any():
-                n_substituicoes += (ctx.df_faz["atividade"] == manual).sum()
-
-        ok(f"{n_substituicoes} registro(s) serão executados com versão mecanizada.")
+        for manual, mec in ui_config.substituicoes_comparativo.items():
+            if (exec_config.df_faz["atividade"] == manual).any():
+                n_substituicoes += (exec_config.df_faz["atividade"] == manual).sum()
 
         ctx_mec = {
-            "modo_seq": ctx.modo_seq,
-            "usar_bloqueio_global": ctx.usar_bloqueio_global,
-            "usar_reforco_automatico": ctx.usar_reforco_automatico,
-            "usar_pool_pos_bloqueio": ctx.usar_pool_pos_bloqueio,
-            "prazo_meses": ctx.prazo_meses,
-            "mes_ref": ctx.mes_ref,
-            "ano_ref": ctx.ano_ref,
-            "data_inicio_txt": ctx.data_inicio_txt,
-            "data_fim_txt": ctx.data_fim_txt,
-            "jornada": ctx.jornada,
-            "executores": ctx.executores,
-            "turmas": ctx.turmas,
-            "preencher_orfas_template": ctx.preencher_orfas,
-            "substituicoes_template": ctx.substituicoes_comparativo,
-            "reatribuicao_template": ctx.reatribuicao,
-            "paralelo_template": ctx.paralelo,
-            "primaria_template": ctx.primaria,
-            "session_hh": ctx.session_hh,
+            "modo_seq": exec_config.modo_seq,
+            "usar_bloqueio_global": exec_config.usar_bloqueio_global,
+            "usar_reforco_automatico": exec_config.usar_reforco_automatico,
+            "usar_pool_pos_bloqueio": exec_config.usar_pool_pos_bloqueio,
+            "prazo_meses": exec_config.prazo_meses,
+            "mes_ref": exec_config.mes_ref,
+            "ano_ref": exec_config.ano_ref,
+            "data_inicio_txt": exec_config.data_inicio_txt,
+            "data_fim_txt": exec_config.data_fim_txt,
+            "jornada": exec_config.jornada,
+            "executores": exec_config.executores,
+            "turmas": exec_config.turmas,
+            "preencher_orfas_template": exec_config.preencher_orfas,
+            "substituicoes_template": ui_config.substituicoes_comparativo,
+            "reatribuicao_template": exec_config.reatribuicao,
+            "paralelo_template": exec_config.paralelo,
+            "primaria_template": exec_config.primaria,
+            "session_hh": ui_config.session_hh,
         }
 
         if execucao_compacta:
@@ -1033,40 +1096,34 @@ def _executar_modo_comparativo(ctx: _ModoComparativoCtx):
                     resultado_mecanizado = calcular_cronograma_inteligente(
                         cfg_mec,
                         df_mec,
-                        ctx.fazenda + " (MECANIZADO)",
+                        exec_config.fazenda + " (MECANIZADO)",
                         esperar_enter=False,
                         ctx=ctx_mec,
-                        escopo_meta=ctx.escopo_meta,
-                        atividades_catalogo=ctx.atividades_catalogo,
+                        escopo_meta=exec_config.escopo_meta,
+                        atividades_catalogo=exec_config.atividades_catalogo,
                         modo_comparativo=False,
                         substituicoes_comparativo=None,
                     )
             except Exception as e:
                 resultado_mecanizado = None
-                aviso(f"Cenario mecanizado falhou em modo compacto: {e}")
         else:
             resultado_mecanizado = calcular_cronograma_inteligente(
                 cfg_mec,
                 df_mec,
-                ctx.fazenda + " (MECANIZADO)",
+                exec_config.fazenda + " (MECANIZADO)",
                 esperar_enter=False,
                 ctx=ctx_mec,
-                escopo_meta=ctx.escopo_meta,
-                atividades_catalogo=ctx.atividades_catalogo,
+                escopo_meta=exec_config.escopo_meta,
+                atividades_catalogo=exec_config.atividades_catalogo,
                 modo_comparativo=False,
                 substituicoes_comparativo=None,
             )
 
         if isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao") == "retroceder_escopo":
-            aviso("Cenário mecanizado cancelado.")
             resultado_mecanizado = None
         elif isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao"):
-            aviso(
-                f"Cenario mecanizado finalizou com acao '{resultado_mecanizado.get('acao')}'."
-            )
             resultado_mecanizado = None
         elif not isinstance(resultado_mecanizado, dict):
-            aviso("Cenario mecanizado nao retornou resultado valido.")
             resultado_mecanizado = None
         else:
             chaves_obrigatorias = (
@@ -1075,78 +1132,9 @@ def _executar_modo_comparativo(ctx: _ModoComparativoCtx):
             )
             faltantes = [k for k in chaves_obrigatorias if k not in resultado_mecanizado]
             if faltantes:
-                aviso(
-                    "Cenario mecanizado retornou resultado incompleto; comparativo nao sera exibido."
-                )
                 resultado_mecanizado = None
             else:
                 resultado_mecanizado_valido = True
-                ok("Cenário mecanizado concluído!")
-
-    if resultado_mecanizado_valido:
-        sub()
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        print(G + BL + "       COMPARATIVO: MANUAL vs MECANIZADO" + RS)
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        print()
-
-        d_manual = float(ctx.dias_simulado)
-        d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
-        hh_manual = float(ctx.total_hh)
-        hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
-        hm_manual = float(ctx.total_hm)
-        hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
-
-        economia_dias = int(d_manual - d_mec)
-        economia_hh = hh_manual - hh_mec
-        economia_hm = hm_mec - hm_manual
-        cap_hh_dia = float(ctx.executores) * float(ctx.jornada)
-        dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
-        dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
-        delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
-        cronograma_mec_ref = resultado_mecanizado.get("cronograma") or []
-        turmas_mec_comp = sorted(
-            {
-                str(x.get("Turma", ""))
-                for x in cronograma_mec_ref
-                if str(x.get("Turma", "")).startswith("MEC_")
-            },
-            key=str,
-        )
-
-        print(f"  {C}Métrica{RS}                    {C}Manual{RS}          {C}Mecanizado{RS}      {C}Diferença{RS}")
-        print(f"  {DM}{'─' * 70}{RS}")
-        print(f"  {'Dias necessários':<25} {d_manual:>10.0f}      {d_mec:>10.0f}      {Y}{economia_dias:>+10.0f}{RS}")
-        print(f"  {'HH totais':<25} {hh_manual:>10.1f}      {hh_mec:>10.1f}      {Y}{economia_hh:>+10.1f}{RS}")
-        print(f"  {'HM totais':<25} {hm_manual:>10.1f}      {hm_mec:>10.1f}      {Y}{economia_hm:>+10.1f}{RS}")
-        print(f"  {'Dias eq. via HH/cap':<25} {dias_eq_hh_manual:>10.2f}      {dias_eq_hh_mec:>10.2f}      {Y}{delta_dias_eq_hh:>+10.2f}{RS}")
-        print()
-        if turmas_mec_comp:
-            print(G + BL + "  TURMAS MECANIZADAS NO CENARIO:" + RS)
-            for nm_turma in turmas_mec_comp:
-                print(DM + f"    - {nm_turma}" + RS)
-            print()
-        if ctx.substituicoes_comparativo:
-            print(G + BL + "  SUBSTITUICOES APLICADAS:" + RS)
-            for manual, mec in ctx.substituicoes_comparativo.items():
-                print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-            print()
-
-        print(G + BL + "  DESTAQUES:" + RS)
-        if economia_dias > 0:
-            print(f"  {G}✓{RS} Redução de {G}{economia_dias}{RS} dias com mecanização")
-        if economia_hh > 0:
-            print(f"  {G}✓{RS} Economia de {G}{economia_hh:.1f}{RS} HH (mão de obra humana)")
-        if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > _HH_EPSILON:
-            print(
-                DM
-                + f"  Nota: a reducao de HH equivale a ~{delta_dias_eq_hh:.2f} dia(s), "
-                + "mas o cronograma fecha por dias inteiros e caminho critico; por isso pode manter o mesmo total de dias."
-                + RS
-            )
-        print()
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        sub()
 
     return resultado_mecanizado, resultado_mecanizado_valido
 
@@ -2377,9 +2365,12 @@ def calcular_cronograma_inteligente(
     )
 
     preencher_orfas = False
-    _cmp_ctx = _ModoComparativoCtx(
+    _ui_ctx = _ComparativoUIConfig(
         modo_comparativo=modo_comparativo,
         substituicoes_comparativo=substituicoes_comparativo,
+        session_hh=session_hh,
+    )
+    _exec_ctx = _ComparativoExecutionConfig(
         cfg=cfg,
         df_faz=df_faz,
         fazenda=fazenda,
@@ -2399,14 +2390,15 @@ def calcular_cronograma_inteligente(
         reatribuicao=reatribuicao,
         paralelo=paralelo,
         primaria=primaria,
-        session_hh=session_hh,
         escopo_meta=escopo_meta,
         atividades_catalogo=atividades_catalogo,
-        dias_simulado=dias_simulado,
+    )
+    _result_ctx = _ComparativoResult(
         total_hh=total_hh,
         total_hm=total_hm,
+        dias_simulado=dias_simulado,
     )
-    resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(_cmp_ctx)
+    resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(_ui_ctx, _exec_ctx, _result_ctx)
 
     resultado_final = _build_resultado_final(
         esperar_enter, fazenda, dias_simulado, meses_simulado,
