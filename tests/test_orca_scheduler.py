@@ -135,39 +135,39 @@ class TestConstruirAtividadeRemap(unittest.TestCase):
 class TestPerguntarDataFimEquipe(unittest.TestCase):
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=False)
     def test_calculated_date_returns_formatted(self, mock_c):
-        result = _perguntar_data_fim_equipe(1, 2024, 1, 6)
+        result = _perguntar_data_fim_equipe("TestEq", 1, 2024, 1, 6)
         self.assertIsNotNone(result)
         self.assertIn("/", result)
 
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=False)
     def test_calculated_date_6_months(self, mock_c):
-        result = _perguntar_data_fim_equipe(1, 2024, 1, 6)
+        result = _perguntar_data_fim_equipe("TestEq", 1, 2024, 1, 6)
         self.assertEqual(result, "01/06/2024")
 
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=False)
     def test_calculated_date_3_months(self, mock_c):
-        result = _perguntar_data_fim_equipe(3, 2024, 15, 3)
+        result = _perguntar_data_fim_equipe("TestEq", 3, 2024, 15, 3)
         self.assertEqual(result, "15/05/2024")
 
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=True)
     @patch("src.atm.orca.scheduler_core.pedir_int")
     def test_manual_date(self, mock_pedir_int, mock_confirmar):
         mock_pedir_int.side_effect = [6, 2024, 15]
-        result = _perguntar_data_fim_equipe(1, 2024, 1, 6)
+        result = _perguntar_data_fim_equipe("TestEq", 1, 2024, 1, 6)
         self.assertEqual(result, "15/06/2024")
 
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=True)
     @patch("src.atm.orca.scheduler_core.pedir_int")
     def test_manual_date_clamps_values(self, mock_pedir_int, mock_confirmar):
         mock_pedir_int.side_effect = [13, 2024, 32]
-        result = _perguntar_data_fim_equipe(1, 2024, 1, 6)
+        result = _perguntar_data_fim_equipe("TestEq", 1, 2024, 1, 6)
         self.assertEqual(result, "31/12/2024")
 
     @patch("src.atm.orca.scheduler_core.confirmar", return_value=True)
     @patch("src.atm.orca.scheduler_core.pedir_int")
     def test_manual_date_february(self, mock_pedir_int, mock_confirmar):
         mock_pedir_int.side_effect = [2, 2024, 30]
-        result = _perguntar_data_fim_equipe(1, 2024, 1, 6)
+        result = _perguntar_data_fim_equipe("TestEq", 1, 2024, 1, 6)
         self.assertEqual(result, "29/02/2024")
 
 

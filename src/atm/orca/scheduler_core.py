@@ -3362,7 +3362,7 @@ def _configurar_uma_equipe(ie, n_equipes, todas_atvs, fazendas_restantes, mes_re
                     if f in fazendas_restantes:
                         fazendas_restantes.remove(f)
                 prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
-                data_fim_txt = _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq)
+                data_fim_txt = _perguntar_data_fim_equipe(nome_eq, mes_ref, ano_ref, dia_ref, prazo_eq)
                 return {
                     "nome": nome_eq,
                     "prazo_meses": prazo_eq,
@@ -3383,7 +3383,7 @@ def _configurar_uma_equipe(ie, n_equipes, todas_atvs, fazendas_restantes, mes_re
     prazo_eq = pedir_float(f"Prazo meta para '{nome_eq}' (meses)", 3.0)
     j_eq = pedir_float(f"Jornada diaria '{nome_eq}' (horas)", 4.3)
     exec_eq = pedir_int(f"Executores '{nome_eq}'", 10)
-    data_fim_txt = _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq)
+    data_fim_txt = _perguntar_data_fim_equipe(nome_eq, mes_ref, ano_ref, dia_ref, prazo_eq)
 
     perfil_carregado = None
     perfis = _listar_perfis_equipe()
@@ -3446,8 +3446,8 @@ def _configurar_uma_equipe(ie, n_equipes, todas_atvs, fazendas_restantes, mes_re
     }
 
 
-def _perguntar_data_fim_equipe(mes_ref, ano_ref, dia_ref, prazo_eq):
-    if confirmar("Informar dia final manualmente?", default=False):
+def _perguntar_data_fim_equipe(nome_equipe, mes_ref, ano_ref, dia_ref, prazo_eq):
+    if confirmar(f"Informar dia final manualmente para '{nome_equipe}'?", default=False):
         mes_fim = pedir_int("Mes final (1-12)", mes_ref)
         mes_fim = max(1, min(12, int(mes_fim)))
         ano_fim = pedir_int("Ano final", ano_ref)
