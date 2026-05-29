@@ -708,14 +708,21 @@ def _executar_scheduler_loop(
     cronograma = []
     dia = 0
     MAX_DIAS = 10000
-    min_fase_dia_dict = None
-    min_fase_dia = None
-
     def _registrar_fim_plantio_talhao(th, dia_atual):
         if dia_termino_plantio.get(th) is not None:
             return
         if not _demanda_plantio_talhao(th, demanda_global, atividades_plantio):
             dia_termino_plantio[th] = dia_atual
+
+    def _crono(dia, talhao, atv, turma, operarios, consumo, modo=None):
+        custo = consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)) if not modo_somente_hh(cfg) else 0.0
+        e = {
+            "Dia": dia, "Fazenda": fazenda, "Talhao": talhao, "Atividade": atv,
+            "Turma": turma, "Operarios": operarios, "HH": round(consumo, 2), "Custo_MO": custo,
+        }
+        if modo:
+            e["Modo"] = modo
+        cronograma.append(e)
 
     while dia < MAX_DIAS:
         tem_trabalho = any(v > _HH_EPSILON for v in demanda_global.values())
@@ -726,6 +733,13 @@ def _executar_scheduler_loop(
         restante = sum(1 for v in demanda_global.values() if v > _HH_EPSILON)
         if dia % 100 == 0 or dia == 1:
             print(DM + f"  dia {dia}/{MAX_DIAS} ({restante} demandas restantes)" + RS, end="\r")
+        min_fase_dia_dict = _min_fase_cascata_por_talhao(
+            demanda_global, seq_cfg, modo_seq, usar_cascata,
+            usar_bloqueio_global, atividades_bloqueadas,
+            atividades_plantio, atividades_irrig,
+            dia, dia_termino_plantio, tem_plantio_por_talhao,
+        )
+        min_fase_dia = min_fase_dia_dict
         pool_only = (
             usar_bloqueio_global
             and usar_pool_pos_bloqueio
@@ -735,20 +749,6 @@ def _executar_scheduler_loop(
             cap_pool = float(executores) * float(jornada)
             while cap_pool > _HH_EPSILON:
                 fez = False
-                min_fase_dia_dict = _min_fase_cascata_por_talhao(
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
-                )
-                min_fase_dia = min_fase_dia_dict
                 for talhao in talhoes_ordenados:
                     tlist = list(demandas.get(talhao, []))
                     tlist.sort(
@@ -768,19 +768,10 @@ def _executar_scheduler_loop(
                         if rest <= _HH_EPSILON:
                             continue
                         if not pode_agendar_atividade_cascata(
-                            talhao,
-                            atv,
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
+                            talhao, atv, demanda_global, seq_cfg, modo_seq,
+                            usar_cascata, usar_bloqueio_global, atividades_bloqueadas,
+                            atividades_plantio, atividades_irrig,
+                            dia, dia_termino_plantio, tem_plantio_por_talhao,
                             min_fase_dia,
                         ):
                             continue
@@ -790,19 +781,7 @@ def _executar_scheduler_loop(
                         cap_pool -= consumo
                         fez = True
                         _registrar_fim_plantio_talhao(talhao, dia)
-                        cronograma.append(
-                            {
-                                "Dia": dia,
-                                "Fazenda": fazenda,
-                                "Talhao": talhao,
-                                "Atividade": atv,
-                                "Turma": "Pelotao_Unificado",
-                                "Operarios": executores,
-                                "HH": round(consumo, 2),
-                                "Custo_MO": consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)) if not modo_somente_hh(cfg) else 0.0,
-                                "Modo": "PoolPosBloqueio",
-                            }
-                        )
+                        _crono(dia, talhao, atv, "Pelotao_Unificado", executores, consumo, modo="PoolPosBloqueio")
                         if cap_pool <= _HH_EPSILON:
                             break
                     if cap_pool <= _HH_EPSILON:
@@ -826,20 +805,6 @@ def _executar_scheduler_loop(
 
             idx = 0
             while cap_dia > _HH_EPSILON and idx < len(fila):
-                min_fase_dia_dict = _min_fase_cascata_por_talhao(
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
-                )
-                min_fase_dia = min_fase_dia_dict
                 item = fila[idx]
                 key = (item["talhao"], item["atividade"])
                 rest = demanda_global.get(key, 0)
@@ -849,19 +814,10 @@ def _executar_scheduler_loop(
                     continue
 
                 if not pode_agendar_atividade_cascata(
-                    item["talhao"],
-                    item["atividade"],
-                    demanda_global,
-                    seq_cfg,
-                    modo_seq,
-                    usar_cascata,
-                    usar_bloqueio_global,
-                    atividades_bloqueadas,
-                    atividades_plantio,
-                    atividades_irrig,
-                    dia,
-                    dia_termino_plantio,
-                    tem_plantio_por_talhao,
+                    item["talhao"], item["atividade"], demanda_global, seq_cfg, modo_seq,
+                    usar_cascata, usar_bloqueio_global, atividades_bloqueadas,
+                    atividades_plantio, atividades_irrig,
+                    dia, dia_termino_plantio, tem_plantio_por_talhao,
                     min_fase_dia,
                 ):
                     idx += 1
@@ -873,18 +829,7 @@ def _executar_scheduler_loop(
                 cap_dia -= consumo
                 _registrar_fim_plantio_talhao(item["talhao"], dia)
 
-                cronograma.append(
-                    {
-                        "Dia": dia,
-                        "Fazenda": fazenda,
-                        "Talhao": item["talhao"],
-                        "Atividade": item["atividade"],
-                        "Turma": turma["nome"],
-                        "Operarios": n_ops,
-                        "HH": round(consumo, 2),
-                        "Custo_MO": consumo * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, item["atividade"])) if not modo_somente_hh(cfg) else 0.0,
-                    }
-                )
+                _crono(dia, item["talhao"], item["atividade"], turma["nome"], n_ops, consumo)
 
                 if demanda_global[key] < _HH_EPSILON:
                     idx += 1
@@ -915,39 +860,16 @@ def _executar_scheduler_loop(
                             )
                         )
                     for t in tarefas_t:
-                        min_fase_dia_dict = _min_fase_cascata_por_talhao(
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
-                        )
-                        min_fase_dia = min_fase_dia_dict
                         atv = t["atividade"]
                         key_ref = (talhao, atv)
                         rest_ref = demanda_global.get(key_ref, 0.0)
                         if rest_ref <= _HH_EPSILON:
                             continue
                         if not pode_agendar_atividade_cascata(
-                            talhao,
-                            atv,
-                            demanda_global,
-                            seq_cfg,
-                            modo_seq,
-                            usar_cascata,
-                            usar_bloqueio_global,
-                            atividades_bloqueadas,
-                            atividades_plantio,
-                            atividades_irrig,
-                            dia,
-                            dia_termino_plantio,
-                            tem_plantio_por_talhao,
+                            talhao, atv, demanda_global, seq_cfg, modo_seq,
+                            usar_cascata, usar_bloqueio_global, atividades_bloqueadas,
+                            atividades_plantio, atividades_irrig,
+                            dia, dia_termino_plantio, tem_plantio_por_talhao,
                             min_fase_dia,
                         ):
                             continue
@@ -958,19 +880,7 @@ def _executar_scheduler_loop(
                         _demanda_global_touch()
                         cap_dia -= consumo_ref
                         _registrar_fim_plantio_talhao(talhao, dia)
-                        cronograma.append(
-                            {
-                                "Dia": dia,
-                                "Fazenda": fazenda,
-                                "Talhao": talhao,
-                                "Atividade": atv,
-                                "Turma": turma["nome"],
-                                "Operarios": n_ops,
-                                "HH": round(consumo_ref, 2),
-                                "Custo_MO": consumo_ref * resolver_custo_hora(cfg, tarifas, resolver_chave_tarifa(cfg, tarifas, atv)) if not modo_somente_hh(cfg) else 0.0,
-                                "Modo": "Reforco",
-                            }
-                        )
+                        _crono(dia, talhao, atv, turma["nome"], n_ops, consumo_ref, modo="Reforco")
 
     return cronograma, dia
 
