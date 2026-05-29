@@ -1259,7 +1259,7 @@ def _diagnostico_prazo(
 
 def _build_resultado_final(
     esperar_enter, fazenda, dias_simulado, meses_simulado,
-    prazo_meses, total_hh, total_custo, total_hm,
+    prazo_meses, dias_meta, total_hh, total_custo, total_hm,
     cronograma_base, turmas, resultado_mecanizado,
     resultado_mecanizado_valido, substituicoes_comparativo,
     recursos_mec, cronograma_com_mec, demandas,
@@ -2747,7 +2747,7 @@ def calcular_cronograma_inteligente(
 
     resultado_final = _build_resultado_final(
         esperar_enter, fazenda, dias_simulado, meses_simulado,
-        prazo_meses, total_hh, total_custo, total_hm,
+        prazo_meses, dias_meta, total_hh, total_custo, total_hm,
         cronograma_base, turmas, resultado_mecanizado,
         resultado_mecanizado_valido, substituicoes_comparativo,
         recursos_mec, cronograma_com_mec, demandas,
