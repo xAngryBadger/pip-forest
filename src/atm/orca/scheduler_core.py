@@ -1108,6 +1108,234 @@ def _configurar_conflitos_reatribuicao(
     return reatribuicao, paralelo, primaria
 
 
+def _auditar_escopo_cronograma(
+    df_faz, cronograma_com_mec, cronograma_base, demandas, atividades_mec_set, recursos_mec,
+):
+    atividades_escopo = sorted(
+        {
+            str(a).strip()
+            for a in df_faz["atividade"].dropna().tolist()
+            if str(a).strip()
+        },
+        key=str,
+    )
+    escopo_set = set(atividades_escopo)
+    ag_hum_set = set()
+    ag_mec_set = set()
+    cronograma_ref = cronograma_com_mec if cronograma_com_mec else cronograma_base
+    for item in cronograma_ref or []:
+        atividade_item = str(item.get("Atividade", "") or "").strip()
+        if not atividade_item:
+            continue
+        hh_item = float(item.get("HH", 0) or 0)
+        hm_item = float(item.get("HM", 0) or 0)
+        turma_item = str(item.get("Turma", "") or "")
+        if turma_item.startswith("MEC_") or (hm_item > 0 and hh_item <= 0):
+            ag_mec_set.add(atividade_item)
+        else:
+            ag_hum_set.add(atividade_item)
+    faltantes_set = escopo_set - (ag_hum_set | ag_mec_set)
+
+    hh_por_atividade = defaultdict(float)
+    for tarefas in demandas.values():
+        for t in tarefas:
+            atividade_t = str(t.get("atividade", "") or "").strip()
+            if not atividade_t:
+                continue
+            hh_por_atividade[atividade_t] += float(t.get("hh_total", 0) or 0)
+
+    rows_audit = []
+    for a in atividades_escopo:
+        if a in ag_hum_set:
+            status = "agendada_humana"
+        elif a in ag_mec_set:
+            status = "agendada_mecanizada"
+        else:
+            status = "nao_agendada"
+
+        motivo = ""
+        if status == "nao_agendada":
+            if a in atividades_mec_set and not recursos_mec:
+                motivo = "atividade mecanizada sem recurso cadastrado"
+            else:
+                motivo = "sem alocacao no cronograma"
+
+        rows_audit.append(
+            {
+                "Atividade": a,
+                "HH_Escopo": round(float(hh_por_atividade.get(a, 0) or 0), 2),
+                "Status": status,
+                "Motivo": motivo,
+            }
+        )
+    df_audit = pd.DataFrame(rows_audit)
+    sub()
+    print(G + BL + "  AUDITORIA DO ESCOPO (ANTES DA EXPORTACAO)" + RS)
+    print(DM + f"  Atividades no escopo: {len(atividades_escopo)}" + RS)
+    print(DM + f"  Agendadas no humano: {len(ag_hum_set & escopo_set)}" + RS)
+    print(DM + f"  Agendadas no mecanizado: {len(ag_mec_set & escopo_set)}" + RS)
+    print(DM + f"  Nao agendadas: {len(faltantes_set)}" + RS)
+    rocadas_escopo = [a for a in atividades_escopo if "rocada" in normalizar_chave(a)]
+    if rocadas_escopo:
+        for rcv in rocadas_escopo:
+            if rcv in ag_hum_set:
+                st = "agendada_humana"
+            elif rcv in ag_mec_set:
+                st = "agendada_mecanizada"
+            else:
+                st = "nao_agendada"
+            print(DM + f"    rocada: {rcv[:56]} -> {st}" + RS)
+
+    return {
+        "atividades_escopo": atividades_escopo,
+        "escopo_set": escopo_set,
+        "ag_hum_set": ag_hum_set,
+        "ag_mec_set": ag_mec_set,
+        "faltantes_set": faltantes_set,
+        "df_audit": df_audit,
+    }
+
+
+def _diagnostico_prazo(
+    prazo_meses, dias_meta, mes_ref, ano_ref,
+    dias_simulado, meses_simulado,
+    executores, jornada, total_hh,
+    recursos_mec, cronograma_com_mec,
+):
+    linha()
+    print(G + BL + "  DIAGNOSTICO DE PRAZO" + RS)
+    sub()
+    print(
+        G
+        + f"  Meta informada             : {prazo_meses} meses ({dias_meta} dias uteis a partir de {mes_ref:02d}/{ano_ref})"
+        + RS
+    )
+    print(
+        G
+        + f"  Duracao simulada           : {dias_simulado} dias ({meses_simulado:.1f} meses)"
+        + RS
+    )
+    if recursos_mec and cronograma_com_mec:
+        d_mc = max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
+        m_mc = d_mc / DIAS_UTEIS_POR_MES if d_mc > 0 else 0.0
+        print(C + f"  Duracao cenario mecanizado : {d_mc} dias ({m_mc:.1f} meses)" + RS)
+        print(
+            C
+            + f"  Ganho operacional estimado : {int(dias_simulado) - int(d_mc):+d} dias"
+            + RS
+        )
+    sub()
+
+    if meses_simulado <= prazo_meses:
+        print(G + BL + "  STATUS: DENTRO DO PRAZO" + RS)
+        print(G + f"  Equipe de {executores} executores conclui antes da meta." + RS)
+    else:
+        print(Y + BL + "  STATUS: PRAZO EXCEDIDO" + RS)
+        print(
+            Y
+            + f"  Equipe atual levara {meses_simulado:.1f} meses (meta: {prazo_meses})."
+            + RS
+        )
+        exec_teoricos = (
+            math.ceil(total_hh / (dias_meta * jornada)) if (dias_meta * jornada) > 0 else 1
+        )
+        print(
+            C
+            + f"  [SUGESTAO] ~{exec_teoricos} executores @ {jornada}h/dia cumpririam a meta."
+            + RS
+        )
+        if dias_meta > 0 and total_hh > _HH_EPSILON:
+            ex5 = math.ceil(total_hh / (dias_meta * 5.0))
+            ex6 = math.ceil(total_hh / (dias_meta * 6.0))
+            print(
+                DM
+                + f"  [DICA] Com a mesma jornada na meta, ~{ex5} executores @ 5h/dia ou ~{ex6} @ 6h/dia "
+                f"(aprox.: HH total / {dias_meta} dias uteis / jornada)." + RS
+            )
+
+    linha()
+
+
+def _build_resultado_final(
+    esperar_enter, fazenda, dias_simulado, meses_simulado,
+    prazo_meses, total_hh, total_custo, total_hm,
+    cronograma_base, turmas, resultado_mecanizado,
+    resultado_mecanizado_valido, substituicoes_comparativo,
+    recursos_mec, cronograma_com_mec, demandas,
+):
+    if esperar_enter:
+        esperar("ENTER para voltar ao menu")
+    d_mc = (
+        max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
+        if (recursos_mec and cronograma_com_mec)
+        else None
+    )
+    ganho_mc = (int(dias_simulado) - int(d_mc)) if d_mc is not None else 0
+    rendimentos_feed = []
+    if callable(_monitor_build_rendimentos):
+        try:
+            rendimentos_feed = _monitor_build_rendimentos(demandas)
+        except Exception:
+            rendimentos_feed = []
+    _emitir_monitor_state(
+        {
+            "operacao": {
+                "fazenda_atual": str(fazenda),
+                "status_geral": "concluido",
+                "mensagem_curta": f"{dias_simulado} dia(s) simulados | HH {total_hh:.1f}",
+            },
+            "lote": {
+                "dias_meta": int(dias_meta),
+                "dias_consumidos": int(dias_simulado),
+                "saldo_dias": int(max(0, int(dias_meta) - int(dias_simulado))),
+                "status_meta_continuo": "OK"
+                if meses_simulado <= prazo_meses
+                else "EXCEDIDO",
+                "prazo_absoluto": True,
+            },
+            "rendimentos_sessao": rendimentos_feed,
+        }
+    )
+    resumo_monitor = [
+        f"Fazenda: {fazenda}",
+        f"Dias simulados: {int(dias_simulado)}",
+        f"HH total: {float(total_hh):.1f}",
+    ]
+    _emitir_monitor_relatorio(f"Resumo {fazenda}", "\n".join(resumo_monitor))
+
+    resultado_final = {
+        "fazenda": fazenda,
+        "dias_simulado": int(dias_simulado),
+        "meses_simulado": float(meses_simulado),
+        "dias_mecanizado": d_mc,
+        "ganho_mecanizado_dias": int(ganho_mc),
+        "total_hh": float(total_hh),
+        "total_custo": float(total_custo),
+        "total_hm": float(total_hm),
+        "cronograma": cronograma_base,
+        "turmas_snapshot": [
+            {"nome": t["nome"], "operarios": t["operarios"]} for t in turmas
+        ],
+    }
+
+    if resultado_mecanizado_valido:
+        resultado_final["comparativo_mecanizado"] = {
+            "dias_simulado": resultado_mecanizado.get("dias_simulado"),
+            "total_hh": resultado_mecanizado.get("total_hh"),
+            "total_hm": resultado_mecanizado.get("total_hm"),
+            "total_custo": resultado_mecanizado.get("total_custo", 0),
+            "substituicoes_aplicadas": [
+                {
+                    "manual": manual,
+                    "mecanizado": _formatar_substituicao_comparativo(mec),
+                }
+                for manual, mec in (substituicoes_comparativo or {}).items()
+            ],
+        }
+
+    return resultado_final
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -2057,80 +2285,15 @@ def calcular_cronograma_inteligente(
             )
             _render_tabela_cenarios(cenarios_rows, lbl_base_multi)
 
-    atividades_escopo = sorted(
-        {
-            str(a).strip()
-            for a in df_faz["atividade"].dropna().tolist()
-            if str(a).strip()
-        },
-        key=str,
+    audit = _auditar_escopo_cronograma(
+        df_faz, cronograma_com_mec, cronograma_base, demandas, atividades_mec_set, recursos_mec,
     )
-    escopo_set = set(atividades_escopo)
-    ag_hum_set = set()
-    ag_mec_set = set()
-    cronograma_ref = cronograma_com_mec if cronograma_com_mec else cronograma_base
-    for item in cronograma_ref or []:
-        atividade_item = str(item.get("Atividade", "") or "").strip()
-        if not atividade_item:
-            continue
-        hh_item = float(item.get("HH", 0) or 0)
-        hm_item = float(item.get("HM", 0) or 0)
-        turma_item = str(item.get("Turma", "") or "")
-        if turma_item.startswith("MEC_") or (hm_item > 0 and hh_item <= 0):
-            ag_mec_set.add(atividade_item)
-        else:
-            ag_hum_set.add(atividade_item)
-    faltantes_set = escopo_set - (ag_hum_set | ag_mec_set)
-
-    hh_por_atividade = defaultdict(float)
-    for tarefas in demandas.values():
-        for t in tarefas:
-            atividade_t = str(t.get("atividade", "") or "").strip()
-            if not atividade_t:
-                continue
-            hh_por_atividade[atividade_t] += float(t.get("hh_total", 0) or 0)
-
-    rows_audit = []
-    for a in atividades_escopo:
-        if a in ag_hum_set:
-            status = "agendada_humana"
-        elif a in ag_mec_set:
-            status = "agendada_mecanizada"
-        else:
-            status = "nao_agendada"
-
-        motivo = ""
-        if status == "nao_agendada":
-            if a in atividades_mec_set and not recursos_mec:
-                motivo = "atividade mecanizada sem recurso cadastrado"
-            else:
-                motivo = "sem alocacao no cronograma"
-
-        rows_audit.append(
-            {
-                "Atividade": a,
-                "HH_Escopo": round(float(hh_por_atividade.get(a, 0) or 0), 2),
-                "Status": status,
-                "Motivo": motivo,
-            }
-        )
-    df_audit = pd.DataFrame(rows_audit)
-    sub()
-    print(G + BL + "  AUDITORIA DO ESCOPO (ANTES DA EXPORTACAO)" + RS)
-    print(DM + f"  Atividades no escopo: {len(atividades_escopo)}" + RS)
-    print(DM + f"  Agendadas no humano: {len(ag_hum_set & escopo_set)}" + RS)
-    print(DM + f"  Agendadas no mecanizado: {len(ag_mec_set & escopo_set)}" + RS)
-    print(DM + f"  Nao agendadas: {len(faltantes_set)}" + RS)
-    rocadas_escopo = [a for a in atividades_escopo if "rocada" in normalizar_chave(a)]
-    if rocadas_escopo:
-        for rcv in rocadas_escopo:
-            if rcv in ag_hum_set:
-                st = "agendada_humana"
-            elif rcv in ag_mec_set:
-                st = "agendada_mecanizada"
-            else:
-                st = "nao_agendada"
-            print(DM + f"    rocada: {rcv[:56]} -> {st}" + RS)
+    atividades_escopo = audit["atividades_escopo"]
+    escopo_set = audit["escopo_set"]
+    ag_hum_set = audit["ag_hum_set"]
+    ag_mec_set = audit["ag_mec_set"]
+    faltantes_set = audit["faltantes_set"]
+    df_audit = audit["df_audit"]
 
     # ── Export Dossier Excel (somente operacional) ──
     if cronograma_base:
@@ -2355,56 +2518,12 @@ def calcular_cronograma_inteligente(
         except Exception as ex:
             aviso(f"Nao foi possivel salvar Dossier: {ex}")
 
-    # ── Diagnostico final ──
-    linha()
-    print(G + BL + "  DIAGNOSTICO DE PRAZO" + RS)
-    sub()
-    print(
-        G
-        + f"  Meta informada             : {prazo_meses} meses ({dias_meta} dias uteis a partir de {mes_ref:02d}/{ano_ref})"
-        + RS
+    _diagnostico_prazo(
+        prazo_meses, dias_meta, mes_ref, ano_ref,
+        dias_simulado, meses_simulado,
+        executores, jornada, total_hh,
+        recursos_mec, cronograma_com_mec,
     )
-    print(
-        G
-        + f"  Duracao simulada           : {dias_simulado} dias ({meses_simulado:.1f} meses)"
-        + RS
-    )
-    if recursos_mec and cronograma_com_mec:
-        d_mc = max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
-        m_mc = d_mc / DIAS_UTEIS_POR_MES if d_mc > 0 else 0.0
-        print(C + f"  Duracao cenario mecanizado : {d_mc} dias ({m_mc:.1f} meses)" + RS)
-        print(
-            C
-            + f"  Ganho operacional estimado : {int(dias_simulado) - int(d_mc):+d} dias"
-            + RS
-        )
-    sub()
-
-    if meses_simulado <= prazo_meses:
-        print(G + BL + "  STATUS: DENTRO DO PRAZO" + RS)
-        print(G + f"  Equipe de {executores} executores conclui antes da meta." + RS)
-    else:
-        print(Y + BL + "  STATUS: PRAZO EXCEDIDO" + RS)
-        print(
-            Y
-            + f"  Equipe atual levara {meses_simulado:.1f} meses (meta: {prazo_meses})."
-            + RS
-        )
-        print(
-            C
-            + f"  [SUGESTAO] ~{exec_teoricos} executores @ {jornada}h/dia cumpririam a meta."
-            + RS
-        )
-        if dias_meta > 0 and total_hh > _HH_EPSILON:
-            ex5 = math.ceil(total_hh / (dias_meta * 5.0))
-            ex6 = math.ceil(total_hh / (dias_meta * 6.0))
-            print(
-                DM
-                + f"  [DICA] Com a mesma jornada na meta, ~{ex5} executores @ 5h/dia ou ~{ex6} @ 6h/dia "
-                f"(aprox.: HH total / {dias_meta} dias uteis / jornada)." + RS
-            )
-
-    linha()
 
     # ═══════════════════════════════════════════════════════════════════════════
     # MODO COMPARATIVO: Executar segunda simulação com atividades mecanizadas
@@ -2589,76 +2708,13 @@ def calcular_cronograma_inteligente(
         print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
         sub()
 
-    if esperar_enter:
-        esperar("ENTER para voltar ao menu")
-    d_mc = (
-        max([int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0)
-        if (recursos_mec and cronograma_com_mec)
-        else None
+    resultado_final = _build_resultado_final(
+        esperar_enter, fazenda, dias_simulado, meses_simulado,
+        prazo_meses, total_hh, total_custo, total_hm,
+        cronograma_base, turmas, resultado_mecanizado,
+        resultado_mecanizado_valido, substituicoes_comparativo,
+        recursos_mec, cronograma_com_mec, demandas,
     )
-    ganho_mc = (int(dias_simulado) - int(d_mc)) if d_mc is not None else 0
-    rendimentos_feed = []
-    if callable(_monitor_build_rendimentos):
-        try:
-            rendimentos_feed = _monitor_build_rendimentos(demandas)
-        except Exception:
-            rendimentos_feed = []
-    _emitir_monitor_state(
-        {
-            "operacao": {
-                "fazenda_atual": str(fazenda),
-                "status_geral": "concluido",
-                "mensagem_curta": f"{dias_simulado} dia(s) simulados | HH {total_hh:.1f}",
-            },
-            "lote": {
-                "dias_meta": int(dias_meta),
-                "dias_consumidos": int(dias_simulado),
-                "saldo_dias": int(max(0, int(dias_meta) - int(dias_simulado))),
-                "status_meta_continuo": "OK"
-                if meses_simulado <= prazo_meses
-                else "EXCEDIDO",
-                "prazo_absoluto": True,
-            },
-            "rendimentos_sessao": rendimentos_feed,
-        }
-    )
-    resumo_monitor = [
-        f"Fazenda: {fazenda}",
-        f"Dias simulados: {int(dias_simulado)}",
-        f"HH total: {float(total_hh):.1f}",
-    ]
-    _emitir_monitor_relatorio(f"Resumo {fazenda}", "\n".join(resumo_monitor))
-
-    resultado_final = {
-        "fazenda": fazenda,
-        "dias_simulado": int(dias_simulado),
-        "meses_simulado": float(meses_simulado),
-        "dias_mecanizado": d_mc,
-        "ganho_mecanizado_dias": int(ganho_mc),
-        "total_hh": float(total_hh),
-        "total_custo": float(total_custo),
-        "total_hm": float(total_hm),
-        "cronograma": cronograma_base,
-        "turmas_snapshot": [
-            {"nome": t["nome"], "operarios": t["operarios"]} for t in turmas
-        ],
-    }
-
-    # Incluir resultados comparativos se disponíveis
-    if resultado_mecanizado_valido:
-        resultado_final["comparativo_mecanizado"] = {
-            "dias_simulado": resultado_mecanizado.get("dias_simulado"),
-            "total_hh": resultado_mecanizado.get("total_hh"),
-            "total_hm": resultado_mecanizado.get("total_hm"),
-            "total_custo": resultado_mecanizado.get("total_custo", 0),
-            "substituicoes_aplicadas": [
-                {
-                    "manual": manual,
-                    "mecanizado": _formatar_substituicao_comparativo(mec),
-                }
-                for manual, mec in (substituicoes_comparativo or {}).items()
-            ],
-        }
 
     return resultado_final
 
