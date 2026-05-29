@@ -691,6 +691,31 @@ def _construir_demandas(talhoes_ordenados, df_faz, cfg, tarifas, strict, session
         "fallback_hh_items": fallback_hh_items,
     }
 
+
+def _executar_scheduler_loop(
+    turmas, turma_filas, demanda_global, demandas,
+    talhoes_ordenados, jornada, executores,
+    seq_cfg, modo_seq, usar_cascata,
+    usar_bloqueio_global, atividades_bloqueadas,
+    usar_reforco_automatico, usar_pool_pos_bloqueio,
+    atividades_plantio, atividades_irrig,
+    fazenda, cfg, tarifas, modo_somente_hh,
+    dia_termino_plantio, tem_plantio_por_talhao,
+):
+    cronograma, dia = _executar_scheduler_loop(
+        turmas, turma_filas, demanda_global, demandas,
+        talhoes_ordenados, jornada, executores,
+        seq_cfg, modo_seq, usar_cascata,
+        usar_bloqueio_global, atividades_bloqueadas,
+        usar_reforco_automatico, usar_pool_pos_bloqueio,
+        atividades_plantio, atividades_irrig,
+        fazenda, cfg, tarifas, modo_somente_hh,
+        dia_termino_plantio, tem_plantio_por_talhao,
+    )
+
+    return cronograma, dia
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
