@@ -7,6 +7,7 @@ import math
 import os
 import traceback
 from collections import defaultdict
+from dataclasses import dataclass
 from contextlib import redirect_stderr, redirect_stdout
 
 import pandas as pd
@@ -20,6 +21,7 @@ from .app import (
     _proximo_caminho_livre,
     avaliar_terreno,
 )
+from .comparativo_config import _configurar_modo_comparativo
 from .comparativo_mec import (
     _atividades_com_mecanizado_disponivel,
     _cadastrar_recurso_mecanizado_externo,
@@ -140,305 +142,6 @@ def _validar_input(df_faz):
         aviso(f"{len(_areas_neg)} talhao(oes) com area_ha negativa — serao zerados")
         df_faz.loc[_areas_neg.index, "area_ha"] = 0.0
     return None, df_faz
-
-
-def _configurar_modo_comparativo(atividades_reais, _batch):
-    # MODO COMPARATIVO: MANUAL vs MECANIZADO
-    modo_comparativo = False
-    substituicoes_comparativo = {}
-
-
-    if not _batch:
-        # Verificar se há atividades com equivalente mecanizado
-        pares_mecanizaveis = _atividades_com_mecanizado_disponivel(atividades_reais)
-        if atividades_reais:
-            sub()
-            print(C + BL + " MODO COMPARATIVO MANUAL vs MECANIZADO" + RS)
-            if pares_mecanizaveis:
-                print(
-                    DM
-                    + f" Detectadas {len(pares_mecanizaveis)} atividade(s) com equivalente mecanizado."
-                    + RS
-                )
-            else:
-                print(
-                    DM
-                    + " Nenhuma sugestao automatica encontrada; use modo manual [2] ou recurso externo [3]."
-                    + RS
-                )
-
-            if confirmar("Deseja executar comparativo MANUAL vs MECANIZADO?", default=False):
-                modo_comparativo = True
-                # Loop para permitir voltar entre modos
-                while True:
-                    sub()
-                    print(G + " [1] Usar sugestões automáticas (detecção por nome)" + RS)
-                    print(G + " [2] Escolher manualmente do catálogo completo" + RS)
-                    print(G + " [3] Cadastrar recurso mecanizado externo" + RS)
-                    print(R + " [0] Cancelar comparativo" + RS)
-                    print(DM + "    (opcão 2 permite escolher QUALQUER atividade mecanizada)" + RS)
-                    sub()
-                    modo_escolha = escolha("Opção [1/2/3/0]", "1")
-
-                    if modo_escolha == "0":
-                        modo_comparativo = False
-                        substituicoes_comparativo = {}
-                        aviso("Modo comparativo cancelado. Continuando com modo normal.")
-                        break
-
-                    if modo_escolha == "1":
-                        # MODO AUTOMÁTICO
-                        if not pares_mecanizaveis:
-                            aviso("Nao ha sugestoes automaticas para esta fazenda. Use [2] ou [3].")
-                            continue
-                        sub()
-                        print(G + " Atividades detectadas automaticamente:" + RS)
-                        print()
-
-                        # Mostrar lista numerada
-                        for i, (manual, mec) in enumerate(pares_mecanizaveis, 1):
-                            print(f" {Y}{i:2}{RS}. {manual}")
-                            print(f" {DM}→{RS} {C}{mec}{RS}")
-                        print()
-
-                        sub()
-                        print(DM + "Digite os números das atividades para trocar (ex: 1,3,5)" + RS)
-                        print(DM + "ou ENTER para TODAS, ou 0 para VOLTAR ao menu anterior" + RS)
-                        escolha_val = escolha("Escolha")
-
-                        # Verificar se quer voltar
-                        if escolha_val == "0":
-                            continue # Volta ao início do while loop
-
-                        indices_trocar = []
-                        if escolha_val:
-                            try:
-                                # Parse lista de números
-                                for parte in escolha_val.split(","):
-                                    idx = int(parte.strip()) - 1
-                                    if 0 <= idx < len(pares_mecanizaveis):
-                                        indices_trocar.append(idx)
-                            except ValueError:
-                                aviso("Entrada inválida. Usando TODAS as atividades.")
-                                indices_trocar = list(range(len(pares_mecanizaveis)))
-                        else:
-                            # ENTER = todas
-                            indices_trocar = list(range(len(pares_mecanizaveis)))
-
-                        # Construir dicionário de substituições
-                        for idx in indices_trocar:
-                            manual, mec = pares_mecanizaveis[idx]
-                            substituicoes_comparativo[manual] = mec
-
-                        if substituicoes_comparativo:
-                            ok(f"Selecionadas {len(substituicoes_comparativo)} substituição(ões) para comparativo.")
-                            break  # Sai do loop - seleção concluída
-                        else:
-                            aviso("Nenhuma atividade selecionada. Voltando ao menu.")
-                            continue
-                    if modo_escolha == "2":
-                        # MODO MANUAL: Mostrar todas as atividades mecanizadas disponíveis
-                        modo_manual_ativo = True
-                        historico_substituicoes_manual = []
-                        while modo_manual_ativo:
-                            sub()
-                            print(C + BL + " CATÁLOGO DE ATIVIDADES MECANIZADAS DISPONÍVEIS" + RS)
-                            print(DM + " (todas as atividades com rendimento HM > 0)" + RS)
-                            sub()
-
-                            atividades_mecanizadas = []
-                            for atv_nome, dados in CT317_HARDCODE_HH_BASE.items():
-                                if dados.get("rendimento_hm", 0) > 0:
-                                    atividades_mecanizadas.append((atv_nome, dados.get("rendimento_hm", 0)))
-
-                            atividades_mecanizadas.sort(key=lambda x: x[0])
-
-                            for i, (atv_nome, hm_val) in enumerate(atividades_mecanizadas, 1):
-                                print(f" {Y}{i:2}{RS}. {atv_nome[:55]:<55} {C}(HM={hm_val:.2f}){RS}")
-
-                            sub()
-                            print(G + f"Total: {len(atividades_mecanizadas)} atividades mecanizadas" + RS)
-                            print()
-                            print(DM + "Escolha uma atividade mecanizada (ou 0 para voltar):" + RS)
-                            print(DM + "Comandos: [L] listar substituições atuais | [U] desfazer última | [A] ver sugestões automáticas" + RS)
-
-                            escolha_mec = escolha("Número (0 para voltar ao menu)")
-                            cmd_mec = escolha_mec.upper()
-                            if cmd_mec == "0":
-                                break
-
-                            if cmd_mec == "L":
-                                if substituicoes_comparativo:
-                                    sub()
-                                    print(G + BL + " SUBSTITUIÇÕES ATUAIS" + RS)
-                                    for i, (manual, mec) in enumerate(substituicoes_comparativo.items(), 1):
-                                        print(f" {Y}{i:2}{RS}. {manual}")
-                                        print(f"    {DM}→{RS} {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-                                else:
-                                    aviso("Nenhuma substituição selecionada até agora.")
-                                continue
-
-                            if cmd_mec == "U":
-                                if historico_substituicoes_manual:
-                                    atividade_desfazer, valor_anterior = historico_substituicoes_manual.pop()
-                                    if valor_anterior is None:
-                                        valor_removido = substituicoes_comparativo.pop(atividade_desfazer, None)
-                                        if valor_removido is not None:
-                                            ok(
-                                                "Desfeito: "
-                                                + f"{atividade_desfazer[:40]}..."
-                                                + " removido da lista de substituições."
-                                            )
-                                        else:
-                                            aviso("Nada para desfazer neste item.")
-                                    else:
-                                        substituicoes_comparativo[atividade_desfazer] = valor_anterior
-                                        ok(
-                                            "Desfeito: "
-                                            + f"{atividade_desfazer[:40]}..."
-                                            + " restaurado para a seleção anterior."
-                                        )
-                                else:
-                                    aviso("Nao ha substituições recentes para desfazer.")
-                                continue
-
-                            if cmd_mec == "A":
-                                sub()
-                                print(C + BL + " SUGESTÕES AUTOMÁTICAS (MANUAL -> MECANIZADA)" + RS)
-                                if pares_mecanizaveis:
-                                    print()
-                                    for i, (manual, mec) in enumerate(pares_mecanizaveis, 1):
-                                        print(f" {Y}{i:2}{RS}. {manual}")
-                                        print(f"    {DM}→{RS} {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-                                else:
-                                    aviso("Nao ha sugestões automáticas para esta fazenda.")
-                                sub()
-                                esperar("ENTER para voltar ao catálogo manual")
-                                continue
-
-                            if not escolha_mec:
-                                continue
-
-                            try:
-                                idx_mec = int(escolha_mec) - 1
-                                if 0 <= idx_mec < len(atividades_mecanizadas):
-                                    atividade_mecanizada_escolhida = atividades_mecanizadas[idx_mec][0]
-
-                                    sub()
-                                    print(C + " Atividades MANUAIS na fazenda:" + RS)
-                                    for i, atv_manual in enumerate(atividades_reais, 1):
-                                        print(f" {Y}{i:2}{RS}. {atv_manual}")
-
-                                    print()
-                                    print(DM + f"Qual atividade substituir por '{atividade_mecanizada_escolhida}'?" + RS)
-                                    escolha_manual = escolha("Número da atividade manual (0 para cancelar)")
-
-                                    if escolha_manual == "0":
-                                        continue
-
-                                    try:
-                                        idx_manual = int(escolha_manual) - 1
-                                        if 0 <= idx_manual < len(atividades_reais):
-                                            atividade_manual_escolhida = atividades_reais[idx_manual]
-                                            valor_anterior = substituicoes_comparativo.get(atividade_manual_escolhida)
-                                            if valor_anterior is not None:
-                                                print()
-                                                print(
-                                                    Y
-                                                    + "  Esta atividade já possui substituição:"
-                                                    + RS
-                                                )
-                                                print(
-                                                    DM
-                                                    + f"  {atividade_manual_escolhida}"
-                                                    + RS
-                                                )
-                                                print(
-                                                    DM
-                                                    + f"  atual: {_formatar_substituicao_comparativo(valor_anterior)}"
-                                                    + RS
-                                                )
-                                                print(
-                                                    DM
-                                                    + f"  nova : {_formatar_substituicao_comparativo(atividade_mecanizada_escolhida)}"
-                                                    + RS
-                                                )
-                                                if not confirmar("Substituir mapeamento existente?", default=True):
-                                                    continue
-
-                                            historico_substituicoes_manual.append(
-                                                (atividade_manual_escolhida, valor_anterior)
-                                            )
-                                            substituicoes_comparativo[atividade_manual_escolhida] = atividade_mecanizada_escolhida
-                                            ok(f"Adicionado: {atividade_manual_escolhida[:40]}... → {atividade_mecanizada_escolhida[:40]}...")
-                                        else:
-                                            aviso("Número inválido.")
-                                    except ValueError:
-                                        aviso("Entrada inválida.")
-
-                                    print()
-                                    if not confirmar("Adicionar outra substituição manual?", default=False):
-                                        modo_manual_ativo = False
-                                else:
-                                    aviso("Número inválido.")
-                            except ValueError:
-                                aviso("Entrada inválida.")
-
-                        if substituicoes_comparativo:
-                            ok(f"Selecionadas {len(substituicoes_comparativo)} substituição(ões) para comparativo.")
-                            sub()
-                            print(G + " Resumo das substituições:" + RS)
-                            for manual, mec in substituicoes_comparativo.items():
-                                print(f" • {manual}")
-                                print(f" → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-                            sub()
-                            esperar("ENTER para continuar")
-                            break
-
-                        aviso("Nenhuma substituição selecionada. Voltando ao menu.")
-                        continue
-
-                    if modo_escolha == "3":
-                        # MODO EXTERNO: cadastrar recurso mecanizado fora do CT e ligar em uma atividade manual.
-                        modo_externo_ativo = True
-                        while modo_externo_ativo:
-                            sub()
-                            print(C + BL + " CADASTRAR RECURSO MECANIZADO EXTERNO" + RS)
-                            print(DM + " Ex.: Navu, trator alugado, drone, serviço terceirizado." + RS)
-                            sub()
-                            idx_manual = selecionar_paginado("ATIVIDADE MANUAL A SUBSTITUIR", atividades_reais)
-                            if idx_manual < 0:
-                                break
-                            atividade_manual_escolhida = atividades_reais[idx_manual]
-                            recurso_custom = _cadastrar_recurso_mecanizado_externo(
-                                atividade_manual_escolhida
-                            )
-                            if recurso_custom:
-                                substituicoes_comparativo[atividade_manual_escolhida] = recurso_custom
-                                ok(
-                                    f"Adicionado: {atividade_manual_escolhida[:40]}... → {recurso_custom['atividade_mecanizada'][:40]}..."
-                                )
-                            if not confirmar("Adicionar outro recurso externo?", default=False):
-                                modo_externo_ativo = False
-
-                        if substituicoes_comparativo:
-                            ok(f"Selecionadas {len(substituicoes_comparativo)} substituição(ões) para comparativo.")
-                            sub()
-                            print(G + " Resumo das substituições:" + RS)
-                            for manual, mec in substituicoes_comparativo.items():
-                                print(f" • {manual[:50]}...")
-                                print(f" → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-                            sub()
-                            esperar("ENTER para continuar")
-                            break
-
-                        aviso("Nenhum recurso externo foi vinculado. Voltando ao menu.")
-                        continue
-
-                    aviso("Opcao invalida. Use 1, 2, 3 ou 0.")
-                    continue
-
-    return modo_comparativo, substituicoes_comparativo
 
 
 def _configurar_projeto_interativo(cfg):
@@ -1242,22 +945,46 @@ def _build_resultado_final(
     return resultado_final
 
 
-def _executar_modo_comparativo(
-    modo_comparativo, substituicoes_comparativo, cfg, df_faz, fazenda,
-    modo_seq, usar_bloqueio_global, usar_reforco_automatico, usar_pool_pos_bloqueio,
-    prazo_meses, mes_ref, ano_ref, data_inicio_txt, data_fim_txt,
-    jornada, executores, turmas, preencher_orfas,
-    reatribuicao, paralelo, primaria, session_hh,
-    escopo_meta, atividades_catalogo, dias_simulado, total_hh, total_hm,
-):
+@dataclass
+class _ModoComparativoCtx:
+    modo_comparativo: any
+    substituicoes_comparativo: any
+    cfg: any
+    df_faz: any
+    fazenda: any
+    modo_seq: any
+    usar_bloqueio_global: any
+    usar_reforco_automatico: any
+    usar_pool_pos_bloqueio: any
+    prazo_meses: any
+    mes_ref: any
+    ano_ref: any
+    data_inicio_txt: any
+    data_fim_txt: any
+    jornada: any
+    executores: any
+    turmas: any
+    preencher_orfas: any
+    reatribuicao: any
+    paralelo: any
+    primaria: any
+    session_hh: any
+    escopo_meta: any
+    atividades_catalogo: any
+    dias_simulado: any
+    total_hh: any
+    total_hm: any
+
+
+def _executar_modo_comparativo(ctx: _ModoComparativoCtx):
     resultado_mecanizado = None
     resultado_mecanizado_valido = False
-    if modo_comparativo and substituicoes_comparativo:
+    if ctx.modo_comparativo and ctx.substituicoes_comparativo:
         sub()
         print(C + BL + " EXECUTANDO CENÁRIO MECANIZADO (Comparativo)" + RS)
         print(DM + " Preparando substituições de atividades..." + RS)
 
-        comparativo_cfg = cfg.get("comparativo", {}) if isinstance(cfg, dict) else {}
+        comparativo_cfg = ctx.cfg.get("comparativo", {}) if isinstance(ctx.cfg, dict) else {}
         execucao_compacta = bool(comparativo_cfg.get("execucao_compacta", True))
         if execucao_compacta:
             print(
@@ -1266,35 +993,35 @@ def _executar_modo_comparativo(
                 + RS
             )
 
-        df_mec = _substituir_por_mecanizado(df_faz, substituicoes_comparativo)
-        cfg_mec = _clonar_cfg_comparativo_mecanizado(cfg, substituicoes_comparativo)
+        df_mec = _substituir_por_mecanizado(ctx.df_faz, ctx.substituicoes_comparativo)
+        cfg_mec = _clonar_cfg_comparativo_mecanizado(ctx.cfg, ctx.substituicoes_comparativo)
 
         n_substituicoes = 0
-        for manual, mec in substituicoes_comparativo.items():
-            if (df_faz["atividade"] == manual).any():
-                n_substituicoes += (df_faz["atividade"] == manual).sum()
+        for manual, mec in ctx.substituicoes_comparativo.items():
+            if (ctx.df_faz["atividade"] == manual).any():
+                n_substituicoes += (ctx.df_faz["atividade"] == manual).sum()
 
         ok(f"{n_substituicoes} registro(s) serão executados com versão mecanizada.")
 
         ctx_mec = {
-            "modo_seq": modo_seq,
-            "usar_bloqueio_global": usar_bloqueio_global,
-            "usar_reforco_automatico": usar_reforco_automatico,
-            "usar_pool_pos_bloqueio": usar_pool_pos_bloqueio,
-            "prazo_meses": prazo_meses,
-            "mes_ref": mes_ref,
-            "ano_ref": ano_ref,
-            "data_inicio_txt": data_inicio_txt,
-            "data_fim_txt": data_fim_txt,
-            "jornada": jornada,
-            "executores": executores,
-            "turmas": turmas,
-            "preencher_orfas_template": preencher_orfas,
-            "substituicoes_template": substituicoes_comparativo,
-            "reatribuicao_template": reatribuicao,
-            "paralelo_template": paralelo,
-            "primaria_template": primaria,
-            "session_hh": session_hh,
+            "modo_seq": ctx.modo_seq,
+            "usar_bloqueio_global": ctx.usar_bloqueio_global,
+            "usar_reforco_automatico": ctx.usar_reforco_automatico,
+            "usar_pool_pos_bloqueio": ctx.usar_pool_pos_bloqueio,
+            "prazo_meses": ctx.prazo_meses,
+            "mes_ref": ctx.mes_ref,
+            "ano_ref": ctx.ano_ref,
+            "data_inicio_txt": ctx.data_inicio_txt,
+            "data_fim_txt": ctx.data_fim_txt,
+            "jornada": ctx.jornada,
+            "executores": ctx.executores,
+            "turmas": ctx.turmas,
+            "preencher_orfas_template": ctx.preencher_orfas,
+            "substituicoes_template": ctx.substituicoes_comparativo,
+            "reatribuicao_template": ctx.reatribuicao,
+            "paralelo_template": ctx.paralelo,
+            "primaria_template": ctx.primaria,
+            "session_hh": ctx.session_hh,
         }
 
         if execucao_compacta:
@@ -1304,11 +1031,11 @@ def _executar_modo_comparativo(
                     resultado_mecanizado = calcular_cronograma_inteligente(
                         cfg_mec,
                         df_mec,
-                        fazenda + " (MECANIZADO)",
+                        ctx.fazenda + " (MECANIZADO)",
                         esperar_enter=False,
                         ctx=ctx_mec,
-                        escopo_meta=escopo_meta,
-                        atividades_catalogo=atividades_catalogo,
+                        escopo_meta=ctx.escopo_meta,
+                        atividades_catalogo=ctx.atividades_catalogo,
                         modo_comparativo=False,
                         substituicoes_comparativo=None,
                     )
@@ -1319,11 +1046,11 @@ def _executar_modo_comparativo(
             resultado_mecanizado = calcular_cronograma_inteligente(
                 cfg_mec,
                 df_mec,
-                fazenda + " (MECANIZADO)",
+                ctx.fazenda + " (MECANIZADO)",
                 esperar_enter=False,
                 ctx=ctx_mec,
-                escopo_meta=escopo_meta,
-                atividades_catalogo=atividades_catalogo,
+                escopo_meta=ctx.escopo_meta,
+                atividades_catalogo=ctx.atividades_catalogo,
                 modo_comparativo=False,
                 substituicoes_comparativo=None,
             )
@@ -1361,17 +1088,17 @@ def _executar_modo_comparativo(
         print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
         print()
 
-        d_manual = float(dias_simulado)
+        d_manual = float(ctx.dias_simulado)
         d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
-        hh_manual = float(total_hh)
+        hh_manual = float(ctx.total_hh)
         hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
-        hm_manual = float(total_hm)
+        hm_manual = float(ctx.total_hm)
         hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
 
         economia_dias = int(d_manual - d_mec)
         economia_hh = hh_manual - hh_mec
         economia_hm = hm_mec - hm_manual
-        cap_hh_dia = float(executores) * float(jornada)
+        cap_hh_dia = float(ctx.executores) * float(ctx.jornada)
         dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
         dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
         delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
@@ -1397,9 +1124,9 @@ def _executar_modo_comparativo(
             for nm_turma in turmas_mec_comp:
                 print(DM + f"    - {nm_turma}" + RS)
             print()
-        if substituicoes_comparativo:
+        if ctx.substituicoes_comparativo:
             print(G + BL + "  SUBSTITUICOES APLICADAS:" + RS)
-            for manual, mec in substituicoes_comparativo.items():
+            for manual, mec in ctx.substituicoes_comparativo.items():
                 print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
             print()
 
@@ -2648,14 +2375,36 @@ def calcular_cronograma_inteligente(
     )
 
     preencher_orfas = False
-    resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(
-        modo_comparativo, substituicoes_comparativo, cfg, df_faz, fazenda,
-        modo_seq, usar_bloqueio_global, usar_reforco_automatico, usar_pool_pos_bloqueio,
-        prazo_meses, mes_ref, ano_ref, data_inicio_txt, data_fim_txt,
-        jornada, executores, turmas, preencher_orfas,
-        reatribuicao, paralelo, primaria, session_hh,
-        escopo_meta, atividades_catalogo, dias_simulado, total_hh, total_hm,
+    _cmp_ctx = _ModoComparativoCtx(
+        modo_comparativo=modo_comparativo,
+        substituicoes_comparativo=substituicoes_comparativo,
+        cfg=cfg,
+        df_faz=df_faz,
+        fazenda=fazenda,
+        modo_seq=modo_seq,
+        usar_bloqueio_global=usar_bloqueio_global,
+        usar_reforco_automatico=usar_reforco_automatico,
+        usar_pool_pos_bloqueio=usar_pool_pos_bloqueio,
+        prazo_meses=prazo_meses,
+        mes_ref=mes_ref,
+        ano_ref=ano_ref,
+        data_inicio_txt=data_inicio_txt,
+        data_fim_txt=data_fim_txt,
+        jornada=jornada,
+        executores=executores,
+        turmas=turmas,
+        preencher_orfas=preencher_orfas,
+        reatribuicao=reatribuicao,
+        paralelo=paralelo,
+        primaria=primaria,
+        session_hh=session_hh,
+        escopo_meta=escopo_meta,
+        atividades_catalogo=atividades_catalogo,
+        dias_simulado=dias_simulado,
+        total_hh=total_hh,
+        total_hm=total_hm,
     )
+    resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(_cmp_ctx)
 
     resultado_final = _build_resultado_final(
         esperar_enter, fazenda, dias_simulado, meses_simulado,
