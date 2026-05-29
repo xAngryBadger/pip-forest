@@ -8,7 +8,11 @@ from pathlib import Path
 
 from src.atm.orca import config as cfg_module
 
-_BASE_DATA_DIR = Path(os.environ.get("ORCA_DATA_DIR", "data"))
+def _get_base_data_dir():
+    return Path(os.environ.get("ORCA_DATA_DIR", "data"))
+
+
+_BASE_DATA_DIR = _get_base_data_dir()
 _SESSIONS_DIR = _BASE_DATA_DIR / "sessions"
 _STEP_TIMEOUT = int(os.environ.get("ORCA_STEP_TIMEOUT", "3600"))
 
@@ -33,10 +37,10 @@ class Session:
         self._step_ready = threading.Event()
         self._step_answered = threading.Event()
 
-        self.data_dir = _SESSIONS_DIR / self.session_id
+        self.data_dir = _get_base_data_dir() / "sessions" / self.session_id
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        cfg_src = base_config_path or str(_BASE_DATA_DIR / "config.json")
+        cfg_src = base_config_path or str(_get_base_data_dir() / "config.json")
         if not os.path.exists(cfg_src):
             cfg_src = cfg_module.CFGP
         cfg_dst = self.data_dir / "config.json"
@@ -54,7 +58,7 @@ class Session:
             finally:
                 cfg_module.CFGP = _old_cfgp
 
-        planilhas_src = _BASE_DATA_DIR / "planilhas"
+        planilhas_src = _get_base_data_dir() / "planilhas"
         planilhas_dst = self.data_dir / "planilhas"
         if planilhas_src.exists() and not planilhas_dst.exists():
             shutil.copytree(planilhas_src, planilhas_dst)
@@ -114,8 +118,8 @@ class Session:
                 "dashboard": self.dashboard.copy(),
                 "timestamp": datetime.datetime.now().isoformat(),
             }
-            self._step_ready.set()
-            self._step_answered.set()
+        self._step_ready.set()
+        self._step_answered.clear()
 
 
 _current = threading.local()
