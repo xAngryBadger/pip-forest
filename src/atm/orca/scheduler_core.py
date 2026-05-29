@@ -550,6 +550,7 @@ def _configurar_projeto_interativo(cfg):
         "prazo_meses": prazo_meses,
         "mes_ref": mes_ref,
         "ano_ref": ano_ref,
+        "dia_ref": dia_ref,
         "data_inicio_txt": data_inicio_txt,
         "data_fim_txt": data_fim_txt,
         "jornada": jornada,
@@ -1336,6 +1337,394 @@ def _build_resultado_final(
     return resultado_final
 
 
+def _executar_modo_comparativo(
+    modo_comparativo, substituicoes_comparativo, cfg, df_faz, fazenda,
+    modo_seq, usar_bloqueio_global, usar_reforco_automatico, usar_pool_pos_bloqueio,
+    prazo_meses, mes_ref, ano_ref, data_inicio_txt, data_fim_txt,
+    jornada, executores, turmas, preencher_orfas,
+    reatribuicao, paralelo, primaria, session_hh,
+    escopo_meta, atividades_catalogo, dias_simulado, total_hh, total_hm,
+):
+    resultado_mecanizado = None
+    resultado_mecanizado_valido = False
+    if modo_comparativo and substituicoes_comparativo:
+        sub()
+        print(C + BL + " EXECUTANDO CENÁRIO MECANIZADO (Comparativo)" + RS)
+        print(DM + " Preparando substituições de atividades..." + RS)
+
+        comparativo_cfg = cfg.get("comparativo", {}) if isinstance(cfg, dict) else {}
+        execucao_compacta = bool(comparativo_cfg.get("execucao_compacta", True))
+        if execucao_compacta:
+            print(
+                DM
+                + " Cenário mecanizado em modo compacto: detalhes intermediários suprimidos."
+                + RS
+            )
+
+        df_mec = _substituir_por_mecanizado(df_faz, substituicoes_comparativo)
+        cfg_mec = _clonar_cfg_comparativo_mecanizado(cfg, substituicoes_comparativo)
+
+        n_substituicoes = 0
+        for manual, mec in substituicoes_comparativo.items():
+            if (df_faz["atividade"] == manual).any():
+                n_substituicoes += (df_faz["atividade"] == manual).sum()
+
+        ok(f"{n_substituicoes} registro(s) serão executados com versão mecanizada.")
+
+        ctx_mec = {
+            "modo_seq": modo_seq,
+            "usar_bloqueio_global": usar_bloqueio_global,
+            "usar_reforco_automatico": usar_reforco_automatico,
+            "usar_pool_pos_bloqueio": usar_pool_pos_bloqueio,
+            "prazo_meses": prazo_meses,
+            "mes_ref": mes_ref,
+            "ano_ref": ano_ref,
+            "data_inicio_txt": data_inicio_txt,
+            "data_fim_txt": data_fim_txt,
+            "jornada": jornada,
+            "executores": executores,
+            "turmas": turmas,
+            "preencher_orfas_template": preencher_orfas,
+            "substituicoes_template": substituicoes_comparativo,
+            "reatribuicao_template": reatribuicao,
+            "paralelo_template": paralelo,
+            "primaria_template": primaria,
+            "session_hh": session_hh,
+        }
+
+        if execucao_compacta:
+            _buf_cmp = io.StringIO()
+            try:
+                with redirect_stdout(_buf_cmp), redirect_stderr(_buf_cmp):
+                    resultado_mecanizado = calcular_cronograma_inteligente(
+                        cfg_mec,
+                        df_mec,
+                        fazenda + " (MECANIZADO)",
+                        esperar_enter=False,
+                        ctx=ctx_mec,
+                        escopo_meta=escopo_meta,
+                        atividades_catalogo=atividades_catalogo,
+                        modo_comparativo=False,
+                        substituicoes_comparativo=None,
+                    )
+            except Exception as e:
+                resultado_mecanizado = None
+                aviso(f"Cenario mecanizado falhou em modo compacto: {e}")
+        else:
+            resultado_mecanizado = calcular_cronograma_inteligente(
+                cfg_mec,
+                df_mec,
+                fazenda + " (MECANIZADO)",
+                esperar_enter=False,
+                ctx=ctx_mec,
+                escopo_meta=escopo_meta,
+                atividades_catalogo=atividades_catalogo,
+                modo_comparativo=False,
+                substituicoes_comparativo=None,
+            )
+
+        if isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao") == "retroceder_escopo":
+            aviso("Cenário mecanizado cancelado.")
+            resultado_mecanizado = None
+        elif isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao"):
+            aviso(
+                f"Cenario mecanizado finalizou com acao '{resultado_mecanizado.get('acao')}'."
+            )
+            resultado_mecanizado = None
+        elif not isinstance(resultado_mecanizado, dict):
+            aviso("Cenario mecanizado nao retornou resultado valido.")
+            resultado_mecanizado = None
+        else:
+            chaves_obrigatorias = (
+                "dias_simulado",
+                "total_hh",
+            )
+            faltantes = [k for k in chaves_obrigatorias if k not in resultado_mecanizado]
+            if faltantes:
+                aviso(
+                    "Cenario mecanizado retornou resultado incompleto; comparativo nao sera exibido."
+                )
+                resultado_mecanizado = None
+            else:
+                resultado_mecanizado_valido = True
+                ok("Cenário mecanizado concluído!")
+
+    if resultado_mecanizado_valido:
+        sub()
+        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
+        print(G + BL + "       COMPARATIVO: MANUAL vs MECANIZADO" + RS)
+        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
+        print()
+
+        d_manual = float(dias_simulado)
+        d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
+        hh_manual = float(total_hh)
+        hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
+        hm_manual = float(total_hm)
+        hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
+
+        economia_dias = int(d_manual - d_mec)
+        economia_hh = hh_manual - hh_mec
+        economia_hm = hm_mec - hm_manual
+        cap_hh_dia = float(executores) * float(jornada)
+        dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
+        dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
+        delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
+        cronograma_mec_ref = resultado_mecanizado.get("cronograma") or []
+        turmas_mec_comp = sorted(
+            {
+                str(x.get("Turma", ""))
+                for x in cronograma_mec_ref
+                if str(x.get("Turma", "")).startswith("MEC_")
+            },
+            key=str,
+        )
+
+        print(f"  {C}Métrica{RS}                    {C}Manual{RS}          {C}Mecanizado{RS}      {C}Diferença{RS}")
+        print(f"  {DM}{'─' * 70}{RS}")
+        print(f"  {'Dias necessários':<25} {d_manual:>10.0f}      {d_mec:>10.0f}      {Y}{economia_dias:>+10.0f}{RS}")
+        print(f"  {'HH totais':<25} {hh_manual:>10.1f}      {hh_mec:>10.1f}      {Y}{economia_hh:>+10.1f}{RS}")
+        print(f"  {'HM totais':<25} {hm_manual:>10.1f}      {hm_mec:>10.1f}      {Y}{economia_hm:>+10.1f}{RS}")
+        print(f"  {'Dias eq. via HH/cap':<25} {dias_eq_hh_manual:>10.2f}      {dias_eq_hh_mec:>10.2f}      {Y}{delta_dias_eq_hh:>+10.2f}{RS}")
+        print()
+        if turmas_mec_comp:
+            print(G + BL + "  TURMAS MECANIZADAS NO CENARIO:" + RS)
+            for nm_turma in turmas_mec_comp:
+                print(DM + f"    - {nm_turma}" + RS)
+            print()
+        if substituicoes_comparativo:
+            print(G + BL + "  SUBSTITUICOES APLICADAS:" + RS)
+            for manual, mec in substituicoes_comparativo.items():
+                print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
+            print()
+
+        print(G + BL + "  DESTAQUES:" + RS)
+        if economia_dias > 0:
+            print(f"  {G}✓{RS} Redução de {G}{economia_dias}{RS} dias com mecanização")
+        if economia_hh > 0:
+            print(f"  {G}✓{RS} Economia de {G}{economia_hh:.1f}{RS} HH (mão de obra humana)")
+        if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > _HH_EPSILON:
+            print(
+                DM
+                + f"  Nota: a reducao de HH equivale a ~{delta_dias_eq_hh:.2f} dia(s), "
+                + "mas o cronograma fecha por dias inteiros e caminho critico; por isso pode manter o mesmo total de dias."
+                + RS
+            )
+        print()
+        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
+        sub()
+
+    return resultado_mecanizado, resultado_mecanizado_valido
+
+
+def _exportar_dossier_excel(
+    cronograma_base, escopo_meta, fazenda, executores, jornada,
+    prazo_meses, dias_meta, dias_simulado, meses_simulado,
+    total_hh, total_custo, pct_fallback, n_fb,
+    atividades_escopo, ag_hum_set, escopo_set, ag_mec_set, faltantes_set,
+    recursos_mec, cronograma, turmas, dias_simulado_hum,
+    cronograma_mec, cronograma_com_mec, cronograma_mec_base,
+    df_audit, cenarios_rows, mes_ref, ano_ref, dia_ref, cfg,
+):
+    if not cronograma_base:
+        return
+
+    def _slug_nome(v):
+        return str(v).replace("/", "_").replace(" ", "_")
+
+    try:
+        scope_tag = "__FAZENDA_TODOS"
+        if isinstance(escopo_meta, dict):
+            modo_th = str(escopo_meta.get("modo_talhao") or "")
+            ths = [
+                str(x) for x in (escopo_meta.get("talhoes") or []) if str(x).strip()
+            ]
+            if modo_th in ("unico", "parcial") and len(ths) == 1:
+                scope_tag = f"__TH_{_slug_nome(ths[0])}"
+            elif modo_th == "parcial" and len(ths) > 1:
+                scope_tag = f"__TH_MULTI_{len(ths)}"
+            elif modo_th in ("todos", "fallback_todos"):
+                scope_tag = "__FAZENDA_TODOS"
+
+        nome_base = f"Dossier_{_slug_nome(fazenda)}{scope_tag}"
+        nome_op = f"{nome_base}_OPERACIONAL.xlsx"
+        pasta_dossier = OUTPUT_DIR
+        os.makedirs(pasta_dossier, exist_ok=True)
+        nome_op, caminho_op = _proximo_caminho_livre(pasta_dossier, nome_op)
+
+        df_crono = pd.DataFrame(cronograma_base)
+        if "Dia" in df_crono.columns:
+            df_crono["Semana"] = df_crono["Dia"].apply(
+                lambda d: int(math.ceil(float(d) / 5.0)) if pd.notna(d) else ""
+            )
+
+        rows_op = [
+            {"Metrica": "Fazenda", "Valor": fazenda},
+            {"Metrica": "Arquivo operacional", "Valor": nome_op},
+            {"Metrica": "Executores", "Valor": executores},
+            {"Metrica": "Jornada (h/dia)", "Valor": jornada},
+            {"Metrica": "Prazo Meta (meses)", "Valor": prazo_meses},
+            {"Metrica": "Dias Uteis Meta", "Valor": dias_meta},
+            {"Metrica": "Duracao Simulada (dias uteis)", "Valor": dias_simulado},
+            {"Metrica": "Duracao Simulada (meses)", "Valor": f"{meses_simulado:.1f}"},
+            {"Metrica": "HH Total Simulado", "Valor": f"{total_hh:,.1f}"},
+            {
+                "Metrica": "Custo MO Total",
+                "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
+            },
+            {
+                "Metrica": "Fonte dos dados",
+                "Valor": "100% CT"
+                if pct_fallback < _HH_EPSILON
+                else f"{100 - pct_fallback:.0f}% CT ({n_fb} fallbacks)",
+            },
+            {"Metrica": "", "Valor": ""},
+            {"Metrica": "Atividades no escopo", "Valor": len(atividades_escopo)},
+            {"Metrica": "Agendadas (humano)", "Valor": len(ag_hum_set & escopo_set)},
+            {"Metrica": "Agendadas (mecanizado)", "Valor": len(ag_mec_set & escopo_set)},
+            {"Metrica": "Nao agendadas", "Valor": len(faltantes_set)},
+        ]
+        if isinstance(escopo_meta, dict):
+            rows_op.append(
+                {
+                    "Metrica": "Escopo talhoes",
+                    "Valor": ", ".join(
+                        str(x) for x in (escopo_meta.get("talhoes") or [])
+                    )
+                    or "todos",
+                }
+            )
+        if recursos_mec:
+            rows_op += [{"Metrica": "", "Valor": ""}]
+            for rec in recursos_mec:
+                rows_op.append(
+                    {
+                        "Metrica": f"Mecanizado: {rec['nome']}",
+                        "Valor": f"{rec['prod_ha_h']} ha/h",
+                    }
+                )
+                rows_op.append(
+                    {
+                        "Metrica": f"  Atividades ({rec['nome']})",
+                        "Valor": str(len(rec.get("atividades", set()))),
+                    }
+                )
+        resumo_op = pd.DataFrame(rows_op)
+
+        df_cascata = _gerar_aba_cascata_explicada(
+            cronograma_base, jornada, dia_ref, mes_ref, ano_ref
+        )
+        df_ocupacao = _gerar_aba_ocupacao_turmas(
+            cronograma, turmas, jornada, dias_simulado_hum, dia_ref, mes_ref, ano_ref
+        )
+        df_crono_op = _df_crono_operacional(df_crono, dia_ref, mes_ref, ano_ref)
+
+        with pd.ExcelWriter(caminho_op, engine="openpyxl") as writer_op:
+            resumo_op.to_excel(writer_op, sheet_name="RESUMO_OPERACIONAL", index=False)
+            df_crono_op.to_excel(writer_op, sheet_name="CRONOGRAMA_DETALHADO", index=False)
+            if not df_cascata.empty:
+                df_cascata.to_excel(writer_op, sheet_name="CASCATA_EXPLICADA", index=False)
+            if not df_ocupacao.empty:
+                df_ocupacao.to_excel(writer_op, sheet_name="OCUPACAO_TURMAS_DIA", index=False)
+            if recursos_mec and cronograma_mec:
+                df_mec_crono = _df_crono_operacional(pd.DataFrame(cronograma_mec))
+                df_mec_crono.to_excel(writer_op, sheet_name="CRONOGRAMA_MECANIZADO", index=False)
+                df_combinado = _df_crono_operacional(pd.DataFrame(cronograma_com_mec))
+                df_combinado.to_excel(writer_op, sheet_name="CRONOGRAMA_COMBINADO", index=False)
+            if cronograma_mec_base:
+                df_mec_base = _df_crono_operacional(pd.DataFrame(cronograma_mec_base))
+                df_mec_base.to_excel(writer_op, sheet_name="CRONOGRAMA_MEC_BASE", index=False)
+            if not df_audit.empty:
+                df_audit.to_excel(writer_op, sheet_name="AUDITORIA_ESCOPO", index=False)
+            wb_op = writer_op.book
+            _aplicar_cores_ocupacao_excel(wb_op, "OCUPACAO_TURMAS_DIA")
+            try:
+                from orca_excel_format import aplicar_formatacao_operacional
+
+                aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma_base)
+            except Exception as _fmt_err:
+                aviso(f"Formatacao operacional falhou (formatador externo): {_fmt_err}")
+
+        ok(f"Dossier operacional exportado: {nome_op}")
+
+        if cenarios_rows:
+            nome_xlsx_cmp = f"Dossier_{fazenda.replace('/', '_').replace(' ', '_')}_COMPARATIVO_CENARIOS.xlsx"
+            nome_xlsx_cmp, caminho_xlsx_cmp = _proximo_caminho_livre(
+                pasta_dossier, nome_xlsx_cmp
+            )
+            with pd.ExcelWriter(caminho_xlsx_cmp, engine="openpyxl") as writer3:
+                pd.DataFrame(cenarios_rows).to_excel(
+                    writer3, sheet_name="COMPARATIVO_CENARIOS", index=False
+                )
+            ok(f"Dossier comparativo de cenarios exportado: {nome_xlsx_cmp}")
+
+        if recursos_mec and cronograma_com_mec:
+            nome_mec_op = f"{nome_base}_COM_MECANIZADO_OPERACIONAL.xlsx"
+            nome_mec_op, caminho_mec_op = _proximo_caminho_livre(
+                pasta_dossier, nome_mec_op
+            )
+            df_mec_full = pd.DataFrame(cronograma_com_mec)
+            if "Dia" in df_mec_full.columns:
+                df_mec_full["Semana"] = df_mec_full["Dia"].apply(
+                    lambda d: int(math.ceil(float(d) / 5.0)) if pd.notna(d) else ""
+                )
+            d_comb = max(
+                [int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0
+            )
+            rows_mec_op = [
+                {"Metrica": "Fazenda", "Valor": fazenda},
+                {"Metrica": "Arquivo operacional", "Valor": nome_mec_op},
+                {"Metrica": "Cenario", "Valor": "Humano + Mecanizado"},
+                {"Metrica": "Dias baseline (humano)", "Valor": dias_simulado},
+                {"Metrica": "Dias cenario combinado", "Valor": d_comb},
+                {
+                    "Metrica": "Ganho de prazo (dias)",
+                    "Valor": int(dias_simulado) - int(d_comb),
+                },
+                {
+                    "Metrica": "Custo MO Total",
+                    "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
+                },
+            ]
+            for rec in recursos_mec:
+                rows_mec_op.append(
+                    {
+                        "Metrica": f"Recurso: {rec['nome']}",
+                        "Valor": f"{rec['prod_ha_h']} ha/h",
+                    }
+                )
+
+            df_cascata_mec = _gerar_aba_cascata_explicada(
+                cronograma_com_mec, jornada, dia_ref, mes_ref, ano_ref
+            )
+            df_mec_op = _df_crono_operacional(
+                df_mec_full, dia_ref, mes_ref, ano_ref
+            )
+
+            with pd.ExcelWriter(caminho_mec_op, engine="openpyxl") as writer_mo:
+                pd.DataFrame(rows_mec_op).to_excel(
+                    writer_mo, sheet_name="RESUMO_OPERACIONAL", index=False
+                )
+                df_mec_op.to_excel(
+                    writer_mo, sheet_name="CRONOGRAMA_DETALHADO", index=False
+                )
+                if not df_cascata_mec.empty:
+                    df_cascata_mec.to_excel(
+                        writer_mo, sheet_name="CASCATA_EXPLICADA", index=False
+                    )
+                wb_mo = writer_mo.book
+                try:
+                    from orca_excel_format import aplicar_formatacao_operacional
+
+                    aplicar_formatacao_operacional(wb_mo, d_comb, cronograma_com_mec)
+                except Exception as _fmt_err:
+                    aviso(f"Formatacao mecanizado falhou (formatador externo): {_fmt_err}")
+
+            ok(f"Dossier cenario mecanizado (operacional): {nome_mec_op}")
+    except Exception as ex:
+        aviso(f"Nao foi possivel salvar Dossier: {ex}")
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -1543,6 +1932,7 @@ def calcular_cronograma_inteligente(
         prazo_meses = ctx["prazo_meses"]
         mes_ref = ctx["mes_ref"]
         ano_ref = ctx["ano_ref"]
+        dia_ref = ctx.get("dia_ref", 1)
         data_inicio_txt = ctx.get("data_inicio_txt")
         data_fim_txt = ctx.get("data_fim_txt")
         if data_inicio_txt or data_fim_txt:
@@ -1571,6 +1961,7 @@ def calcular_cronograma_inteligente(
         prazo_meses = proj["prazo_meses"]
         mes_ref = proj["mes_ref"]
         ano_ref = proj["ano_ref"]
+        dia_ref = proj["dia_ref"]
         data_inicio_txt = proj["data_inicio_txt"]
         data_fim_txt = proj["data_fim_txt"]
         jornada = proj["jornada"]
@@ -2295,228 +2686,15 @@ def calcular_cronograma_inteligente(
     faltantes_set = audit["faltantes_set"]
     df_audit = audit["df_audit"]
 
-    # ── Export Dossier Excel (somente operacional) ──
-    if cronograma_base:
-        try:
-
-            def _slug_nome(v):
-                return str(v).replace("/", "_").replace(" ", "_")
-
-            scope_tag = "__FAZENDA_TODOS"
-            if isinstance(escopo_meta, dict):
-                modo_th = str(escopo_meta.get("modo_talhao") or "")
-                ths = [
-                    str(x) for x in (escopo_meta.get("talhoes") or []) if str(x).strip()
-                ]
-                if modo_th in ("unico", "parcial") and len(ths) == 1:
-                    scope_tag = f"__TH_{_slug_nome(ths[0])}"
-                elif modo_th == "parcial" and len(ths) > 1:
-                    scope_tag = f"__TH_MULTI_{len(ths)}"
-                elif modo_th in ("todos", "fallback_todos"):
-                    scope_tag = "__FAZENDA_TODOS"
-
-            nome_base = f"Dossier_{_slug_nome(fazenda)}{scope_tag}"
-            nome_op = f"{nome_base}_OPERACIONAL.xlsx"
-            pasta_dossier = OUTPUT_DIR
-            os.makedirs(pasta_dossier, exist_ok=True)
-            nome_op, caminho_op = _proximo_caminho_livre(pasta_dossier, nome_op)
-
-            df_crono = pd.DataFrame(cronograma_base)
-            if "Dia" in df_crono.columns:
-                df_crono["Semana"] = df_crono["Dia"].apply(
-                    lambda d: int(math.ceil(float(d) / 5.0)) if pd.notna(d) else ""
-                )
-
-            rows_op = [
-                {"Metrica": "Fazenda", "Valor": fazenda},
-                {"Metrica": "Arquivo operacional", "Valor": nome_op},
-                {"Metrica": "Executores", "Valor": executores},
-                {"Metrica": "Jornada (h/dia)", "Valor": jornada},
-                {"Metrica": "Prazo Meta (meses)", "Valor": prazo_meses},
-                {"Metrica": "Dias Uteis Meta", "Valor": dias_meta},
-                {"Metrica": "Duracao Simulada (dias uteis)", "Valor": dias_simulado},
-                {
-                    "Metrica": "Duracao Simulada (meses)",
-                    "Valor": f"{meses_simulado:.1f}",
-                },
-                {"Metrica": "HH Total Simulado", "Valor": f"{total_hh:,.1f}"},
-                {
-                    "Metrica": "Custo MO Total",
-                    "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
-                },
-                {
-                    "Metrica": "Fonte dos dados",
-                    "Valor": "100% CT"
-                    if pct_fallback < _HH_EPSILON
-                    else f"{100 - pct_fallback:.0f}% CT ({n_fb} fallbacks)",
-                },
-                {"Metrica": "", "Valor": ""},
-                {"Metrica": "Atividades no escopo", "Valor": len(atividades_escopo)},
-                {
-                    "Metrica": "Agendadas (humano)",
-                    "Valor": len(ag_hum_set & escopo_set),
-                },
-                {
-                    "Metrica": "Agendadas (mecanizado)",
-                    "Valor": len(ag_mec_set & escopo_set),
-                },
-                {"Metrica": "Nao agendadas", "Valor": len(faltantes_set)},
-            ]
-            if isinstance(escopo_meta, dict):
-                rows_op.append(
-                    {
-                        "Metrica": "Escopo talhoes",
-                        "Valor": ", ".join(
-                            str(x) for x in (escopo_meta.get("talhoes") or [])
-                        )
-                        or "todos",
-                    }
-                )
-            if recursos_mec:
-                rows_op += [{"Metrica": "", "Valor": ""}]
-                for rec in recursos_mec:
-                    rows_op.append(
-                        {
-                            "Metrica": f"Mecanizado: {rec['nome']}",
-                            "Valor": f"{rec['prod_ha_h']} ha/h",
-                        }
-                    )
-                    rows_op.append(
-                        {
-                            "Metrica": f"  Atividades ({rec['nome']})",
-                            "Valor": str(len(rec.get("atividades", set()))),
-                        }
-                    )
-            resumo_op = pd.DataFrame(rows_op)
-
-            df_cascata = _gerar_aba_cascata_explicada(
-                cronograma_base, jornada, dia_ref, mes_ref, ano_ref
-            )
-            df_ocupacao = _gerar_aba_ocupacao_turmas(
-                cronograma, turmas, jornada, dias_simulado_hum, dia_ref, mes_ref, ano_ref
-            )
-            df_crono_op = _df_crono_operacional(df_crono, dia_ref, mes_ref, ano_ref)
-
-            with pd.ExcelWriter(caminho_op, engine="openpyxl") as writer_op:
-                resumo_op.to_excel(
-                    writer_op, sheet_name="RESUMO_OPERACIONAL", index=False
-                )
-                df_crono_op.to_excel(
-                    writer_op, sheet_name="CRONOGRAMA_DETALHADO", index=False
-                )
-                if not df_cascata.empty:
-                    df_cascata.to_excel(
-                        writer_op, sheet_name="CASCATA_EXPLICADA", index=False
-                    )
-                if not df_ocupacao.empty:
-                    df_ocupacao.to_excel(
-                        writer_op, sheet_name="OCUPACAO_TURMAS_DIA", index=False
-                    )
-                if recursos_mec and cronograma_mec:
-                    df_mec_crono = _df_crono_operacional(pd.DataFrame(cronograma_mec))
-                    df_mec_crono.to_excel(
-                        writer_op, sheet_name="CRONOGRAMA_MECANIZADO", index=False
-                    )
-                    df_combinado = _df_crono_operacional(pd.DataFrame(cronograma_com_mec))
-                    df_combinado.to_excel(
-                        writer_op, sheet_name="CRONOGRAMA_COMBINADO", index=False
-                    )
-                if cronograma_mec_base:
-                    df_mec_base = _df_crono_operacional(pd.DataFrame(cronograma_mec_base))
-                    df_mec_base.to_excel(
-                        writer_op, sheet_name="CRONOGRAMA_MEC_BASE", index=False
-                    )
-                if not df_audit.empty:
-                    df_audit.to_excel(
-                        writer_op, sheet_name="AUDITORIA_ESCOPO", index=False
-                    )
-                wb_op = writer_op.book
-                _aplicar_cores_ocupacao_excel(wb_op, "OCUPACAO_TURMAS_DIA")
-                try:
-                    from orca_excel_format import aplicar_formatacao_operacional
-
-                    aplicar_formatacao_operacional(wb_op, dias_simulado, cronograma_base)
-                except Exception as _fmt_err:
-                    aviso(f"Formatacao operacional falhou (formatador externo): {_fmt_err}")
-
-            ok(f"Dossier operacional exportado: {nome_op}")
-
-            if cenarios_rows:
-                nome_xlsx_cmp = f"Dossier_{fazenda.replace('/', '_').replace(' ', '_')}_COMPARATIVO_CENARIOS.xlsx"
-                nome_xlsx_cmp, caminho_xlsx_cmp = _proximo_caminho_livre(
-                    pasta_dossier, nome_xlsx_cmp
-                )
-                with pd.ExcelWriter(caminho_xlsx_cmp, engine="openpyxl") as writer3:
-                    pd.DataFrame(cenarios_rows).to_excel(
-                        writer3, sheet_name="COMPARATIVO_CENARIOS", index=False
-                    )
-                ok(f"Dossier comparativo de cenarios exportado: {nome_xlsx_cmp}")
-
-            if recursos_mec and cronograma_com_mec:
-                nome_mec_op = f"{nome_base}_COM_MECANIZADO_OPERACIONAL.xlsx"
-                nome_mec_op, caminho_mec_op = _proximo_caminho_livre(
-                    pasta_dossier, nome_mec_op
-                )
-                df_mec_full = pd.DataFrame(cronograma_com_mec)
-                if "Dia" in df_mec_full.columns:
-                    df_mec_full["Semana"] = df_mec_full["Dia"].apply(
-                        lambda d: int(math.ceil(float(d) / 5.0)) if pd.notna(d) else ""
-                    )
-                d_comb = max(
-                    [int(x.get("Dia", 0)) for x in cronograma_com_mec], default=0
-                )
-                rows_mec_op = [
-                    {"Metrica": "Fazenda", "Valor": fazenda},
-                    {"Metrica": "Arquivo operacional", "Valor": nome_mec_op},
-                    {"Metrica": "Cenario", "Valor": "Humano + Mecanizado"},
-                    {"Metrica": "Dias baseline (humano)", "Valor": dias_simulado},
-                    {"Metrica": "Dias cenario combinado", "Valor": d_comb},
-                    {
-                        "Metrica": "Ganho de prazo (dias)",
-                        "Valor": int(dias_simulado) - int(d_comb),
-                    },
-                        {
-                            "Metrica": "Custo MO Total",
-                            "Valor": f"R$ {total_custo:,.2f}" if not modo_somente_hh(cfg) else "N/A",
-                        },
-                ]
-                for rec in recursos_mec:
-                    rows_mec_op.append(
-                        {
-                            "Metrica": f"Recurso: {rec['nome']}",
-                            "Valor": f"{rec['prod_ha_h']} ha/h",
-                        }
-                    )
-
-                df_cascata_mec = _gerar_aba_cascata_explicada(
-                    cronograma_com_mec, jornada, dia_ref, mes_ref, ano_ref
-                )
-                df_mec_op = _df_crono_operacional(
-                    df_mec_full, dia_ref, mes_ref, ano_ref
-                )
-
-                with pd.ExcelWriter(caminho_mec_op, engine="openpyxl") as writer_mo:
-                    pd.DataFrame(rows_mec_op).to_excel(
-                        writer_mo, sheet_name="RESUMO_OPERACIONAL", index=False
-                    )
-                    df_mec_op.to_excel(
-                        writer_mo, sheet_name="CRONOGRAMA_DETALHADO", index=False
-                    )
-                    if not df_cascata_mec.empty:
-                        df_cascata_mec.to_excel(
-                            writer_mo, sheet_name="CASCATA_EXPLICADA", index=False
-                        )
-                    wb_mo = writer_mo.book
-                    try:
-                        from orca_excel_format import aplicar_formatacao_operacional
-
-                        aplicar_formatacao_operacional(wb_mo, d_comb, cronograma_com_mec)
-                    except Exception as _fmt_err:
-                        aviso(f"Formatacao mecanizado falhou (formatador externo): {_fmt_err}")
-
-                ok(f"Dossier cenario mecanizado (operacional): {nome_mec_op}")
-        except Exception as ex:
-            aviso(f"Nao foi possivel salvar Dossier: {ex}")
+    _exportar_dossier_excel(
+        cronograma_base, escopo_meta, fazenda, executores, jornada,
+        prazo_meses, dias_meta, dias_simulado, meses_simulado,
+        total_hh, total_custo, pct_fallback, n_fb,
+        atividades_escopo, ag_hum_set, escopo_set, ag_mec_set, faltantes_set,
+        recursos_mec, cronograma, turmas, dias_simulado_hum,
+        cronograma_mec, cronograma_com_mec, cronograma_mec_base,
+        df_audit, cenarios_rows, mes_ref, ano_ref, dia_ref, cfg,
+    )
 
     _diagnostico_prazo(
         prazo_meses, dias_meta, mes_ref, ano_ref,
@@ -2525,188 +2703,14 @@ def calcular_cronograma_inteligente(
         recursos_mec, cronograma_com_mec,
     )
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # MODO COMPARATIVO: Executar segunda simulação com atividades mecanizadas
-    # ═══════════════════════════════════════════════════════════════════════════
-    resultado_mecanizado = None
-    resultado_mecanizado_valido = False
-    if modo_comparativo and substituicoes_comparativo:
-        sub()
-        print(C + BL + " EXECUTANDO CENÁRIO MECANIZADO (Comparativo)" + RS)
-        print(DM + " Preparando substituições de atividades..." + RS)
-
-        comparativo_cfg = cfg.get("comparativo", {}) if isinstance(cfg, dict) else {}
-        execucao_compacta = bool(comparativo_cfg.get("execucao_compacta", True))
-        if execucao_compacta:
-            print(
-                DM
-                + " Cenário mecanizado em modo compacto: detalhes intermediários suprimidos."
-                + RS
-            )
-
-        # Criar cópia do dataframe com atividades substituídas
-        df_mec = _substituir_por_mecanizado(df_faz, substituicoes_comparativo)
-        cfg_mec = _clonar_cfg_comparativo_mecanizado(cfg, substituicoes_comparativo)
-
-        # Contar quantas atividades foram trocadas
-        n_substituicoes = 0
-        for manual, mec in substituicoes_comparativo.items():
-            if (df_faz["atividade"] == manual).any():
-                n_substituicoes += (df_faz["atividade"] == manual).sum()
-
-        ok(f"{n_substituicoes} registro(s) serão executados com versão mecanizada.")
-
-        # Executar segundo cenário (mecanizado) em modo batch para não interagir
-        ctx_mec = {
-            "modo_seq": modo_seq,
-            "usar_bloqueio_global": usar_bloqueio_global,
-            "usar_reforco_automatico": usar_reforco_automatico,
-            "usar_pool_pos_bloqueio": usar_pool_pos_bloqueio,
-            "prazo_meses": prazo_meses,
-            "mes_ref": mes_ref,
-            "ano_ref": ano_ref,
-            "data_inicio_txt": data_inicio_txt,
-            "data_fim_txt": data_fim_txt,
-            "jornada": jornada,
-            "executores": executores,
-            "turmas": turmas,
-            "preencher_orfas_template": preencher_orfas,
-            "substituicoes_template": substituicoes_comparativo,
-            "reatribuicao_template": reatribuicao,
-            "paralelo_template": paralelo,
-            "primaria_template": primaria,
-            "session_hh": session_hh,
-        }
-
-        if execucao_compacta:
-            _buf_cmp = io.StringIO()
-            try:
-                with redirect_stdout(_buf_cmp), redirect_stderr(_buf_cmp):
-                    resultado_mecanizado = calcular_cronograma_inteligente(
-                        cfg_mec,
-                        df_mec,
-                        fazenda + " (MECANIZADO)",
-                        esperar_enter=False,  # Não esperar enter no segundo cenário
-                        ctx=ctx_mec,
-                        escopo_meta=escopo_meta,
-                        atividades_catalogo=atividades_catalogo,
-                        modo_comparativo=False,  # Evitar recursão infinita
-                        substituicoes_comparativo=None,
-                    )
-            except Exception as e:
-                resultado_mecanizado = None
-                aviso(f"Cenario mecanizado falhou em modo compacto: {e}")
-        else:
-            resultado_mecanizado = calcular_cronograma_inteligente(
-                cfg_mec,
-                df_mec,
-                fazenda + " (MECANIZADO)",
-                esperar_enter=False,  # Não esperar enter no segundo cenário
-                ctx=ctx_mec,
-                escopo_meta=escopo_meta,
-                atividades_catalogo=atividades_catalogo,
-                modo_comparativo=False,  # Evitar recursão infinita
-                substituicoes_comparativo=None,
-            )
-
-        # Verificar se houve retrocesso
-        if isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao") == "retroceder_escopo":
-            aviso("Cenário mecanizado cancelado.")
-            resultado_mecanizado = None
-        elif isinstance(resultado_mecanizado, dict) and resultado_mecanizado.get("acao"):
-            aviso(
-                f"Cenario mecanizado finalizou com acao '{resultado_mecanizado.get('acao')}'."
-            )
-            resultado_mecanizado = None
-        elif not isinstance(resultado_mecanizado, dict):
-            aviso("Cenario mecanizado nao retornou resultado valido.")
-            resultado_mecanizado = None
-        else:
-            chaves_obrigatorias = (
-                "dias_simulado",
-                "total_hh",
-            )
-            faltantes = [k for k in chaves_obrigatorias if k not in resultado_mecanizado]
-            if faltantes:
-                aviso(
-                    "Cenario mecanizado retornou resultado incompleto; comparativo nao sera exibido."
-                )
-                resultado_mecanizado = None
-            else:
-                resultado_mecanizado_valido = True
-                ok("Cenário mecanizado concluído!")
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # EXIBIR COMPARATIVO (se modo comparativo ativo)
-    # ═══════════════════════════════════════════════════════════════════════════
-    if resultado_mecanizado_valido:
-        sub()
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        print(G + BL + "       COMPARATIVO: MANUAL vs MECANIZADO" + RS)
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        print()
-
-        # Preparar dados
-        d_manual = float(dias_simulado)
-        d_mec = float(resultado_mecanizado.get("dias_simulado") or 0)
-        hh_manual = float(total_hh)
-        hh_mec = float(resultado_mecanizado.get("total_hh") or 0)
-        hm_manual = float(total_hm)
-        hm_mec = float(resultado_mecanizado.get("total_hm") or 0)
-
-        # Calcular economia
-        economia_dias = int(d_manual - d_mec)
-        economia_hh = hh_manual - hh_mec
-        economia_hm = hm_mec - hm_manual
-        cap_hh_dia = float(executores) * float(jornada)
-        dias_eq_hh_manual = (hh_manual / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
-        dias_eq_hh_mec = (hh_mec / cap_hh_dia) if cap_hh_dia > _HH_EPSILON else 0.0
-        delta_dias_eq_hh = dias_eq_hh_manual - dias_eq_hh_mec
-        cronograma_mec_ref = resultado_mecanizado.get("cronograma") or []
-        turmas_mec_comp = sorted(
-            {
-                str(x.get("Turma", ""))
-                for x in cronograma_mec_ref
-                if str(x.get("Turma", "")).startswith("MEC_")
-            },
-            key=str,
-        )
-
-        # Tabela de comparação
-        print(f"  {C}Métrica{RS}                    {C}Manual{RS}          {C}Mecanizado{RS}      {C}Diferença{RS}")
-        print(f"  {DM}{'─' * 70}{RS}")
-        print(f"  {'Dias necessários':<25} {d_manual:>10.0f}      {d_mec:>10.0f}      {Y}{economia_dias:>+10.0f}{RS}")
-        print(f"  {'HH totais':<25} {hh_manual:>10.1f}      {hh_mec:>10.1f}      {Y}{economia_hh:>+10.1f}{RS}")
-        print(f"  {'HM totais':<25} {hm_manual:>10.1f}      {hm_mec:>10.1f}      {Y}{economia_hm:>+10.1f}{RS}")
-        print(f"  {'Dias eq. via HH/cap':<25} {dias_eq_hh_manual:>10.2f}      {dias_eq_hh_mec:>10.2f}      {Y}{delta_dias_eq_hh:>+10.2f}{RS}")
-        print()
-        if turmas_mec_comp:
-            print(G + BL + "  TURMAS MECANIZADAS NO CENARIO:" + RS)
-            for nm_turma in turmas_mec_comp:
-                print(DM + f"    - {nm_turma}" + RS)
-            print()
-        if substituicoes_comparativo:
-            print(G + BL + "  SUBSTITUICOES APLICADAS:" + RS)
-            for manual, mec in substituicoes_comparativo.items():
-                print(f"  • {manual[:50]} → {C}{_formatar_substituicao_comparativo(mec)}{RS}")
-            print()
-
-        # Destaques
-        print(G + BL + "  DESTAQUES:" + RS)
-        if economia_dias > 0:
-            print(f"  {G}✓{RS} Redução de {G}{economia_dias}{RS} dias com mecanização")
-        if economia_hh > 0:
-            print(f"  {G}✓{RS} Economia de {G}{economia_hh:.1f}{RS} HH (mão de obra humana)")
-        if economia_dias <= 0 and economia_hh > 0 and cap_hh_dia > _HH_EPSILON:
-            print(
-                DM
-                + f"  Nota: a reducao de HH equivale a ~{delta_dias_eq_hh:.2f} dia(s), "
-                + "mas o cronograma fecha por dias inteiros e caminho critico; por isso pode manter o mesmo total de dias."
-                + RS
-            )
-        print()
-        print(G + BL + "═══════════════════════════════════════════════════════════════════" + RS)
-        sub()
+    resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(
+        modo_comparativo, substituicoes_comparativo, cfg, df_faz, fazenda,
+        modo_seq, usar_bloqueio_global, usar_reforco_automatico, usar_pool_pos_bloqueio,
+        prazo_meses, mes_ref, ano_ref, data_inicio_txt, data_fim_txt,
+        jornada, executores, turmas, preencher_orfas,
+        reatribuicao, paralelo, primaria, session_hh,
+        escopo_meta, atividades_catalogo, dias_simulado, total_hh, total_hm,
+    )
 
     resultado_final = _build_resultado_final(
         esperar_enter, fazenda, dias_simulado, meses_simulado,
