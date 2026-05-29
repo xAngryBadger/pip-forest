@@ -557,6 +557,140 @@ def _configurar_projeto_interativo(cfg):
     }
 
 
+def _construir_demandas(talhoes_ordenados, df_faz, cfg, tarifas, strict, session_hh, modo_somente_hh, atividades_reais):
+    demandas = {}
+    total_hh = 0.0
+    total_hm = 0.0
+    total_custo = 0.0
+    hm_only_atividades = set()
+    fallback_hh_items = []
+
+    for talhao in talhoes_ordenados:
+        df_t = df_faz[df_faz["chave"] == talhao]
+        tarefas = []
+        for _, row in df_t.iterrows():
+            atv = row["atividade"]
+            try:
+                area = float(row["area_ha"])
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"Valor invalido para area_ha no talhao '{talhao}' "
+                    f"atividade '{atv}': {row['area_ha']!r}"
+                ) from exc
+            try:
+                pen = float(row["penalidade"])
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"Valor invalido para penalidade no talhao '{talhao}' "
+                    f"atividade '{atv}': {row['penalidade']!r}"
+                ) from exc
+
+            t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
+            rend_base = resolver_rendimento_hh(
+                cfg,
+                tarifas,
+                t_nome,
+                strict=strict,
+                session_hh=session_hh,
+                atv_micro=atv,
+            )
+            hm_base = resolver_rendimento_hm(cfg, tarifas, t_nome, strict=strict)
+            if rend_base is None:
+                if float(hm_base or 0) > 0.0:
+                    rend_base = 0.0
+                    fallback_hh_items.append((str(atv), str(t_nome), "HM-only => HH=0"))
+                else:
+                    rend_fb = resolver_rendimento_hh(
+                        cfg,
+                        tarifas,
+                        t_nome,
+                        strict=False,
+                        session_hh=session_hh,
+                        atv_micro=atv,
+                    )
+                    if rend_fb is None:
+                        rend_fb = 0.0
+                    rend_base = float(rend_fb)
+                    fallback_hh_items.append(
+                        (str(atv), str(t_nome), f"fallback HH={float(rend_base):.2f}")
+                    )
+            rend_hh_ha = float(rend_base) * pen
+            hm_ha = float(hm_base) * pen
+            in_tarifa = t_nome in tarifas
+
+            horas = area * rend_hh_ha
+            hm_horas = area * hm_ha
+            custo_h = resolver_custo_hora(cfg, tarifas, t_nome) or 0.0
+            custo_task = horas * custo_h
+            total_hh += horas
+            total_hm += hm_horas
+            total_custo += custo_task
+
+            tarifa_row = tarifas.get(t_nome, {})
+            tipo_tarifa = str(tarifa_row.get("tipo", "")).lower()
+            is_mec = "mecaniz" in tipo_tarifa or (hm_ha > 0 and rend_hh_ha <= 0)
+            if is_mec and rend_hh_ha <= 0 and hm_ha > 0:
+                hm_only_atividades.add(str(atv))
+
+            if strict:
+                origem_linha = "CT"
+                rfonte = "CT"
+            else:
+                origem_linha = "tarifa" if in_tarifa else "fallback"
+                rfonte = "CT" if in_tarifa else "estimado"
+            tarefas.append(
+                {
+                    "atividade": atv,
+                    "area": area,
+                    "hh_total": horas,
+                    "hm_ha": hm_ha,
+                    "hm_total": hm_horas,
+                    "custo_hora": custo_h,
+                    "custo_total": custo_task,
+                    "chave_tarifa": t_nome,
+                    "origem": origem_linha,
+                    "rendimento_fonte": rfonte,
+                    "tipo": "Mecanizada" if is_mec else "Manual",
+                }
+            )
+        demandas[talhao] = tarefas
+
+    print(DM + f"\n  Total HH da fazenda (bruto): {total_hh:.1f} horas-homem" + RS)
+    print(DM + f"  Total HM da fazenda (bruto): {total_hm:.1f} horas-maquina" + RS)
+    if not modo_somente_hh(cfg):
+        print(DM + f" Custo MO total (bruto): R$ {total_custo:,.2f}" + RS)
+    if total_hm > _HH_EPSILON:
+        print(
+            DM
+            + "  Regra de fluxo HM-only: atividades mecanizadas rodam em paralelo e a equipe humana"
+            + " continua o fluxo sem esperar 100% da maquina."
+            + RS
+        )
+    if fallback_hh_items:
+        print(
+            Y
+            + f"  Fallback HH aplicado em {len(fallback_hh_items)} item(ns) do escopo."
+            + RS
+        )
+        for atv_fb, t_fb, motivo_fb in fallback_hh_items[:5]:
+            print(
+                Y
+                + f"    - {str(atv_fb)[:44]} | CT:{str(t_fb)[:30]} | {str(motivo_fb)[:24]}"
+                + RS
+            )
+        if len(fallback_hh_items) > 5:
+            print(Y + f"    ... +{len(fallback_hh_items) - 5}" + RS)
+
+    auditar_cadeia_dados(cfg, demandas, atividades_reais, session_hh=session_hh)
+    return {
+        "demandas": demandas,
+        "total_hh": total_hh,
+        "total_hm": total_hm,
+        "total_custo": total_custo,
+        "hm_only_atividades": hm_only_atividades,
+        "fallback_hh_items": fallback_hh_items,
+    }
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -1075,132 +1209,15 @@ def calcular_cronograma_inteligente(
     de_para = cfg.get("de_para", {})
     strict = cfg.get("orcamento_estrito", True)
 
-    # ── Construir demandas por talhao ──
-    demandas = {} # {talhao: [{atividade, area, hh_total}, ...]}
-    total_hh = 0.0
-    total_hm = 0.0
-    total_custo = 0.0
-    hm_only_atividades = set()
-    fallback_hh_items = []
-
-    for talhao in talhoes_ordenados:
-        df_t = df_faz[df_faz["chave"] == talhao]
-        tarefas = []
-        for _, row in df_t.iterrows():
-            atv = row["atividade"]
-            try:
-                area = float(row["area_ha"])
-            except (ValueError, TypeError) as exc:
-                raise ValueError(
-                    f"Valor invalido para area_ha no talhao '{talhao}' "
-                    f"atividade '{atv}': {row['area_ha']!r}"
-                ) from exc
-            try:
-                pen = float(row["penalidade"])
-            except (ValueError, TypeError) as exc:
-                raise ValueError(
-                    f"Valor invalido para penalidade no talhao '{talhao}' "
-                    f"atividade '{atv}': {row['penalidade']!r}"
-                ) from exc
-
-            t_nome = resolver_chave_tarifa(cfg, tarifas, atv)
-            rend_base = resolver_rendimento_hh(
-                cfg,
-                tarifas,
-                t_nome,
-                strict=strict,
-                session_hh=session_hh,
-                atv_micro=atv,
-            )
-            hm_base = resolver_rendimento_hm(cfg, tarifas, t_nome, strict=strict)
-            if rend_base is None:
-                if float(hm_base or 0) > 0.0:
-                    # Atividade mecanizada HM-only: HH pode ficar zerado sem abortar o cronograma.
-                    rend_base = 0.0
-                    fallback_hh_items.append((str(atv), str(t_nome), "HM-only => HH=0"))
-                else:
-                    rend_fb = resolver_rendimento_hh(
-                        cfg,
-                        tarifas,
-                        t_nome,
-                        strict=False,
-                        session_hh=session_hh,
-                        atv_micro=atv,
-                    )
-                    if rend_fb is None:
-                        rend_fb = 0.0
-                    rend_base = float(rend_fb)
-                    fallback_hh_items.append(
-                        (str(atv), str(t_nome), f"fallback HH={float(rend_base):.2f}")
-                    )
-            rend_hh_ha = float(rend_base) * pen
-            hm_ha = float(hm_base) * pen
-            in_tarifa = t_nome in tarifas
-
-            horas = area * rend_hh_ha
-            hm_horas = area * hm_ha
-            custo_h = resolver_custo_hora(cfg, tarifas, t_nome) or 0.0
-            custo_task = horas * custo_h
-            total_hh += horas
-            total_hm += hm_horas
-            total_custo += custo_task
-
-            tarifa_row = tarifas.get(t_nome, {})
-            tipo_tarifa = str(tarifa_row.get("tipo", "")).lower()
-            is_mec = "mecaniz" in tipo_tarifa or (hm_ha > 0 and rend_hh_ha <= 0)
-            if is_mec and rend_hh_ha <= 0 and hm_ha > 0:
-                hm_only_atividades.add(str(atv))
-
-            if strict:
-                origem_linha = "CT"
-                rfonte = "CT"
-            else:
-                origem_linha = "tarifa" if in_tarifa else "fallback"
-                rfonte = "CT" if in_tarifa else "estimado"
-            tarefas.append(
-                {
-                    "atividade": atv,
-                    "area": area,
-                    "hh_total": horas,
-                    "hm_ha": hm_ha,
-                    "hm_total": hm_horas,
-                    "custo_hora": custo_h,
-                    "custo_total": custo_task,
-                    "chave_tarifa": t_nome,
-                    "origem": origem_linha,
-                    "rendimento_fonte": rfonte,
-                    "tipo": "Mecanizada" if is_mec else "Manual",
-                }
-            )
-        demandas[talhao] = tarefas
-
-    print(DM + f"\n  Total HH da fazenda (bruto): {total_hh:.1f} horas-homem" + RS)
-    print(DM + f"  Total HM da fazenda (bruto): {total_hm:.1f} horas-maquina" + RS)
-    if not modo_somente_hh(cfg):
-        print(DM + f" Custo MO total (bruto): R$ {total_custo:,.2f}" + RS)
-    if total_hm > _HH_EPSILON:
-        print(
-            DM
-            + "  Regra de fluxo HM-only: atividades mecanizadas rodam em paralelo e a equipe humana"
-            + " continua o fluxo sem esperar 100% da maquina."
-            + RS
-        )
-    if fallback_hh_items:
-        print(
-            Y
-            + f"  Fallback HH aplicado em {len(fallback_hh_items)} item(ns) do escopo."
-            + RS
-        )
-        for atv_fb, t_fb, motivo_fb in fallback_hh_items[:5]:
-            print(
-                Y
-                + f"    - {str(atv_fb)[:44]} | CT:{str(t_fb)[:30]} | {str(motivo_fb)[:24]}"
-                + RS
-            )
-        if len(fallback_hh_items) > 5:
-            print(Y + f"    ... +{len(fallback_hh_items) - 5}" + RS)
-
-    auditar_cadeia_dados(cfg, demandas, atividades_reais, session_hh=session_hh)
+    demandas_data = _construir_demandas(
+        talhoes_ordenados, df_faz, cfg, tarifas, strict, session_hh, modo_somente_hh, atividades_reais,
+    )
+    demandas = demandas_data["demandas"]
+    total_hh = demandas_data["total_hh"]
+    total_hm = demandas_data["total_hm"]
+    total_custo = demandas_data["total_custo"]
+    hm_only_atividades = demandas_data["hm_only_atividades"]
+    fallback_hh_items = demandas_data["fallback_hh_items"]
 
     sem_tarifa = []
     for talhao, tarefas in demandas.items():
