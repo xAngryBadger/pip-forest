@@ -407,6 +407,8 @@ def _executar_scheduler_loop(
     fazenda, cfg, tarifas, modo_somente_hh,
     dia_termino_plantio, tem_plantio_por_talhao,
 ):
+    # Work on a copy to avoid mutating the input
+    demanda_global = demanda_global.copy()
 
     cronograma = []
     dia = 0
@@ -585,7 +587,7 @@ def _executar_scheduler_loop(
                         _registrar_fim_plantio_talhao(talhao, dia)
                         _crono(dia, talhao, atv, turma["nome"], n_ops, consumo_ref, modo="Reforco")
 
-    return cronograma, dia
+    return cronograma, dia, demanda_global
 
 
 def _vincular_atividades_turmas(
@@ -2307,7 +2309,7 @@ def calcular_cronograma_inteligente(
     )
     dia_termino_plantio = {}
 
-    cronograma, dia = _executar_scheduler_loop(
+    cronograma, dia, demanda_global = _executar_scheduler_loop(
         turmas, turma_filas, demanda_global, demandas,
         talhoes_ordenados, jornada, executores,
         seq_cfg, modo_seq, usar_cascata,
