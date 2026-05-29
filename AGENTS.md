@@ -14,10 +14,10 @@ python -m src.atm.atm_v6_3
 ## How to Test
 
 ```bash
-python -m unittest tests.test_orca_helpers tests.test_orca_strict -v
+python -m unittest tests.test_orca_helpers tests.test_orca_strict tests.test_orca_scheduler -v
 ```
 
-25 unit tests must pass. There is no pytest; use unittest.
+41 unit tests must pass. There is no pytest; use unittest.
 
 ## Lint / Typecheck
 
@@ -46,3 +46,7 @@ Key dependency rule: `scheduler_core.py` → `app.py` (never the reverse). `entr
 - Config persisted to `config.json` via `config.salvar_config()`
 - Excel output goes to `data/dossies/`
 - Input spreadsheets in `data/planilhas/`
+  - `microatual.xlsx` — exists (tracked)
+  - `ct317real.xlsx` — symlink to `~/Downloads/CT_317_SZN_REST_MA_V00_R03 - 4x4.xlsx`
+  - `formosa.xlsx` — create if/as needed
+  - E2E tests that require these will be skipped if missing
