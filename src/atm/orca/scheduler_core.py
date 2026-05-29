@@ -1531,6 +1531,9 @@ def _executar_checkpoint_retroativo(
             menu_ajustes_hh_apenas_sessao(atividades_reais, cfg, session_hh)
 
     while True:
+        if _batch:
+            break
+        
         sub()
         print(G + BL + " CHECKPOINT RETROATIVO" + RS)
         op_cp = selecionar(
@@ -2349,7 +2352,10 @@ def _verificar_atividades_sem_executor(demandas, turmas, reatribuicao, paralelo,
         if not modo_somente_hh(cfg):
             print(DM + f" Custo MO agendavel: R$ {total_custo:,.2f}" + RS)
         return total_hh, total_custo, total_hm
-    return None
+    total_hh = sum(t["hh_total"] for tarefas in demandas.values() for t in tarefas)
+    total_custo = sum(t["custo_total"] for tarefas in demandas.values() for t in tarefas)
+    total_hm = sum(t.get("hm_total", 0) for tarefas in demandas.values() for t in tarefas)
+    return total_hh, total_custo, total_hm
 
 
 def _construir_atividade_remap(cfg, ctx=None, _batch=False):
@@ -2736,6 +2742,7 @@ def calcular_cronograma_inteligente(
         recursos_mec, cronograma_com_mec,
     )
 
+    preencher_orfas = False
     resultado_mecanizado, resultado_mecanizado_valido = _executar_modo_comparativo(
         modo_comparativo, substituicoes_comparativo, cfg, df_faz, fazenda,
         modo_seq, usar_bloqueio_global, usar_reforco_automatico, usar_pool_pos_bloqueio,

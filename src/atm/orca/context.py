@@ -208,18 +208,33 @@ class ContextoSessao:
 # ──────────────────────────────────────────────
 # GLOBAL CONTEXT HOLDER (swapable instance)
 # ──────────────────────────────────────────────
+import threading
+
 class _ContextoHolder:
     """Holds a ContextoSessao instance. Delegates attribute access so that
     modules importing 'contexto_sessao' via 'from .context import contexto_sessao'
-    see the injected instance after a swap."""
+    see the injected instance after a swap. Uses threading.local() to ensure
+    thread safety for concurrent web sessions."""
     def __init__(self):
-        self._inst = ContextoSessao()
+        self._local = threading.local()
+        
+    @property
+    def _inst(self):
+        if not hasattr(self._local, 'inst'):
+            self._local.inst = ContextoSessao()
+        return self._local.inst
+        
+    @_inst.setter
+    def _inst(self, value):
+        self._local.inst = value
+        
     def __getattr__(self, name):
-        if name == '_inst':
+        if name == '_local':
             return super().__getattr__(name)
         return getattr(self._inst, name)
+        
     def __setattr__(self, name, value):
-        if name == '_inst':
+        if name in ('_local', '_inst'):
             super().__setattr__(name, value)
         else:
             setattr(self._inst, name, value)

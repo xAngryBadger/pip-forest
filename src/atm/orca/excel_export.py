@@ -285,17 +285,17 @@ def _df_crono_operacional(df_crono, dia_ref=None, mes_ref=None, ano_ref=None):
     if dia_ref and mes_ref and ano_ref and "Dia" in df.columns:
         datas_reais = []
         dias_semana = []
-    for _, row in df.iterrows():
-        dia_simulado = row.get("Dia", 1)
-        data_tuple = _converter_dia_simulado_para_data(
-            dia_simulado, dia_ref, mes_ref, ano_ref
-        )
-        if data_tuple is not None:
-            datas_reais.append(data_tuple[0])
-            dias_semana.append(data_tuple[1])
-        else:
-            datas_reais.append(f"Dia_{dia_simulado}")
-            dias_semana.append("")
+        for _, row in df.iterrows():
+            dia_simulado = row.get("Dia", 1)
+            data_tuple = _converter_dia_simulado_para_data(
+                dia_simulado, dia_ref, mes_ref, ano_ref
+            )
+            if data_tuple is not None:
+                datas_reais.append(data_tuple[0])
+                dias_semana.append(data_tuple[1])
+            else:
+                datas_reais.append(f"Dia_{dia_simulado}")
+                dias_semana.append("")
 
         # Inserir colunas no inicio
         df.insert(0, "Dia_Semana", dias_semana)

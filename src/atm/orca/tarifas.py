@@ -816,7 +816,7 @@ def modulo_importar_custos_globais_brutos(cfg):
         )
     except Exception as ex:
         erro(f"Falha ao importar custos globais brutos: {ex}")
-        input(DM + "\n [ENTER para voltar] " + RS)
+        esperar(DM + "\n [ENTER para voltar] " + RS)
 
 
 def modulo_importar_precos_contrato(cfg):
@@ -884,7 +884,7 @@ def modulo_importar_precos_contrato(cfg):
             erro(
                 "Nao foi possivel identificar colunas minimas de PRECO_FINAL (atividade/preco)."
             )
-            input(DM + "\n [ENTER] " + RS)
+            esperar(DM + "\n [ENTER] " + RS)
             return
 
         custo_direto = {}
@@ -981,7 +981,7 @@ def modulo_importar_precos_contrato(cfg):
 
         if not tarifas:
             erro("Nenhuma atividade valida encontrada na planilha de preco.")
-            input(DM + "\n [ENTER] " + RS)
+            esperar(DM + "\n [ENTER] " + RS)
             return
 
         cfg["tarifas"] = tarifas
@@ -1022,10 +1022,10 @@ def modulo_importar_precos_contrato(cfg):
                 print(DM + f" ... +{len(sem_preco) - 5}" + RS)
         if not sem_hh and not sem_preco:
             ok("Pos-import: todas as tarifas possuem HH e preco validos.")
-        input(DM + "\n [ENTER para voltar] " + RS)
+        esperar(DM + "\n [ENTER para voltar] " + RS)
     except Exception as ex:
         erro(f"Falha ao importar planilha de preco: {ex}")
-        input(DM + "\n [ENTER] " + RS)
+        esperar(DM + "\n [ENTER] " + RS)
 
 
 def _to_float_any(v):
