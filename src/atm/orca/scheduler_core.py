@@ -127,6 +127,19 @@ from .ui import (
 )
 
 
+def _validar_input(df_faz):
+    _colunas_obrigatorias = ["fazenda", "atividade", "area_ha"]
+    _faltando = [c for c in _colunas_obrigatorias if c not in df_faz.columns]
+    if _faltando:
+        erro(f"Colunas obrigatorias ausentes no micro: {', '.join(_faltando)}")
+        return "colunas", None
+    _areas_neg = df_faz[df_faz["area_ha"].astype(float) < 0]
+    if not _areas_neg.empty:
+        aviso(f"{len(_areas_neg)} talhao(oes) com area_ha negativa — serao zerados")
+        df_faz.loc[_areas_neg.index, "area_ha"] = 0.0
+    return None, df_faz
+
+
 def calcular_cronograma_inteligente(
     cfg,
     df_faz,
@@ -145,15 +158,9 @@ def calcular_cronograma_inteligente(
     _batch = ctx is not None
     comparativo_cfg = None
 
-    _colunas_obrigatorias = ["fazenda", "atividade", "area_ha"]
-    _faltando = [c for c in _colunas_obrigatorias if c not in df_faz.columns]
-    if _faltando:
-        erro(f"Colunas obrigatorias ausentes no micro: {', '.join(_faltando)}")
+    erro_colunas, df_faz = _validar_input(df_faz)
+    if erro_colunas:
         return None
-    _areas_neg = df_faz[df_faz["area_ha"].astype(float) < 0]
-    if not _areas_neg.empty:
-        aviso(f"{len(_areas_neg)} talhao(oes) com area_ha negativa — serao zerados")
-        df_faz.loc[_areas_neg.index, "area_ha"] = 0.0
     tarifas = cfg.get("tarifas") or {}
     if not tarifas:
         aviso("Nenhuma tarifa carregada — rendimentos serao estimados (fallback)")
