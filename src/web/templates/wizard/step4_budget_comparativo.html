@@ -1,0 +1,174 @@
+{% extends "wizard/base.html" %}
+
+{% set wizard_steps = [
+    {"label": "Fazenda"},
+    {"label": "Equipes"},
+    {"label": "Atividades"},
+    {"label": "Orçamento"},
+    {"label": "Revisar"}
+] %}
+{% set current_step = 4 %}
+
+{% block wizard_content %}
+<div id="wizard-content" class="space-y-6"><span class="wizard-current-step hidden">{{ current_step }}</span>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">4. Orçamento e Comparativo</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Configure validação de orçamento, resolva lacunas de tarifa e modo comparativo.</p>
+
+        <!-- Budget Strict Mode -->
+        <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Modo de Orçamento</h3>
+            <div class="space-y-3">
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if not state or state.step4.orcamento_estrito %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="orcamento_estrito" value="true" {% if not state or state.step4.orcamento_estrito %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Estrito (requer tarifa para toda atividade)</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Falha se houver atividade sem tarifa CT</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and not state.step4.orcamento_estrito %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="orcamento_estrito" value="false" {% if state and not state.step4.orcamento_estrito %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Flexível (usa padrão 8 HH/ha se sem tarifa)</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Permite execução sem tarifas completas</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tariff Gaps -->
+        <div class="mb-6" id="tariff-gaps-section">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center justify-between">
+                Lacunas de Tarifa
+                <span id="gap-count" class="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">0</span>
+            </h3>
+            <div id="tariff-gaps-list" class="space-y-3">
+                <p class="text-gray-500 dark:text-gray-400 text-center py-8">Clique em "Verificar Lacunas" para detectar atividades sem tarifa</p>
+            </div>
+            <button type="button" id="check-gaps-btn" class="btn-secondary mt-3">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Verificar Lacunas de Tarifa
+            </button>
+        </div>
+
+        <!-- Comparativo Mode -->
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Modo Comparativo (Manual vs Mecanizado)</h3>
+            <div class="space-y-3">
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if not state or state.step4.modo_comparativo == 'off' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_comparativo" value="off" {% if not state or state.step4.modo_comparativo == 'off' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Desativado</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Não executar comparação</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step4.modo_comparativo == 'simple' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_comparativo" value="simple" {% if state and state.step4.modo_comparativo == 'simple' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Simples (substituições automáticas)</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Usa pares manual→mecânico detectados automaticamente</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step4.modo_comparativo == 'multi-factor' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_comparativo" value="multi-factor" {% if state and state.step4.modo_comparativo == 'multi-factor' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Multi-Fator (simulação avançada)</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Múltiplos cenários com fatores de produtividade</span>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Simple Comparativo: Substitutions -->
+            <div id="simple-comparativo" class="mt-4 hidden">
+                <h4 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Substituições Manual → Mecanizado</h4>
+                <div id="substituicoes-list" class="space-y-2">
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-4">Carregando atividades com equivalente mecanizado...</p>
+                </div>
+                <button type="button" id="load-substituicoes-btn" class="btn-secondary mt-3 hidden">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Carregar Substituições Detectadas
+                </button>
+            </div>
+
+            <!-- Multi-Factor Config -->
+            <div id="multifactor-config" class="mt-4 hidden">
+                <h4 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Configuração Multi-Fator</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fator produtividade base</label>
+                        <input type="number" name="mf_fator_base" step="0.1" min="0.1" max="5" value="1.0" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Variação (%)</label>
+                        <input type="number" name="mf_variacao" step="1" min="0" max="100" value="20" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de cenários</label>
+                        <input type="number" name="mf_cenarios" min="2" max="20" value="5" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Semente aleatória</label>
+                        <input type="number" name="mf_seed" min="0" max="999999" value="42" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+
+            <!-- External Mecanizado Resource -->
+            <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Recurso Mecanizado Externo (Opcional)</h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Cadastrar equipamento/serviço externo não presente no catálogo:</p>
+                <div id="external-mecanizado-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do recurso</label>
+                            <input type="text" name="ext_nome" placeholder="Ex: Colhedora John Deere 9870" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Produtividade (ha/h)</label>
+                            <input type="number" name="ext_prod_ha_h" step="0.1" min="0.1" placeholder="Ex: 2.5" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custo por hora (R$)</label>
+                            <input type="number" name="ext_custo_h" step="0.01" min="0" placeholder="Ex: 450.00" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Atividade substituída</label>
+                            <select name="ext_atividade_substituida" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" id="add-external-btn" class="btn-primary">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Adicionar Recurso Externo
+                    </button>
+                </div>
+                <div id="external-list" class="mt-4 space-y-2 hidden">
+                    <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Recursos cadastrados:</h5>
+                    <div id="external-items"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block next_button %}
+<button type="button" class="btn-primary" hx-post="/wizard/step/5" hx-target="#wizard-content" hx-swap="innerHTML" hx-indicator="#wizard-spinner" hx-include="[name='orcamento_estrito'],[name='modo_comparativo'],[name^='mf_'],[name^='ext_'],#substituicoes-list input,#external-items input,#tariff-gaps-list input">
+    Próximo: Revisar e Executar
+    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/wizard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initTariffGaps();
+    initComparativoMode();
+    initExternalMecanizado();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Orca v7 - Assistente de Cronograma{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    {% block wizard_nav %}
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10" role="navigation" aria-label="Progresso do assistente">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center space-x-2 overflow-x-auto pb-2" role="list" aria-label="Passos do assistente">
+                    {% for step in wizard_steps %}
+                    <div class="flex items-center flex-shrink-0 {% if loop.index == current_step %}text-blue-600 dark:text-blue-400{% elif loop.index < current_step %}text-green-600 dark:text-green-400{% else %}text-gray-400 dark:text-gray-500{% endif %}">
+                        <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 {% if loop.index == current_step %}border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30{% elif loop.index < current_step %}border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/30{% else %}border-gray-300 dark:border-gray-600{% endif %}" aria-current="{% if loop.index == current_step %}step{% endif %}">
+                            {% if loop.index < current_step %}
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            {% else %}
+                            {{ loop.index }}
+                            {% endif %}
+                        </span>
+                        <span class="hidden sm:inline-block ml-1 text-xs font-medium whitespace-nowrap">{{ step.label }}</span>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="flex-1 h-0.5 bg-gray-200 dark:bg-gray-700 mx-1 {% if loop.index < current_step %}bg-green-500 dark:bg-green-500{% endif %}" aria-hidden="true"></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+
+    <main class="max-w-4xl mx-auto px-4 py-6" role="main">
+        {% block wizard_content %}{% endblock %}
+    </main>
+
+    {% block wizard_actions %}
+    <div class="max-w-4xl mx-auto px-4 pb-8">
+        <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+            <a href="/wizard/step/1" class="btn-secondary" {% if current_step == 1 %}style="visibility: hidden;"{% endif %}>
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                Anterior
+            </a>
+            <div class="flex items-center space-x-3">
+                {% block next_button %}
+                <button type="button" class="btn-primary" hx-post="/wizard/step/{{ current_step + 1 }}" hx-target="#wizard-content" hx-swap="innerHTML" hx-indicator="#wizard-spinner">
+                    Próximo
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                {% endblock %}
+            </div>
+        </div>
+        <div id="wizard-spinner" class="htmx-indicator flex justify-center py-4">
+            <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    </div>
+    {% endblock %}
+</div>
+
+{% block extra_js %}
+<script src="/static/wizard.js"></script>
+{% endblock %}

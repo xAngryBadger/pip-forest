@@ -1,0 +1,136 @@
+{% extends "wizard/base.html" %}
+
+{% set wizard_steps = wizard_steps or [
+    {"label": "Fazenda"},
+    {"label": "Equipes"},
+    {"label": "Atividades"},
+    {"label": "Orçamento"},
+    {"label": "Revisar"}
+] %}
+{% set current_step = 5 %}
+
+{% block wizard_nav %}
+<nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3">
+        <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resultado do Cronograma</h1>
+    </div>
+</nav>
+{% endblock %}
+
+{% block wizard_content %}
+<div class="space-y-6">
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Fazenda</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ result.fazenda if result else '—' }}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Dias Simulados</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ result.dias_simulado if result else '—' }}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div class="text-sm text-gray-500 dark:text-gray-400">HH Total</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ "%.1f" % result.total_hh if result else '—' }}</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Custo Total</div>
+            <div class="text-lg font-semibold text-gray-900 dark:text-gray-100">R$ {{ "%,.2f" % result.total_custo if result else '—' }}</div>
+        </div>
+    </div>
+
+    <!-- Cronograma Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Cronograma Semanal</h3>
+        <div class="overflow-x-auto -mx-6 px-6">
+            <table class="w-full text-sm min-w-[600px]">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="py-2 text-left text-gray-700 dark:text-gray-300 font-medium">Talhão</th>
+                        <th class="py-2 text-left text-gray-700 dark:text-gray-300 font-medium">Metodologia</th>
+                        <th class="py-2 text-left text-gray-700 dark:text-gray-300 font-medium">Atividade</th>
+                        <th class="py-2 text-center text-gray-700 dark:text-gray-300 font-medium">Semana</th>
+                        <th class="py-2 text-center text-gray-700 dark:text-gray-300 font-medium">Dia</th>
+                        <th class="py-2 text-right text-gray-700 dark:text-gray-300 font-medium">HH</th>
+                    </tr>
+                </thead>
+                <tbody id="cronograma-body">
+                    {% if cronograma %}
+                    {% for row in cronograma %}
+                    <tr class="border-b border-gray-100 dark:border-gray-700/50">
+                        <td class="py-2 text-gray-900 dark:text-gray-100">{{ row.get('talhao', '') }}</td>
+                        <td class="py-2 text-gray-900 dark:text-gray-100">{{ row.get('metodologia', '') }}</td>
+                        <td class="py-2 text-gray-900 dark:text-gray-100">{{ row.get('atividade', '') }}</td>
+                        <td class="py-2 text-center text-gray-900 dark:text-gray-100">{{ row.get('semana', '') }}</td>
+                        <td class="py-2 text-center text-gray-900 dark:text-gray-100">{{ row.get('dia', '') }}</td>
+                        <td class="py-2 text-right text-gray-900 dark:text-gray-100">{{ "%.1f" % row.get('hh', 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr><td colspan="6" class="py-8 text-center text-gray-500 dark:text-gray-400">Sem dados de cronograma</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Turmas -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Turmas</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% if result and result.turmas_snapshot %}
+            {% for turma in result.turmas_snapshot %}
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div class="font-medium text-gray-900 dark:text-gray-100">{{ turma.nome }}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">{{ turma.operarios }} operários</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ turma.atividades|length }} atividades</div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400">Sem dados de turmas</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Diagnostics -->
+    {% if result and result.modo_usado != 'headless' %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Diagnóstico de Prazo</h3>
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+            <p>Modo: {{ result.modo_usado }}</p>
+            <p>Dias simulado: {{ result.dias_simulado }}</p>
+            <p>Total HH: {{ "%.1f" % result.total_hh }}</p>
+            <p>Total HM: {{ "%.1f" % result.total_hm }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Download Buttons -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% if result and result.result_files %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Arquivos Gerados</h3>
+            <div class="space-y-2">
+                {% for file in result.result_files %}
+                <a href="{{ file.url }}" download class="flex items-center px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                    <svg class="w-5 h-5 mr-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="text-blue-700 dark:text-blue-300 font-medium">{{ file.name }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Ações</h3>
+            <div class="space-y-3">
+                <a href="/wizard/step/1" class="block w-full text-center px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                    Nova Simulação
+                </a>
+                <a href="/" class="block w-full text-center px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                    Voltar ao Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

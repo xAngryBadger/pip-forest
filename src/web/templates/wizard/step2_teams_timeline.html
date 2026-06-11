@@ -1,0 +1,177 @@
+{% extends "wizard/base.html" %}
+
+{% set wizard_steps = [
+    {"label": "Fazenda"},
+    {"label": "Equipes"},
+    {"label": "Atividades"},
+    {"label": "Orçamento"},
+    {"label": "Revisar"}
+] %}
+{% set current_step = 2 %}
+
+{% block wizard_content %}
+<div id="wizard-content" class="space-y-6"><span class="wizard-current-step hidden">{{ current_step }}</span>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">2. Equipes e Cronograma</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Configure as equipes, prazos e parâmetros de sequenciamento.</p>
+
+        <!-- Sequence Mode -->
+        <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Modo de Sequenciamento</h3>
+            <div class="space-y-2">
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if not state or state.step2.modo_seq == 'implantacao' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_seq" value="implantacao" {% if not state or state.step2.modo_seq == 'implantacao' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Implantação</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Rocada → Formiga → Semeadura → Plantio → Irrigação (cascata)</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step2.modo_seq == 'manutencao_seco' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_seq" value="manutencao_seco" {% if state and state.step2.modo_seq == 'manutencao_seco' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Manutenção Seco</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">[EM PROGRESSO]</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step2.modo_seq == 'manutencao_umido' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_seq" value="manutencao_umido" {% if state and state.step2.modo_seq == 'manutencao_umido' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Manutenção Úmido</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">[EM PROGRESSO]</span>
+                    </div>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step2.modo_seq == 'personalizado' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="modo_seq" value="personalizado" {% if state and state.step2.modo_seq == 'personalizado' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Personalizado</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Definir sequência customizada</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Global Options -->
+        <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Opções Globais</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="usar_bloqueio_global" {% if not state or state.step2.usar_bloqueio_global %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100 text-sm">Bloqueio Global (plantio/irrigação só iniciam quando todo o resto zerar)</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="usar_reforco_automatico" {% if not state or state.step2.usar_reforco_automatico %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100 text-sm">Reforço Automático (turma ociosa ajuda outras atividades)</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="usar_pool_pos_bloqueio" {% if not state or state.step2.usar_pool_pos_bloqueio %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100 text-sm">Pelotão Unificado (após liberação global)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Prazo e Data de Início</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Prazo (meses) <span class="text-red-500">*</span></label>
+                    <input type="number" name="prazo_meses" step="0.5" min="0.5" max="60" value="{{ state.step2.prazo_meses if state else 6.0 }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mês inicial <span class="text-red-500">*</span></label>
+                    <input type="number" name="mes_ref" min="1" max="12" value="{{ state.step2.mes_ref if state else 1 }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ano inicial <span class="text-red-500">*</span></label>
+                    <input type="number" name="ano_ref" min="2020" max="2035" value="{{ state.step2.ano_ref if state else 2026 }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dia inicial <span class="text-red-500">*</span></label>
+                    <input type="number" name="dia_ref" min="1" max="31" value="{{ state.step2.dia_ref if state else 1 }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data fim manual (opcional)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="number" name="mes_fim" min="1" max="12" placeholder="Mês" class="px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <input type="number" name="ano_fim" min="2020" max="2035" placeholder="Ano" class="px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <input type="number" name="dia_fim" min="1" max="31" placeholder="Dia" class="px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Configuration -->
+        <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Configuração de Equipes</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total de operários <span class="text-red-500">*</span></label>
+                    <input type="number" name="executores" id="total-executores" min="1" max="200" value="{{ state.step2.executores if state else 9 }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Jornada efetiva (horas) <span class="text-red-500">*</span></label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" name="jornada" id="jornada-input" value="{{ state.step2.jornada if state else '4.6' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Ex: 4.6 ou 4:36" required>
+                        <span class="text-gray-500 dark:text-gray-400 text-sm">h ou HH:MM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Builder -->
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
+                    <h4 class="font-medium text-gray-900 dark:text-gray-100">Turmas</h4>
+                    <button type="button" id="add-team-btn" class="btn-primary text-sm px-3 py-1.5">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Adicionar Turma
+                    </button>
+                </div>
+                <div id="teams-container" class="divide-y divide-gray-200 dark:divide-gray-600">
+                    {% if state and state.step2.turmas %}
+                    {% for turma in state.step2.turmas %}
+                    <div class="team-row p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                        <input type="hidden" name="turmas" value="{{ turma.nome }}|{{ turma.operarios }}|{{ turma.atividades|join(',') if turma.atividades else '' }}">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da turma</label>
+                            <input type="text" name="turma_nome" value="{{ turma.nome }}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Operários</label>
+                            <input type="number" name="turma_operarios" value="{{ turma.operarios }}" min="1" max="100" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                            <button type="button" class="remove-team-btn btn-danger text-sm px-3 py-2" title="Remover turma">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            <div id="teams-summary" class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-800 dark:text-blue-200 hidden">
+                Total de operários nas turmas: <span id="teams-total">0</span> / <span id="executores-display">{{ state.step2.executores if state else 9 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block next_button %}
+<button type="button" class="btn-primary" hx-post="/wizard/step/3" hx-target="#wizard-content" hx-swap="innerHTML" hx-indicator="#wizard-spinner" hx-include="[name='modo_seq'],[name='usar_bloqueio_global'],[name='usar_reforco_automatico'],[name='usar_pool_pos_bloqueio'],[name='prazo_meses'],[name='mes_ref'],[name='ano_ref'],[name='dia_ref'],[name='mes_fim'],[name='ano_fim'],[name='dia_fim'],[name='executores'],[name='jornada'],#teams-container input">
+    Próximo: Atividades
+    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/wizard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initTeamBuilder();
+    initJornadaInput();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "wizard/base.html" %}
+
+{% set wizard_steps = [
+    {"label": "Fazenda"},
+    {"label": "Equipes"},
+    {"label": "Atividades"},
+    {"label": "Orçamento"},
+    {"label": "Revisar"}
+] %}
+{% set current_step = 3 %}
+
+{% block wizard_content %}
+<div id="wizard-content" class="space-y-6"><span class="wizard-current-step hidden">{{ current_step }}</span>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">3. Vinculação Atividades ↔ Turmas</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Para cada turma, marque quais atividades ela executa (S/N por atividade).</p>
+
+        <div id="activity-linker-container">
+            {% if state and state.step2.turmas %}
+            {% for turma in state.step2.turmas %}
+            <div class="turma-accordion mb-4 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <button type="button" class="accordion-header w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between text-left" aria-expanded="false">
+                    <span class="font-medium text-gray-900 dark:text-gray-100">{{ turma.nome }} ({{ turma.operarios }} operários)</span>
+                    <svg class="w-5 h-5 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="accordion-content hidden p-4 space-y-3">
+                    <div id="activities-{{ loop.index }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {% if activities %}
+                        {% for atv in activities %}
+                        <label class="flex items-center space-x-2 cursor-pointer p-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                            <input type="checkbox" name="atividade_vinculos[turma_{{ loop.parent.loop.index }}]" value="{{ atv.atividade }}" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-900 dark:text-gray-100">{{ atv.atividade }} <span class="text-gray-500 dark:text-gray-400">({{ atv.area_ha }} ha)</span></span>
+                        </label>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" class="btn-secondary text-sm select-all-btn" data-target="activities-{{ loop.index }}">Selecionar todas</button>
+                        <button type="button" class="btn-secondary text-sm deselect-all-btn" data-target="activities-{{ loop.index }}">Limpar</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <p>Nenhuma turma definida. Volte ao passo 2 para criar turmas.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Orphan Handling -->
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Atividades órfãs (sem turma)</h3>
+            <div class="space-y-2">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="auto_assign_orphans" value="true" checked class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100">Atribuir automaticamente atividades sem turma a uma turma existente</span>
+                </label>
+                <div id="orphan-target" class="ml-8 hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Turma de destino</label>
+                    <select name="orphan_target_team" class="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        {% if state and state.step2.turmas %}
+                        {% for turma in state.step2.turmas %}
+                        <option value="{{ turma.nome }}">{{ turma.nome }}</option>
+                        {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conflict Resolution -->
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Resolução de Conflitos</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Quando uma atividade está em múltiplas turmas:</p>
+            <div class="space-y-3">
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if not state or state.step3.reatribuicao_mode == 'paralelo' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="reatribuicao_mode" value="paralelo" {% if not state or state.step3.reatribuicao_mode == 'paralelo' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100">Executar em paralelo (todas as turmas fazem a atividade)</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-3 border-2 rounded-lg {% if state and state.step3.reatribuicao_mode == 'exclusivo' %}border-blue-500 bg-blue-50 dark:bg-blue-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500{% endif %} transition">
+                    <input type="radio" name="reatribuicao_mode" value="exclusivo" {% if state and state.step3.reatribuicao_mode == 'exclusivo' %}checked{% endif %} class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+                    <span class="text-gray-900 dark:text-gray-100">Escolher turma exclusiva por atividade</span>
+                </label>
+            </div>
+            <div id="exclusive-selector" class="ml-4 mt-3 hidden">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Configurado no checkpoint se necessário</p>
+            </div>
+        </div>
+
+        <!-- Reatribuição (Reforço) -->
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Reatribuição (Reforço)</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Permitir que outra turma ajude a executar uma atividade (além da turma principal):</p>
+            <div id="reatribuicao-list" class="space-y-2">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Configurado no checkpoint se necessário</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block next_button %}
+<button type="button" class="btn-primary" hx-post="/wizard/step/4" hx-target="#wizard-content" hx-swap="innerHTML" hx-indicator="#wizard-spinner" hx-include="[name='reatribuicao_mode'],[name='auto_assign_orphans'],[name='orphan_target_team'],[name^='atividade_vinculos_']">
+    Próximo: Orçamento e Comparativo
+    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/wizard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initActivityAccordions();
+    initOrphanHandling();
+    loadActivities();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "wizard/base.html" %}
+
+{% set wizard_steps = [
+    {"label": "Fazenda"},
+    {"label": "Equipes"},
+    {"label": "Atividades"},
+    {"label": "Orçamento"},
+    {"label": "Revisar"}
+] %}
+{% set current_step = 5 %}
+
+{% block wizard_nav %}
+<nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10" role="navigation" aria-label="Progresso do assistente">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="flex items-center justify-between h-14">
+            <div class="flex items-center space-x-2 overflow-x-auto pb-2" role="list">
+                {% for step in wizard_steps %}
+                <div class="flex items-center flex-shrink-0 text-green-600 dark:text-green-400">
+                    <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/30">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                    </span>
+                    <span class="hidden sm:inline-block ml-1 text-xs font-medium whitespace-nowrap">{{ step.label }}</span>
+                </div>
+                {% if not loop.last %}
+                <div class="flex-1 h-0.5 bg-green-500 dark:bg-green-500 mx-1"></div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <a href="/wizard/step/1" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 whitespace-nowrap">Editar passo</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block wizard_content %}
+<div id="wizard-content" class="space-y-6"><span class="wizard-current-step hidden">{{ current_step }}</span>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">5. Revisão e Confirmação</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Verifique todas as configurações antes de executar o cronograma.</p>
+
+        <div class="space-y-6">
+            <!-- Resumo Fazenda -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Fazenda e Escopo</h3>
+                    <a href="/wizard/step/1" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-gray-500 dark:text-gray-400">Fazenda:</span> <span class="text-gray-900 dark:text-gray-100 font-medium ml-1">{{ state.step1.farm_name }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Penalidade:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">x{{ state.step1.penalidade }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Estado:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step1.state_filter or 'Todos' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Município:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step1.municipality_filter or 'Todos' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Empresa:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step1.company_filter or 'Todas' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Metodologias:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step1.metodologias_selected|length if state.step1.metodologia_scope == 'select' else 'Todas' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Talhões:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step1.talhoes_selected|length if state.step1.talhao_scope == 'select' else 'Todos' }}</span></div>
+                </div>
+            </div>
+
+            <!-- Resumo Equipes e Timeline -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Equipes e Timeline</h3>
+                    <a href="/wizard/step/2" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-4">
+                    <div><span class="text-gray-500 dark:text-gray-400">Sequência:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step2.modo_seq }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Prazo:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step2.prazo_meses }} meses</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Início:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step2.dia_ref }}/{{ state.step2.mes_ref }}/{{ state.step2.ano_ref }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Operários:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step2.executores }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Jornada:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step2.jornada }}h</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Bloqueio Global:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ 'Sim' if state.step2.usar_bloqueio_global else 'Não' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Reforço:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ 'Sim' if state.step2.usar_reforco_automatico else 'Não' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Pelotão Unificado:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ 'Sim' if state.step2.usar_pool_pos_bloqueio else 'Não' }}</span></div>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-600 pt-3">
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Turmas</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for turma in state.step2.turmas %}
+                        <div class="p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">{{ turma.nome }}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ turma.operarios }} operários</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumo Atividades -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Atividades e Conflitos</h3>
+                    <a href="/wizard/step/3" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-gray-500 dark:text-gray-400">Modo conflito:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step3.reatribuicao_mode }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Vinculações:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step3.atividade_vinculos|length }} turmas configuradas</span></div>
+                </div>
+            </div>
+
+            <!-- Resumo Orçamento -->
+            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Orçamento e Comparativo</h3>
+                    <a href="/wizard/step/4" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-gray-500 dark:text-gray-400">Modo orçamento:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ 'Estrito' if state.step4.orcamento_estrito else 'Flexível' }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Comparativo:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step4.modo_comparativo }}</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Lacunas de tarifa:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step4.tariff_gap_resolutions|length if state.step4.tariff_gap_resolutions else 0 }} resolvidas</span></div>
+                    <div><span class="text-gray-500 dark:text-gray-400">Substituições:</span> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ state.step4.substituicoes_comparativo|length if state.step4.substituicoes_comparativo else 0 }}</span></div>
+                </div>
+            </div>
+
+            <!-- Confirmação -->
+            <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <label class="flex items-start space-x-3 cursor-pointer">
+                    <input type="checkbox" name="confirmed" id="confirm-checkbox" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5">
+                    <div>
+                        <span class="block text-gray-900 dark:text-gray-100 font-medium">Confirmo que todas as configurações estão corretas</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Desejo executar o cronograma com as opções acima</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block next_button %}
+<button type="button" class="btn-primary w-full" id="run-scheduler-btn" disabled>
+    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Executar Cronograma
+</button>
+{% endblock %}
+
+{% block wizard_actions %}
+{{ super() }}
+<div class="max-w-4xl mx-auto px-4 pb-8">
+    <a href="/" class="block text-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mt-4">
+        ou voltar ao dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/wizard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('confirm-checkbox');
+    const btn = document.getElementById('run-scheduler-btn');
+    if (checkbox && btn) {
+        checkbox.addEventListener('change', function() {
+            btn.disabled = !this.checked;
+        });
+        btn.addEventListener('click', function() {
+            runWizard();
+        });
+    }
+});
+</script>
+{% endblock %}
