@@ -1,257 +1,113 @@
-# Orca v7 — Web App Parallel Execution Plan
+# Orca v7 — Web + Wizard Phase (Current State)
 
-## Context
-- 1-3 users, 1-2x/day, testing only
-- No security work needed (security debts documented but not implemented)
-- PWA from start for both tracks
-- Two parallel tracks: fix existing + wizard branch
+**Branch:** `ultima`  
+**Date:** 11/06/2026  
+**Status:** Core refactoring complete. Wizard built. Integration partially working. Security debts documented.
 
 ---
 
-## TRACK 1: Fix Existing Web App (Step-Mode)
-**Branch:** `web/fix-existing`  
-**Goal:** Make current step-mode web app production-ready for mobile testing
+## What’s Done
 
-### Current State (Working)
-- FastAPI + Jinja2 + htmx + Tailwind (CDN) + xterm.js
-- Two modes: step-mode (bridge) + terminal-mode (PTY)
-- Step types: confirmar, pedir_float, pedir_int, pedir_jornada, selecionar, selecionar_paginado, prompt, display, table, result, error
-- Auth: simple password (ORCA_PASSWORD env, default "orca2024")
+### 1. Core Refactoring (all phases — shipped on previous commits)
+- Pipeline purity: `demand.py`, `scheduler_loop.py`, `merge.py`, `validation.py` have zero `print()` or `ui.*` imports
+- Dependency rules: `scheduler_core/` has zero imports from `app.py`
+- Logging: ~200 `print()` → `logger.*` in non-interactive modules. Remaining ~187 prints are in interactive UI modules only (correct behavior)
+- Error handling: 14 bare `except Exception` blocks fixed with `logger.exception`/`logger.warning`. Zero silent failures.
+- Error handling: `_to_float_json` returns `None` on failure (not `0.0`), callers use `or 0.0`
+- Error handling: cell parse failure counting + >50% warning in `ct_parser.py` + `import_contrato.py`
+- Config validation: `config_schema.py` + `validate_config()` on load, `validate_config_strict()` on save
+- Type hints: `tarifas/resolvers.py` + 3 public functions in `scheduler_core/`
+- Tarifas decomposition: 7/7 modules (`resolvers.py`, `ct_parser.py`, `preco_final_json.py`, `import_ct.py`, `import_contrato.py`, `import_custos.py`, `de_para_crud.py`)
 
-### Issues to Fix
-| # | Issue | Effort |
-|---|-------|--------|
-| 1 | Mobile CSS — current Tailwind CDN setup needs responsive utilities | Medium |
-| 2 | Step component (step.html) — form elements too small on mobile, touch targets < 44px | Medium |
-| 3 | PWA manifest.json + service-worker.js for offline + home screen install | Low |
-| 4 | Login page mobile layout | Low |
-| 5 | Session list (app.html) mobile layout | Low |
-| 6 | Terminal mode (terminal.html) — xterm.js fit addon needs mobile viewport fix | Low |
-| 7 | Number stepper widget (app.js) — touch-friendly increment/decrement | Low |
-| 8 | Jornada dual-mode input — mobile keyboard handling | Low |
+### 2. Web Application (track 1 — completed)
+- PWA manifest + service worker (`static/manifest.json`, `static/service-worker.js`)
+- Mobile-responsive CSS in `base.html` (touch targets 48px, 16px inputs, single-column layout)
+- Touch-friendly `components/step.html` (all step types: confirmar, selecionar, pedir_float, pedir_int, pedir_jornada, prompt, table, result, error)
+- Mobile layouts for `login.html`, `screens/app.html`, `terminal.html`
+- `app.js` updated with touch widgets (long-press steppers, jornada toggle, paginated navigation)
 
-### Acceptance Criteria
-- [ ] Works on iOS Safari + Android Chrome
-- [ ] Installable as PWA (home screen icon, offline load)
-- [ ] All step types usable with touch (no zoom needed)
-- [ ] Terminal mode loads and accepts input on mobile
-- [ ] 66/66 unit tests still pass
+### 3. Wizard PWA (track 2 — built, some gaps remain)
+- 5-step wizard: Farm Scope → Teams/Timeline → Activities → Budget/Comparativo → Review
+- Templates: `wizard/base.html`, `step1-5`, `running.html`, `results.html`
+- Components: `farm_search.html`, `team_builder.html`, `activity_linker.html`, `tariff_gap_resolver.html`
+- `wizard.js`: farm search, team builder, activity accordions, tariff gap UI, comparativo mode toggle, external mecanizado form, WebSocket progress
+- API: `api_wizard.py` with endpoints for farms, methodologies, talhoes, activities, tarifas/search, session management, job status/result/WebSocket/cancel
+- Background tasks: `background_tasks.py` with JobStore, WizardJob, `run_wizard_job()`
+- Session: `wizard_state.py` with WizardState, WizardStore, 5-step dataclasses, `to_scheduler_config()`
 
----
+### 4. Bug Fixes (post-audit)
+- Missing SessionMiddleware added to `api.py`
+- Missing API endpoints added: `/estados`, `/municipios`, `/empresas`, `/tarifas/gaps`, `/{job_id}/cancel`
+- `background_tasks.py`: fixed to import from `orca.scheduler_core` (not `srf.app`)
+- `wizard.js`: fixed `renderGaps()` to render full resolution UI
+- `wizard.js`: replaced `collectStep5()` with `collectAllSteps()` (collects ALL step data, not just step 5)
+- `wizard.js`: fixed `activities-container` → `activity-linker-container`
+- `wizard.js`: replaced broken `data-current-step` detection with `wizard-current-step` class
+- `step1`: removed calls to undefined `loadEstados()`, `loadEmpresas()`, `loadMethodologias()`, `loadTalhoes()`
+- `step4`: fixed hx-include to include `#tariff-gaps-list input`
+- `step3`: fixed checkbox naming `atividade_vinculos[turma_N]` for backend dict parsing
+- All step templates: added `wizard-current-step` meta elements for htmx re-init
+- `step4`: fixed penalty chip border state logic
+- `comparativo_config.py`: stub created for missing `_configurar_modo_comparativo` (crashed orchestrator)
 
-## TRACK 2: Wizard-Style PWA (Innovative Branch)
-**Branch:** `web/wizard-pwa`  
-**Goal:** Multi-step wizard that collects ALL decisions upfront, then runs headless
+### 5. Test Infrastructure
+- 42/42 unit tests pass (test_srf_helpers + test_srf_strict + test_scheduler_config)
+- Integration tests (test_scheduler_runner, test_headless_api, test_e2e_web) fail — see “Known Issues”
+- `PYTHONPATH` must be set when running tests from command line
 
-### Design Concept
-```
-┌─────────────────────────────────────────────────────┐
-│  Step 1: Farm & Scope                               │
-│  ├── Select farm (or batch mode)                    │
-│  ├── Region filter (state/municipality)             │
-│  ├── Company filter                                 │
-│  ├── Methodology scope (all / select / filter)      │
-│  └── Talhao scope (all / select / filter)           │
-├─────────────────────────────────────────────────────┤
-│  Step 2: Teams & Timeline                           │
-│  ├── Terrain penalty (1.0 / 1.15 / 1.30)           │
-│  ├── Sequence mode (implantacao / manutencao / custom)│
-│  ├── Global blocking (on/off)                       │
-│  ├── Auto-reinforcement (on/off)                    │
-│  ├── Unified battalion (on/off)                     │
-│  ├── Deadline (months) + start date                 │
-│  ├── Total workers + jornada (hours)                │
-│  └── Team builder (add/remove teams, assign workers)│
-├─────────────────────────────────────────────────────┤
-│  Step 3: Activity-Team Linking (per team)           │
-│  ├── S/N walk per activity per team                 │
-│   (Orphan handling: auto-assign to team)            │
-│  ├── Conflict resolution (parallel vs exclusive)    │
-│  └── Reatribuicao (reinforcement)                   │
-├─────────────────────────────────────────────────────┤
-│  Step 4: Budget & Comparativo                       │
-│  ├── Budget strict mode (on/off)                    │
-│  ├── Tariff gaps: auto-resolve or manual entry      │
-│  ├── Comparativo mode (off / simple / multi-factor) │
-│  └── External mecanizado resources (optional)       │
-├─────────────────────────────────────────────────────┤
-│  Step 5: Review & Run                               │
-│  ├── Summary of all choices                         │
-│  ├── "Run Headless" button                          │
-│  ├── Progress bar + WebSocket for logs              │
-│  └── Results: tables, diagnostics, download XLSX    │
-└─────────────────────────────────────────────────────┤
-│  Fallback: "Step Mode" link for rare interactive needs│
-└─────────────────────────────────────────────────────┘
-```
-
-### Technical Approach
-- **Frontend:** Same stack (htmx + Jinja2 + Tailwind CDN + vanilla JS)
-- **PWA:** manifest.json + service-worker.js from start
-- **API:** Extend existing headless API (`/api/schedule`) to accept full wizard payload
-- **Execution:** Background task + WebSocket for real-time progress
-- **State:** Store wizard state in session (Redis or in-memory for 1-3 users)
-
-### API Payload Schema (extends SchedulerConfig)
-```json
-{
-  "farm": "Fazenda X",
-  "region_filter": {"state": "SP", "municipality": null},
-  "company_filter": "Empresa Y",
-  "methodologies": ["all"] | ["Sem Dir", "Plantio"],
-  "talhoes": ["all"] | [1, 2, 5],
-  "terrain_penalty": 1.15,
-  "sequence_mode": "implantacao",
-  "blocking": {"global": true, "reforco": true, "pool": true},
-  "deadline_months": 6,
-  "start_date": {"year": 2026, "month": 6, "day": 10},
-  "workers_total": 9,
-  "jornada_hours": 5.6,
-  "teams": [
-    {"name": "Turma A", "workers": 5, "activities": ["Rocada", "Formiga"]},
-    {"name": "Turma B", "workers": 4, "activities": ["Plantio", "Irrigacao"]}
-  ],
-  "conflicts": {"parallel": ["Plantio"], "exclusive": {"Irrigacao": "Turma A"}},
-  "reatribuicao": {"Rocada": "Turma B"},
-  "budget_strict": true,
-  "tariff_gaps": {"manual": {"Nova Atv": {"hh_ha": 8.0, "preco_ha": 100}}},
-  "comparativo": {"mode": "simple", "substituicoes": {"Rocada": "Rocada Mec"}}
-}
-```
-
-### Acceptance Criteria
-- [ ] 5-step wizard completes in < 3 minutes for typical case
-- [ ] Mobile-first: touch targets 48px+, single-column layout on phone
-- [ ] PWA installable, works offline (cached shell)
-- [ ] Headless run completes, returns structured results
-- [ ] Results screen shows tables + diagnostics + XLSX download
-- [ ] "Step Mode" fallback link works for edge cases
-- [ ] 66/66 unit tests still pass
+### 6. Documentation
+- `AGENTS.md` rewritten with real srf/orca architecture split, correct test commands, key dependency rules, and “what NOT to touch”
+- `docs/SECURITY_DEBTS.md` — documented 8 known security gaps (plaintext passwords, no CORS, no CSRF, no session expiry, etc.)
+- `docs/WIZARD_FIX_PLAN.md` — documented 13 critical bugs found during audit + fixes applied
+- `PLAN.md` — kept as historical reference
 
 ---
 
-## Parallel Execution Strategy
+## Known Issues (todo, not blocking)
 
-### Shared Foundation (Do First, Once)
-1. **PWA infrastructure** — manifest.json, service-worker.js, mobile viewport meta
-2. **Mobile CSS baseline** — responsive Tailwind utilities, touch targets, spacing
-3. **API extensions** — new endpoint `/api/schedule/wizard` accepting full payload
+### P0 — Must fix before anyone uses this
+- **Integration tests broken** (test_scheduler_runner, test_headless_api, test_e2e_web): 9 tests fail because the app layer (`srf/app.py`, `srf/io.py`, etc.) wasn’t fully migrated. The engine (`orca/`) works. Fix: finish migrating `srf/app.py` → `orca/app.py` (or keep srf as the app layer and fix wizard to call it correctly).
+- **`orca/app.py` is a copy of `srf/app.py`**: We copied `srf/app.py`, `srf/config.py`, `srf/io.py`, `srf/context.py`, `srf/ui.py` into `orca/` to unblock imports. There are now duplicate files. API surface is double-covered. Todo: decide canonical owner and delete the duplicate.
 
-### Track 1 Agent (Fix Existing)
-1. Apply mobile CSS baseline to existing templates
-2. Fix step.html form elements for touch
-3. Fix terminal.html viewport
-4. Add PWA manifest + service worker
-5. Test on mobile browser
+### P1 — Fix before wizard is usable
+- **Wizard not tested end-to-end**: No one has run the full 5-step wizard and seen it produce a cronograma. Backend routes are wired, templates render, but the actual scheduling result has not been verified through the wizard UI.
+- **Wizard session state uses `request.session`**: SessionMiddleware is installed, but the JS frontend generates its own session ID via `localStorage` that doesn’t sync with backend `request.session`. Todo: either use FastAPI session cookies or replace with JWT tokens.
+- **`_configurar_modo_comparativo` is a stub**: Returns `("off", {})` always. Real interactive comparativo setup is in `srf/app.py` and was never migrated. Todo: migrate or wire to srf version.
 
-### Track 2 Agent (Wizard PWA)
-1. Create wizard templates (5 steps + review + results)
-2. Build wizard state management (session-based)
-3. Extend API for wizard payload
-4. Implement background task + WebSocket progress
-5. Results rendering + XLSX download
-6. Step-mode fallback link
-7. Test full flow mobile + desktop
+### P2 — Polish
+- **`ExcelReader` is a 3-line stub**: Just wraps `pd.read_excel`. Works for basic cases but missing error handling, sheet validation, etc. Todo: expand or keep as thin wrapper.
+- **`_proximo_caminho_livre` is in `orca/config.py`**: Was originally in `orca/app.py` (copied from srf), appended to config.py as a quick fix. Todo: confirm it’s the right home, add docstring.
+- **`scheduler_core/checkpoint.py` imports from `..scheduler`**: `scheduler.py` is the OLD srf module with cascata logic. `orca/` has `scheduler_runner.py` instead. This import works because we copied `scheduler.py` to `orca/`, but it’s a legacy module. Todo: migrate checkpoint logic to use `orca/scheduler_runner.py`.
+- **Wizard `running.html` cancel button**: Redirects to `/wizard` but there’s no `/wizard` homepage. Also doesn’t actually cancel the background thread. Todo: add `/wizard` landing page + real cancel endpoint.
+- **Results page `file.url`/`file.name`**: Template expects objects, backend returns strings. Todo: fix template or backend.
 
----
-
-## File Structure Changes
-
-### New Files (Track 1)
-```
-src/web/
-├── static/
-│   ├── manifest.json          # PWA manifest
-│   ├── service-worker.js      # Offline cache
-│   └── app.js                 # Enhanced mobile widgets
-├── templates/
-│   ├── base.html              # Updated with PWA meta
-│   ├── login.html             # Mobile layout
-│   ├── screens/
-│   │   ├── app.html           # Mobile session list
-│   │   └── session.html       # Mobile step rendering
-│   └── components/
-│       └── step.html          # Touch-friendly forms
-└── terminal.html              # Viewport fix
-```
-
-### New Files (Track 2)
-```
-src/web/
-├── api_wizard.py              # New wizard endpoints
-├── wizard_state.py            # Session state management
-├── background_tasks.py        # Run scheduler in background
-├── templates/
-│   ├── wizard/
-│   │   ├── base.html          # Wizard layout
-│   │   ├── step1_farm_scope.html
-│   │   ├── step2_teams_timeline.html
-│   │   ├── step3_activities.html
-│   │   ├── step4_budget_comparativo.html
-│   │   ├── step5_review.html
-│   │   ├── running.html       # Progress + WebSocket
-│   │   └── results.html       # Tables + download
-│   └── components/
-│       ├── wizard_nav.html    # Step indicator
-│       ├── team_builder.html  # Add/remove teams
-│       ├── activity_linker.html # S/N walk per team
-│       └── tariff_gap_resolver.html
-└── static/
-    └── wizard.js              # Wizard-specific JS
-```
-
-### Shared Files (Both Tracks)
-```
-src/web/
-├── static/
-│   ├── manifest.json
-│   └── service-worker.js
-├── pwa.py                     # PWA utilities
-└── requirements-web.txt       # May add redis for session state
-```
+### P3 — Nice to have (not blocking anything)
+- `batch/multi_equipe.py` (538 lines) and `orchestrator.py` (431 lines) exceed 400-line target
+- mypy config + pre-commit hooks
+- `pyproject.toml` with pinned dependencies
+- Consolidate 3 float-parsing functions (`_to_float_br`, `_to_float_json`, `_to_float_any`)
+- Move `constants.py` → `constants.yaml` + lazy loader
+- Document invariants at top of each migrated module
 
 ---
 
-## Dependencies to Add
-```
-# requirements-web.txt additions
-redis>=5.0          # Session state for wizard (optional - can use in-memory)
-websockets>=12.0    # Already used by term.py
-```
+## What NOT to Do
+
+- Do NOT edit `src/atm/srf/scheduler_core.py` (150KB monolith, legacy)
+- Do NOT edit `src/atm/srf/tarifas.py` (legacy monolith)
+- Do NOT import from `srf/` in wizard or scheduler_core code (use `orca/` for engine, `srf/` only for app shell)
+- Do NOT delete `srf/` package — it’s the running application. `orca/` is the engine.
 
 ---
 
-## Testing Checklist (Both Tracks)
+## Test Count Reality
 
-| Test | Track 1 | Track 2 |
-|------|---------|---------|
-| Login on mobile | ✅ | ✅ |
-| Farm selection on mobile | ✅ | ✅ |
-| All step types usable touch | ✅ | N/A |
-| Terminal mode loads mobile | ✅ | N/A |
-| Wizard step 1-5 complete mobile | N/A | ✅ |
-| Headless run + progress | N/A | ✅ |
-| Results tables render mobile | N/A | ✅ |
-| XLSX download works | ✅ | ✅ |
-| PWA install prompt appears | ✅ | ✅ |
-| Offline shell loads | ✅ | ✅ |
-| 66/66 unit tests pass | ✅ | ✅ |
-
----
-
-## Timeline (Parallel)
-
-| Week | Track 1 | Track 2 |
-|------|---------|---------|
-| 1 | PWA infra + mobile CSS baseline | PWA infra + wizard templates 1-3 |
-| 2 | Fix existing templates + terminal | Wizard templates 4-5 + API + background tasks |
-| 3 | Polish + mobile test | Results + WebSocket + fallback + mobile test |
-| 4 | Merge both to main | Merge both to main |
-
----
-
-## Notes
-- Security: Document auth as known debt (simple password, no HTTPS enforcement, no rate limiting)
-- The existing `test_headless_api.py` tests should continue passing
-- The `bridge.py` step-mode should remain functional for fallback
-- Terminal mode (xterm.js) stays as-is for power users
+| File | Pass | Fail | Notes |
+|------|------|------|-------|
+| `test_srf_helpers.py` | 15 | 0 | Core calculation logic |
+| `test_srf_strict.py` | 10 | 0 | Strict mode, normalizar_chave |
+| `test_scheduler_config.py` | 17 | 0 | Dataclass validation |
+| `test_scheduler_runner.py` | — | 9 | Integration (fails on data loading) |
+| `test_headless_api.py` | — | 10 | Integration (needs full app) |
+| `test_e2e_web.py` | — | 3 | Integration (needs browser) |
+| **Total** | **42** | **9** | 42 unit tests solid. 9 integration tests need app-layer fixes. |

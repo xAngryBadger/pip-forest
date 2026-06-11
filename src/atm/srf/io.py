@@ -9,6 +9,7 @@ from .config import (
     INPUT_DIR, OUTPUT_DIR,
     PROFILES_DIR, CT_REAL_FILENAME,
     STG_FILENAME, KNOWN_COLUMNS,
+    salvar_config,
 )
 from .text_utils import normalizar_chave, remover_acentos
 from .territorio import fazendas_unicas_micro, _indice_fazendas_ct

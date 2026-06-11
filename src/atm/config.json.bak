@@ -1,0 +1,83 @@
+{
+  "de_para": {},
+  "tarifas": {},
+  "atividades": {},
+  "orcamento_estrito": false,
+  "filtros_bloqueio_global": [
+    "plantio",
+    "irrig"
+  ],
+  "fazendas_ct": [],
+  "sequencia": {
+    "modo": "implantacao",
+    "offset_limpeza_quimica_dias": 30,
+    "filtros_plantio": [
+      "plantio"
+    ],
+    "filtros_irrigacao": [
+      "irrig"
+    ],
+    "limpeza_quimica_filtros": [
+      "limpeza",
+      "quim"
+    ],
+    "limpeza_quimica_exclusoes": [
+      "impl",
+      "impl."
+    ],
+    "implantacao_outras_fase": 5.5,
+    "implantacao_fases": [
+      {
+        "id": "rocada",
+        "filtros": [
+          "rocada",
+          "rocada"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "formiga",
+        "filtros": [
+          "formiga",
+          "combate a formiga",
+          "combate a formigas"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "coroamento",
+        "filtros": [
+          "coroamento",
+          "coroa"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "coveamento",
+        "filtros": [
+          "coveamento",
+          "coveam"
+        ],
+        "exclusoes": []
+      },
+      {
+        "id": "adubacao_quimica",
+        "filtros": [
+          "adubacao quim",
+          "adubacao quim",
+          "melhora quim"
+        ],
+        "exclusoes": []
+      }
+    ],
+    "personalizado_ordem": []
+  },
+  "preco_final_json_path": "",
+  "comparativo": {
+    "execucao_compacta": true
+  },
+  "empresas": {},
+  "modo_somente_hh": true,
+  "coluna_metodologia_micro": "METODOLOGIA PROPOSTA",
+  "jornada_horas": 4.6
+}

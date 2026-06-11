@@ -522,6 +522,7 @@ def calcular_cronograma_inteligente(
 
     if _batch:
         modo_seq = ctx["modo_seq"]
+        modo_ctx = f"seq:{modo_seq}"
     else:
         modo_seq = _selecionar_sequencia_padrao_sn(cfg, seq_cfg, atividades_reais)
 

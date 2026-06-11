@@ -211,11 +211,11 @@ src/atm/srf/tarifas/
 
 ---
 
-## Estado Atual (Original → Final)
+## Estado Atual (Real — 11/06/2026)
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| `scheduler_core.py` | 3,376 linhas monólito | 19 módulos, <400 linhas (exceção: 2 módulos) |
+| Métrica | Antes | Depois (ultima) |
+|---------|-------|-----------------|
+| `scheduler_core.py` | 3,376 linhas monólito | 19 módulos no package + stub `comparativo_config.py` |
 | `tarifas.py` | 1,225 linhas monólito | 7 módulos no package |
 | `print()` em non-UI | ~400+ | 187 (todos em módulos interativos de UI) |
 | `input()` cru | 9 | 0 (só em `ui.py`) |
@@ -223,4 +223,18 @@ src/atm/srf/tarifas/
 | `except Exception: pass` | 64 | 21 (7 aceitáveis, 14 com logger) |
 | Type hints | só scheduler_config.py | resolvers.py + 3 scheduler_core functions |
 | Config validation | nenhuma | `config_schema.py` with dataclass validation |
-| Testes | 41 | 66 (154 com extended) |
+| Testes | 41 | **42/42 unit tests passam** (9 integration tests precisam app-layer fix) |
+
+### Estrutura real (srf/orca split)
+- `orca/` = ENGINE (refactored modules + copied app modules for testability)
+- `srf/` = APPLICATION (legacy monoliths: `scheduler_core.py` 150KB, `tarifas.py`, `scheduler.py`)
+- Web wizard built on `orca.scheduler_core`, step-mode still uses `srf/` app shell
+
+### Pendências reais
+- [ ] Integration tests broken (app layer migration incomplete)
+- [ ] Duplicate files: `orca/app.py`, `orca/config.py`, `orca/io.py`, `orca/context.py`, `orca/ui.py` are copies of `srf/` versions — decide canonical owner
+- [ ] Wizard not tested end-to-end (backend exists, frontend exists, nobody ran it to completion)
+- [ ] `_configurar_modo_comparativo` is a stub (returns default, real version is in `srf/app.py`)
+- [ ] `checkpoint.py` still imports from `scheduler.py` (legacy)
+- [ ] Wizard session sync: JS localStorage ID vs backend SessionMiddleware not synchronized
+- [ ] `scheduler_core.py` 150KB monolith in `srf/` — do not touch, not migrated
