@@ -13,13 +13,17 @@ from src.web.session import get_session, list_sessions, remove_session, cleanup_
 from src.web.bridge import start_session, abort_session
 from src.web.step_schema import STEP_TYPES
 from src.web import term as term_module
+from src.web.api_wizard import router as wizard_router
 
 _BASE_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _BASE_DIR / "templates"
 _STATIC_DIR = _BASE_DIR / "static"
 _DATA_DIR = Path(os.environ.get("SRF_DATA_DIR", "data"))
 
+from starlette.middleware.sessions import SessionMiddleware
+
 app = FastAPI(title="SRF v6.3 Web", docs_url=None, redoc_url=None)
+app.add_middleware(SessionMiddleware, secret_key="orca-wizard-secret-dev-only-change-in-production")
 
 _jinja_env = Environment(
     loader=FileSystemLoader(str(_TEMPLATES_DIR)),
@@ -39,6 +43,8 @@ def _patched_load(name, globals):
 
 
 _jinja_env._load_template = _patched_load
+
+app.include_router(wizard_router)
 
 if _STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
