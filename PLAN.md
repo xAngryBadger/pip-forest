@@ -21,7 +21,7 @@
 10. **Cell parse failure counting** — `ct_parser.py` + `import_contrato.py` com >50% warning
 11. **`_to_float_json` retorna None** — semântica de erro corrigida, callers tratam None
 12. **Raw `input()` elimination** — Zero `input()` cru fora de `ui.py`
-13. **Test suite** — 66/66 unit tests passam (3 arquivos core) + 88 em outros (154 total)
+13. **Test suite** — 64/64 core unit tests passam (36 imports broken — fixed on branch `ultima`) + 88 em outros (152 total)
 
 ### ❌ Ainda Pendente (baixo impacto)
 - [x] `%(funcName)s` no log format (P1)
@@ -83,7 +83,7 @@
 
 ### Estrutura atual
 ```
-src/atm/orca/scheduler_core/
+src/atm/srf/scheduler_core/
 ├── __init__.py           (65 linhas)
 ├── orchestrator.py       (434 linhas)  [excede 400]
 ├── validation.py         (107 linhas)  ✅ pipeline, sem ui.*
@@ -121,7 +121,7 @@ src/atm/orca/scheduler_core/
 
 ### Estrutura atual
 ```
-src/atm/orca/tarifas/
+src/atm/srf/tarifas/
 ├── __init__.py           (22 linhas)   ✅ re-exports todos os públicos
 ├── resolvers.py          (244 linhas)  ✅ sem pandas/openpyxl
 ├── ct_parser.py          (345 linhas)  ✅ normalizar_ct313 + helpers
@@ -183,12 +183,15 @@ src/atm/orca/tarifas/
 
 ## Test Suite Status
 
-### Core (AGENTS.md command): 66/66 ✅ PASS
+### Core (fixed on `ultima` branch): 64/64 ✅ PASS (was 25/25 srf + 36 broken imports)
 | File | Tests | Content |
 |------|-------|---------|
-| `test_orca_helpers.py` | 32 | mediana, resolver, stg_tarifas, chave_tarifa, _to_float_any, preco_final_json |
-| `test_orca_strict.py` | 10 | strict mode rendimento, normalizar_chave |
-| `test_orca_scheduler.py` | 24 | _validar_input, _build_resultado_final, _construir_atividade_remap, perguntar_data_fim, comparativo, lote, multi_equipes |
+| `test_srf_helpers.py` | 25 | mediana, resolver, stg_tarifas, chave_tarifa, _to_float_any, preco_final_json |
+| `test_srf_strict.py` | 0 | strict mode (merged into helpers) |
+| `test_scheduler_config.py` | 17 | SchedulerConfig, TurmaSpec, ScheduleResult, EquipeSpec |
+| `test_scheduler_runner.py` | 9 | run_scheduler integration |
+| `test_headless_api.py` | 10 | FastAPI web endpoints |
+| `test_e2e_web.py` | 3 | E2E web session flows |
 
 ### Extended (NOT in AGENTS.md): 88 tests
 | File | Tests | Content |

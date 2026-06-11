@@ -199,11 +199,11 @@ def run_wizard_job(job: WizardJob):
     job.set_progress("loading_data", 5, "Carregando dados da fazenda...")
 
     try:
-        from src.atm.srf.config import carregar_config
-        from src.atm.srf.io import carregar_planilha_microplanejamento, _find_default_micro_path
-        from src.atm.srf.context import contexto_sessao
-        from src.atm.srf.scheduler_core import calcular_cronograma_inteligente
-        from src.atm.srf.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
+        from src.atm.orca.config import carregar_config
+        from src.atm.orca.io import carregar_planilha_microplanejamento, _find_default_micro_path
+        from src.atm.orca.context import contexto_sessao
+        from src.atm.orca.scheduler_core import calcular_cronograma_inteligente
+        from src.atm.orca.app import _aplicar_filtro_regiao, _aplicar_filtro_empresa_e_escopo
         import pandas as pd
         import os
 

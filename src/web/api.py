@@ -249,7 +249,7 @@ async def download_file(request: Request, session_id: str, filename: str):
         raise HTTPException(status_code=404)
     if filename not in session.result_files:
         raise HTTPException(status_code=404, detail="File not in session results")
-    from src.atm.srf.config import OUTPUT_DIR
+    from src.atm.orca.config import OUTPUT_DIR
     file_path = Path(OUTPUT_DIR) / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
@@ -332,8 +332,8 @@ async def api_farms(request: Request):
     _require_auth(request)
     import contextlib
     from io import StringIO
-    from src.atm.srf.io import carregar_planilha_microplanejamento, _find_default_micro_path
-    from src.atm.srf.config import carregar_config
+    from src.atm.orca.io import carregar_planilha_microplanejamento, _find_default_micro_path
+    from src.atm.orca.config import carregar_config
     cfg = carregar_config()
     micro_path = _find_default_micro_path(cfg)
     farms = []

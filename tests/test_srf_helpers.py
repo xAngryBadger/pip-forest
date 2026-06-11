@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src.atm.srf import tarifas, text_utils, io as srf_io
+from src.atm.orca import tarifas, text_utils, io as orca_io
 
 
 class TestParseIntervalos(unittest.TestCase):

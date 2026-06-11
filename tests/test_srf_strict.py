@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src.atm.srf import tarifas, scheduler, text_utils, constants
+from src.atm.orca import tarifas, scheduler_core, text_utils, config
 
 
 class TestResolverStrict(unittest.TestCase):
