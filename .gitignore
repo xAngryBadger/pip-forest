@@ -61,3 +61,20 @@ Thumbs.db
 cloud/builds/.gitkeep
 */__pycache__/
 data/sessions/
+
+# Debug and test data
+data/_test_*/
+data/config.json.bak
+
+# Test fixtures and headless tests
+tests/fixtures/
+tests/test_headless_api.py
+tests/test_scheduler_config.py
+tests/test_scheduler_runner.py
+
+# Sub-projects / experiments
+src/atm/orca/
+
+# Plan docs
+docs/SPEC_ORCA_V8_MODULAR.md
+docs/TASKS_ORCA_V8_MODULAR.md
