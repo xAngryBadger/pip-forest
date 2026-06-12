@@ -517,3 +517,11 @@ def garantir_fazendas_micro_no_ct(cfg, df):
             idx[nk] = f
             ad += 1
     return ad
+
+
+def _is_demo_micro_path(path: str) -> bool:
+    """Check if the microplanejamento path is a demo file."""
+    if not path:
+        return False
+    name = os.path.basename(path).lower()
+    return "demo" in name or "exemplo" in name or "sample" in name

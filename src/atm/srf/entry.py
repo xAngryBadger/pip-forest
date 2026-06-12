@@ -44,6 +44,7 @@ from .io import (
     _find_default_micro_path,
     _find_default_ct_path,
     garantir_fazendas_micro_no_ct,
+    _is_demo_micro_path,
 )
 from .de_para import aplicar_depara_padrao_exame
 from .app import (

@@ -146,7 +146,7 @@ async def start_wizard(request: Request):
         form_data = await request.form()
         data = dict(form_data)
 
-    for step_key in ["step1", "step2", "step3", "step4", "step5"]:
+    for i, step_key in enumerate(["step1", "step2", "step3", "step4", "step5"], 1):
         if step_key in data:
             val = data[step_key]
             if isinstance(val, str):
@@ -155,7 +155,7 @@ async def start_wizard(request: Request):
                 except Exception:
                     pass
             if isinstance(val, dict):
-                setattr(state, step_key, val)
+                state.update_step(i, val)
     state.current_step = 5
     wizard_store.set(state)
 

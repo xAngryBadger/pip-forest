@@ -44,7 +44,7 @@ class WizardJob:
     finished_at: Optional[str] = None
     cancel_requested: bool = False
     _ws_connections: List[Any] = field(default_factory=list)
-    _lock: threading.Lock = field(default_factory=threading.Lock)
+    _lock: threading.RLock = field(default_factory=threading.RLock)
 
     def add_log(self, level: str, message: str, step: str = "", progress: float = None):
         log = JobLog(
@@ -65,14 +65,14 @@ class WizardJob:
             if message:
                 self.add_log("info", message, step, progress)
 
-def set_status(self, status: JobStatus):
-    with self._lock:
-        self.status = status
-        if status == JobStatus.RUNNING and not self.started_at:
-            self.started_at = datetime.now().isoformat()
-        elif status in (JobStatus.COMPLETE, JobStatus.FAILED):
-            self.finished_at = datetime.now().isoformat()
-    self.broadcast_status()
+    def set_status(self, status: JobStatus):
+        with self._lock:
+            self.status = status
+            if status == JobStatus.RUNNING and not self.started_at:
+                self.started_at = datetime.now().isoformat()
+            elif status in (JobStatus.COMPLETE, JobStatus.FAILED):
+                self.finished_at = datetime.now().isoformat()
+        self.broadcast_status()
 
     def _broadcast_log(self, log: JobLog):
         dead_connections = []
@@ -157,7 +157,7 @@ def set_status(self, status: JobStatus):
 
 class JobStore:
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     def __new__(cls):
         if cls._instance is None:
@@ -224,14 +224,14 @@ def run_wizard_job(job: WizardJob):
             job.error = "Nenhum dado carregado"
             return
 
-        df_scope, regiao_info = _aplicar_filtro_regiao(df)
+        df_scope, regiao_info = _aplicar_filtro_regiao(df, modo_auto=True)
         if df_scope is None or df_scope.empty:
             job.add_log("error", "Nenhum dado apos filtro de regiao")
             job.set_status(JobStatus.FAILED)
             job.error = "Nenhum dado apos filtro de regiao"
             return
 
-        df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope)
+        df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope, modo_auto=True)
         if df_scope is None or df_scope.empty:
             job.add_log("error", "Nenhum dado apos filtros")
             job.set_status(JobStatus.FAILED)
