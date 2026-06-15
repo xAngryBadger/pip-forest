@@ -216,12 +216,24 @@ def run_wizard_job(job: WizardJob):
             job.error = "Arquivo de microplanejamento nao encontrado"
             return
 
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
+            return
+
         job.set_progress("filtering", 10, "Aplicando filtros de regiao e empresa...")
         df = carregar_planilha_microplanejamento(cfg, caminho=micro_path, modo_auto=True)
         if df is None or df.empty:
             job.add_log("error", "Nenhum dado carregado do microplanejamento")
             job.set_status(JobStatus.FAILED)
             job.error = "Nenhum dado carregado"
+            return
+
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
             return
 
         df_scope, regiao_info = _aplicar_filtro_regiao(df, modo_auto=True)
@@ -231,11 +243,23 @@ def run_wizard_job(job: WizardJob):
             job.error = "Nenhum dado apos filtro de regiao"
             return
 
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
+            return
+
         df_scope, empresa_filtro = _aplicar_filtro_empresa_e_escopo(df_scope, modo_auto=True)
         if df_scope is None or df_scope.empty:
             job.add_log("error", "Nenhum dado apos filtros")
             job.set_status(JobStatus.FAILED)
             job.error = "Nenhum dado apos filtros"
+            return
+
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
             return
 
         farm_name = job.wizard_state.step1.farm_name
@@ -250,6 +274,12 @@ def run_wizard_job(job: WizardJob):
 
         fazenda_real = match.iloc[0]["fazenda"]
         df_faz = match.copy()
+
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
+            return
 
         job.set_progress("configuring", 20, "Configurando scheduler...")
 
@@ -266,9 +296,17 @@ def run_wizard_job(job: WizardJob):
 
         job.add_log("info", f"Fazenda: {fazenda_real}, Talhoes: {df_faz['chave'].nunique()}, Area: {df_faz['area_ha'].sum():.1f} ha")
 
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
+            return
+
         job.set_progress("scheduling", 30, "Executando scheduler inteligente...")
 
         def progress_callback(step: str, progress: float, message: str = ""):
+            if job.cancel_requested:
+                return
             job.set_progress(step, 30 + progress * 0.6, message)
 
         result = calcular_cronograma_inteligente(
@@ -282,6 +320,12 @@ def run_wizard_job(job: WizardJob):
                 "talhoes": job.wizard_state.step1.talhoes_selected,
             },
         )
+
+        if job.cancel_requested:
+            job.add_log("warning", "Execucao cancelada pelo usuario")
+            job.set_status(JobStatus.FAILED)
+            job.error = "Cancelled by user"
+            return
 
         job.set_progress("finalizing", 95, "Finalizando e exportando resultados...")
 

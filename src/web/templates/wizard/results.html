@@ -111,10 +111,10 @@
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Arquivos Gerados</h3>
             <div class="space-y-2">
-                {% for file in result.result_files %}
-                <a href="{{ file.url }}" download class="flex items-center px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                {% for filename in result.result_files %}
+                <a href="/download/wizard/{{ job_id }}/{{ filename }}" download class="flex items-center px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
                     <svg class="w-5 h-5 mr-3 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span class="text-blue-700 dark:text-blue-300 font-medium">{{ file.name }}</span>
+                    <span class="text-blue-700 dark:text-blue-300 font-medium">{{ filename }}</span>
                 </a>
                 {% endfor %}
             </div>

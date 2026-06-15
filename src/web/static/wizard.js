@@ -4,21 +4,38 @@
     const API_BASE = '/api/schedule/wizard';
     let currentSession = null;
 
-    function getSessionId() {
-        if (!currentSession) {
-            currentSession = localStorage.getItem('orca_wizard_session');
-            if (!currentSession) {
-                currentSession = 'wiz_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
-                localStorage.setItem('orca_wizard_session', currentSession);
+    async function fetchSessionId() {
+        if (currentSession) return currentSession;
+        try {
+            const res = await fetch(`${API_BASE}/session`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                currentSession = data.session_id;
+                return currentSession;
             }
+        } catch (e) {
+            console.error('Failed to fetch session:', e);
         }
+        currentSession = 'wiz_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+        return currentSession;
+    }
+
+    function getSessionId() {
         return currentSession;
     }
 
     async function api(endpoint, options = {}) {
+        if (!currentSession) {
+            await fetchSessionId();
+        }
         options.headers = options.headers || {};
         options.headers['Content-Type'] = 'application/json';
         options.headers['X-Session-ID'] = getSessionId();
+        options.credentials = 'include';
         const res = await fetch(`${API_BASE}${endpoint}`, options);
         if (!res.ok) {
             const text = await res.text();
@@ -508,12 +525,13 @@ function runWizard() {
     });
 }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
+        await fetchSessionId();
         initFarmSearch();
         initMethodologyScope();
-initTalhaoScope();
-initMunicipalityFilter();
-initTeamBuilder();
+        initTalhaoScope();
+        initMunicipalityFilter();
+        initTeamBuilder();
         initJornadaInput();
         initActivityAccordions();
         initOrphanHandling();

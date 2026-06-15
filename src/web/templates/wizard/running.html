@@ -98,8 +98,16 @@ document.addEventListener('DOMContentLoaded', function() {
     ws.onclose = function() { addLog('Conexão encerrada.', 'warning'); };
     ws.onerror = function() { addLog('Erro na conexão.', 'error'); };
 
-    cancelBtn.addEventListener('click', function() {
+    cancelBtn.addEventListener('click', async function() {
         if (confirm('Tem certeza que deseja cancelar?')) {
+            try {
+                await fetch('/api/schedule/wizard/' + JOB_ID + '/cancel', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (e) {
+                console.error('Cancel error:', e);
+            }
             window.location.href = '/wizard';
         }
     });

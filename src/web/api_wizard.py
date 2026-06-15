@@ -2,7 +2,7 @@
 
 import pandas as pd
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -180,6 +180,37 @@ async def get_job_result(job_id: str):
     if job.status != JobStatus.COMPLETE:
         raise HTTPException(status_code=400, detail="Job not complete")
     return job.to_result_dict()
+
+
+@router.get("/result/{job_id}", response_class=HTMLResponse)
+async def wizard_result_page(request: Request, job_id: str):
+    job = job_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    result = job.to_result_dict()
+    return templates.TemplateResponse("wizard/results.html", {
+        "request": request,
+        "result": result,
+        "job_id": job_id,
+        "cronograma": result.get("cronograma", []),
+    })
+
+
+@router.get("/download/wizard/{job_id}/{filename}")
+async def download_wizard_result(request: Request, job_id: str, filename: str):
+    job = job_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    result = job.to_result_dict()
+    result_files = result.get("result_files", [])
+    if filename not in result_files:
+        raise HTTPException(status_code=404, detail="File not in job results")
+    from src.atm.orca.config import OUTPUT_DIR
+    from pathlib import Path
+    file_path = Path(OUTPUT_DIR) / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return FileResponse(str(file_path), filename=filename)
 
 
 @router.websocket("/ws/{job_id}")
