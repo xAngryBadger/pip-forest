@@ -73,7 +73,7 @@ tests/test_scheduler_config.py
 tests/test_scheduler_runner.py
 
 # Sub-projects / experiments
-src/atm/orca/
+# src/atm/orca/  -- tracked as single source of truth
 
 # Plan docs
 docs/SPEC_ORCA_V8_MODULAR.md
