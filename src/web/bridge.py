@@ -20,7 +20,7 @@ from src.web.session import (
 
 
 def _load_session_config(session: Session):
-    import src.atm.srf.config as _cfg
+    import src.atm.orca.config as _cfg
     with _cfgp_lock:
         _old = _cfg.CFGP
         _cfg.CFGP = str(session.data_dir / "config.json")

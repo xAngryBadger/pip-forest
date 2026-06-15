@@ -14,6 +14,8 @@ from src.web.bridge import start_session, abort_session
 from src.web.step_schema import STEP_TYPES
 from src.web import term as term_module
 from src.web.api_wizard import router as wizard_router
+from src.atm.orca.scheduler_runner import run_scheduler
+from src.atm.orca.scheduler_config import SchedulerConfig, ScheduleResult, TurmaSpec
 
 _BASE_DIR = Path(__file__).parent
 _TEMPLATES_DIR = _BASE_DIR / "templates"
@@ -57,12 +59,16 @@ def _render(template_name: str, context: dict, status_code: int = 200) -> HTMLRe
 
 
 def _get_session_token(request: Request) -> str | None:
-    return request.cookies.get("srf_token")
+    return request.cookies.get("srf_token") or request.cookies.get("orca_token")
 
 
 def _require_auth(request: Request) -> str:
     token = _get_session_token(request)
     if not token or not is_authenticated(token):
+        # Check if this is an API request (Accept: application/json or path starts with /api)
+        accept = request.headers.get("accept", "")
+        if "application/json" in accept or request.url.path.startswith("/api/"):
+            raise HTTPException(status_code=401, detail="Unauthorized")
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     return token
 
@@ -359,6 +365,114 @@ async def api_farms(request: Request):
             pass
     farms.sort(key=lambda f: f["name"])
     return JSONResponse(farms)
+
+
+@app.get("/api/schedule/schema")
+async def api_schedule_schema(request: Request):
+    return JSONResponse({
+        "config": {
+            "prazo_meses": {"type": "float", "default": 6.0, "min": 0.1},
+            "mes_ref": {"type": "int", "default": 1, "min": 1, "max": 12},
+            "ano_ref": {"type": "int", "default": 2026, "min": 2020},
+            "dia_ref": {"type": "int", "default": 1, "min": 1, "max": 31},
+            "jornada": {"type": "float", "default": 4.6, "min": 0.1},
+            "executores": {"type": "int", "default": 9, "min": 1},
+            "turmas": {"type": "array", "items": {"type": "object", "properties": {
+                "nome": {"type": "string", "default": "Geral"},
+                "operarios": {"type": "int", "default": 9, "min": 1},
+                "atividades": {"type": "array", "items": {"type": "string"}, "default": ["todas"]},
+            }}},
+            "modo_seq": {"type": "string", "default": "implantacao", "enum": ["implantacao", "manutencao", "colheita"]},
+            "usar_bloqueio_global": {"type": "bool", "default": True},
+            "usar_reforco_automatico": {"type": "bool", "default": True},
+            "usar_pool_pos_bloqueio": {"type": "bool", "default": True},
+            "filtros_bloqueio_global": {"type": "array", "items": {"type": "string"}},
+            "orcamento_estrito": {"type": "bool", "default": True},
+            "penalidade": {"type": "float", "default": 1.0, "min": 0.1},
+            "ativar_mecanizado": {"type": "bool", "default": False},
+            "regra_implantacao_mec": {"type": "string", "default": "substituir", "enum": ["substituir", "paralelo"]},
+        },
+        "result": {
+            "success": {"type": "bool"},
+            "fazenda": {"type": "string"},
+            "dias_simulado": {"type": "int"},
+            "meses_simulado": {"type": "float"},
+            "total_hh": {"type": "float"},
+            "total_custo": {"type": "float"},
+            "total_hm": {"type": "float"},
+            "cronograma": {"type": "array"},
+            "turmas_snapshot": {"type": "array"},
+            "error": {"type": "string"},
+        },
+        "turma": {
+            "nome": {"type": "string"},
+            "operarios": {"type": "int"},
+            "atividades": {"type": "array"},
+        },
+    })
+
+
+def _validate_config(config_data: dict) -> list[str]:
+    errors = []
+    prazo = config_data.get("prazo_meses", 6.0)
+    if prazo <= 0:
+        errors.append("prazo_meses must be positive")
+    jornada = config_data.get("jornada", 4.6)
+    if jornada <= 0:
+        errors.append("jornada must be positive")
+    executores = config_data.get("executores", 9)
+    if executores <= 0:
+        errors.append("executores must be positive")
+    turmas = config_data.get("turmas", [{"nome": "Geral", "operarios": 9, "atividades": ["todas"]}])
+    if not turmas:
+        errors.append("turmas cannot be empty")
+    for i, t in enumerate(turmas):
+        if t.get("operarios", 0) <= 0:
+            errors.append(f"turmas[{i}].operarios must be positive")
+    modo_seq = config_data.get("modo_seq", "implantacao")
+    if modo_seq not in ("implantacao", "manutencao", "colheita"):
+        errors.append(f"invalid modo_seq: {modo_seq}")
+    return errors
+
+
+@app.post("/api/schedule/validate")
+async def api_schedule_validate(request: Request):
+    payload = await request.json()
+    config_data = payload.get("config", {})
+    errors = _validate_config(config_data)
+    return JSONResponse({"valid": len(errors) == 0, "errors": errors}, status_code=200)
+
+
+@app.post("/api/schedule")
+async def api_schedule_run(request: Request):
+    _require_auth(request)
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"valid": False, "errors": ["Invalid JSON"]}, status_code=422)
+
+    config_data = payload.get("config", {})
+    farm = payload.get("farm")
+    micro_path = payload.get("micro_path")
+    output_dir = payload.get("output_dir")
+
+    errors = _validate_config(config_data)
+    if errors:
+        return JSONResponse({"valid": False, "errors": errors}, status_code=422)
+
+    try:
+        config = SchedulerConfig(**config_data)
+    except Exception as e:
+        return JSONResponse({"valid": False, "errors": [str(e)]}, status_code=422)
+
+    from src.atm.orca.config import carregar_config
+    cfg = carregar_config()
+
+    result = run_scheduler(cfg, config, farm=farm, micro_path=micro_path, output_dir=output_dir)
+    if result.success:
+        return JSONResponse(result.to_json(), status_code=200)
+    else:
+        return JSONResponse({"success": False, "error": result.error}, status_code=422)
 
 
 @app.get("/term/api/sessions")

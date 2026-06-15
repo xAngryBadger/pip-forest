@@ -1487,7 +1487,7 @@
   "empresas": {},
   "modo_somente_hh": true,
   "coluna_metodologia_micro": "METODOLOGIA PROPOSTA",
-  "jornada_horas": 4.6,
+  "jornada_horas": 1.0,
   "custo_hora_tf": 0.0,
   "arquivo_micro": "MICROPLANEJAMENTO_CONSOLIDADO_INOVESA 1.xlsx"
 }
