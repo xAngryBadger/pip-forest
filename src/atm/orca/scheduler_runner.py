@@ -1,3 +1,10 @@
+"""
+Scheduler runner — high-level API to execute scheduler from config.
+
+Provides `run_scheduler(cfg, config, farm, micro_path, output_dir) -> ScheduleResult`.
+Used by: web API headless endpoint, wizard background jobs, CLI batch mode.
+"""
+
 import src.atm.orca.scheduler_core as _sc
 
 from .config import OUTPUT_DIR

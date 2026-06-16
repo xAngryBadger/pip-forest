@@ -1,3 +1,10 @@
+"""
+Scheduler configuration dataclasses — TurmaSpec, EquipeSpec, SchedulerConfig, ScheduleResult.
+
+Defines the public configuration interface for the scheduler engine.
+Used by: web API, CLI entry, wizard, batch runner.
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional
 
